@@ -1,0 +1,32 @@
+[
+  {
+    "file": "CC-BY-3.0.txt",
+    "source_url": "https://creativecommons.org/licenses/by/3.0/legalcode.txt",
+    "saved_utc": "2026-10-21T18:00:27.996325+00:00",
+    "sha256": "e6bc9e9c474700b708f568bac9e5a8a9bcb2b1dad53442f5ba449fcb848b8e76"
+  },
+  {
+    "file": "CC0-1.0.txt",
+    "source_url": "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt",
+    "saved_utc": "2026-10-21T18:00:30.934617+00:00",
+    "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+  },
+  {
+    "file": "Public-Domain-Mark.html",
+    "source_url": "https://creativecommons.org/publicdomain/mark/1.0/",
+    "saved_utc": "2026-10-21T18:00:33.892329+00:00",
+    "sha256": "28b3199d4df73c35c3593b1b42b41300fdfbd9a22ca851fd18e1c87a506f43ff"
+  },
+  {
+    "file": "Public-Domain-Certification.html",
+    "source_url": "https://creativecommons.org/licenses/publicdomain/",
+    "saved_utc": "2026-10-21T18:00:42.480032+00:00",
+    "sha256": "65f54141073541b528db11826a089c53e250613eb2e408ede7b6aa864552df74"
+  },
+  {
+    "file": "LoC-public-domain-guidance.html",
+    "source_url": "https://ask.loc.gov/film-tv-video/faq/302791",
+    "saved_utc": "2026-10-21T18:00:45.300057+00:00",
+    "sha256": "63e4c032b491d0640d2d5d66596c8b6e964f3ab2f63e8e641882b0beba2a6a27"
+  }
+]
