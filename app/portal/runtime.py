@@ -12,10 +12,10 @@ def configure():
         return
     config = json.loads(Path(settings.PIVAULT_NATIVE_CONFIG).read_text())
     from .services import ADAPTERS
-    from .vaultwarden import VaultwardenAdapter
-    from .jellyfin import JellyfinAdapter
-    from .homebox import HomeboxAdapter
-    from .navidrome import NavidromeAdapter
+    from .integrations.vaultwarden import VaultwardenAdapter
+    from .integrations.jellyfin import JellyfinAdapter
+    from .integrations.homebox import HomeboxAdapter
+    from .integrations.navidrome import NavidromeAdapter
     for key, value in config.get('public_urls', {}).items():
         parsed = urlsplit(value)
         if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:

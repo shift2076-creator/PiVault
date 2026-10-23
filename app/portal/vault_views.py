@@ -2,7 +2,6 @@ import base64
 import io
 import json
 import logging
-from pathlib import Path
 import qrcode
 import qrcode.image.svg
 from django.core import signing
@@ -18,7 +17,7 @@ from .models import ClientPackage
 from .runtime import PUBLIC_URLS, credential_plan
 from .enrollment import enrollment_user, plan_identity, SetupConfigurationError
 from .setup_logging import begin, end, event
-from .vaultwarden import validate_bundle
+from .integrations.vaultwarden import validate_bundle
 
 
 def draft(invitation, email):
@@ -84,18 +83,6 @@ def join_bundle(request, invitation, user, password):
         return validate_bundle(value['bundle'], password, user.email, manifest)
     except (ValueError, TypeError, KeyError, signing.BadSignature):
         raise ValidationError('Could not validate the encrypted vault setup. Enable JavaScript and try joining again.') from None
-
-
-@require_GET
-def crypto_script(request):
-    return HttpResponse((Path(__file__).parent / 'vault-crypto.js').read_text(),
-                        content_type='application/javascript; charset=utf-8')
-
-
-@require_GET
-def complete_script(request):
-    return HttpResponse((Path(__file__).parent / 'complete.js').read_text(),
-                        content_type='application/javascript; charset=utf-8')
 
 
 @require_GET

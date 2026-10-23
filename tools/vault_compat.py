@@ -23,7 +23,7 @@ def verify(cli_path):
     email, password = 'vault-fixture@example.com', 'Fixture-only-passphrase-42!'
     item = {'name': 'PiVault fixture', 'username': 'Assigned name', 'uri': 'https://video.pivault.home.arpa'}
     node = 'require(process.argv[1]); let input=""; process.stdin.on("data",x=>input+=x); process.stdin.on("end",async()=>{const v=JSON.parse(input); console.log(JSON.stringify(await PiVaultVaultCrypto.create(v.email,v.password,v.items)));});'
-    result = subprocess.run(['node', '-e', node, str(root / 'portal/vault-crypto.js')],
+    result = subprocess.run(['node', '-e', node, str(root / 'portal/static/portal/vault-crypto.js')],
         input=json.dumps({'email': email, 'password': password, 'items': {'videos': item}}),
         capture_output=True, text=True, check=True, timeout=60)
     bundle = json.loads(result.stdout)

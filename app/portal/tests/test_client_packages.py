@@ -7,9 +7,9 @@ from unittest.mock import patch
 import zipfile
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
-from .client_packages import (FIREFOX_ID, apply_release, client_rows, maintain,
+from portal.client_packages import (FIREFOX_ID, apply_release, client_rows, maintain,
                              record_release, release_path, safe_url)
-from .models import ClientPackage, ClientRelease, Notification, User
+from portal.models import ClientPackage, ClientRelease, Notification, User
 
 
 class ClientPackageTests(TestCase):

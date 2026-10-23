@@ -7,9 +7,9 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import Client, TestCase
 from django.utils import timezone
-from .invitations import issue
-from .models import Attempt, Invitation, User
-from .services import normalize_access
+from portal.invitations import issue
+from portal.models import Attempt, Invitation, User
+from portal.services import normalize_access
 
 
 class EnrollmentTests(TestCase):
@@ -79,7 +79,7 @@ class EnrollmentTests(TestCase):
 
     def test_unavailable_modes_are_removed_not_disabled(self):
         from types import SimpleNamespace
-        from .services import ADAPTERS
+        from portal.services import ADAPTERS
         self.client.force_login(self.admin)
         with patch.dict(ADAPTERS, {'books':SimpleNamespace(modes=('shared',))}):
             response=self.client.get('/users/add',secure=True)
@@ -108,7 +108,7 @@ class EnrollmentTests(TestCase):
     def test_vault_adapter_receives_exact_join_password_and_assigned_name(self):
         from types import SimpleNamespace
         from unittest.mock import Mock
-        from .services import ADAPTERS
+        from portal.services import ADAPTERS
         adapter=SimpleNamespace(modes=('isolated',),provision=Mock())
         with patch.dict(ADAPTERS, {'passwords':adapter}):
             invitation,code=issue('Admin-assigned Alex','user',{'passwords':'isolated'},self.admin)

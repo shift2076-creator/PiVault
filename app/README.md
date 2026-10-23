@@ -43,13 +43,13 @@ Admin assigns name, role and service access. Four-character case-insensitive inv
 
 The vault adapter refuses an existing same-email vault. Failed enrollment leaves the PiVault invitation unused and removes only native accounts newly created by that attempt. Ambiguous creation or failed cleanup creates an Admin notification. Password changes and later vault synchronization are not part of this revision.
 
-The existing notification bell, per-admin unread state, shared decision history and cinema filesize-review bridge are retained. See `NOTIFICATIONS.md` and `VAULT.md` for the API and encryption details.
+The existing notification bell, per-admin unread state, shared decision history and cinema filesize-review bridge are retained. See `docs/NOTIFICATIONS.md` and `docs/VAULT.md` for the API and encryption details.
 
 ## Validation
 
 81 backend tests, 34 installer/maintenance tests, and 8 existing checker tests pass locally. Checks include enrollment, same-password encrypted bundle validation, native account conflict protection and rollback, client approval permissions/CSRF, checksum rejection, no unapproved publication, old-approval downgrade prevention, single-password SSH/sudo, large archive transfer, preservation/rollback and cinema enabled/disabled states.
 
-The official npm Bitwarden CLI **2026.10.0** successfully logs into a temporary HTTPS fixture and decrypts a login produced by `portal/vault-crypto.js`. This checks interoperability with independent client code, not just our own decryptor. Caddy 2.10's actual parser verifies the candidate routes, existing TLS configuration and private Admin block. Python, Bash and JavaScript syntax and Django migration consistency are checked.
+The official npm Bitwarden CLI **2026.10.0** successfully logs into a temporary HTTPS fixture and decrypts a login produced by `portal/static/portal/vault-crypto.js`. This checks interoperability with independent client code, not just our own decryptor. Caddy 2.10's actual parser verifies the candidate routes, existing TLS configuration and private Admin block. Python, Bash and JavaScript syntax and Django migration consistency are checked.
 
 Docker is unavailable in the development environment. A live ARM Docker installation, browser visual pass and actual PiVault account enrollment have not been run here. The installer performs image tests and live route checks when run on the Pi. Native API tests use fixtures; the CLI compatibility check is a real official-client decrypt against a local fixture, not a live Vaultwarden instance.
 

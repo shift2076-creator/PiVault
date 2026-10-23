@@ -4,9 +4,9 @@ from unittest.mock import Mock,patch
 from urllib.error import HTTPError
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase,TestCase
-from .jellyfin import JellyfinAdapter,JellyfinCleanupRequired
-from .native_http import CreatedAccount,JSONClient,NativeError
-from .services import ADAPTERS,provision
+from portal.integrations.jellyfin import JellyfinAdapter,JellyfinCleanupRequired
+from portal.integrations.native_http import CreatedAccount,JSONClient,NativeError
+from portal.services import ADAPTERS,provision
 
 
 class JellyfinTests(SimpleTestCase):
@@ -97,8 +97,8 @@ class CompensationTests(SimpleTestCase):
 class EnrollmentCleanupTests(TestCase):
     def test_invitation_save_failure_removes_native_account(self):
         from django.db import IntegrityError
-        from .invitations import issue
-        from .models import Invitation,User
+        from portal.invitations import issue
+        from portal.models import Invitation,User
         admin=User.objects.create_user(username='owner',email='owner@example.com',
             password='Owner-password-123!',display_name='Owner',role='admin')
         rollback=Mock()
@@ -116,8 +116,8 @@ class EnrollmentCleanupTests(TestCase):
         self.assertIsNone(invitation.used_at)
 
     def test_failed_cleanup_preserves_admin_notice_after_enrollment_rollback(self):
-        from .invitations import issue
-        from .models import Notification,User
+        from portal.invitations import issue
+        from portal.models import Notification,User
         admin=User.objects.create_user(username='owner',email='owner@example.com',
             password='Owner-password-123!',display_name='Owner',role='admin')
         rollback=Mock(side_effect=NativeError('Music',503))

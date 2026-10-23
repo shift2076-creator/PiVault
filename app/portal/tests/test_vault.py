@@ -6,12 +6,12 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from django.core.exceptions import ValidationError
 from django.test import TestCase
-from .invitations import issue
-from .models import Notification, User
-from .native_http import CreatedAccount, NativeError
-from .runtime import PUBLIC_URLS, credential_plan
-from .services import ADAPTERS, normalize_access, provision
-from .vaultwarden import VaultwardenAdapter, VaultCleanupRequired, validate_bundle
+from portal.invitations import issue
+from portal.models import Notification, User
+from portal.integrations.native_http import CreatedAccount, NativeError
+from portal.runtime import PUBLIC_URLS, credential_plan
+from portal.services import ADAPTERS, normalize_access, provision
+from portal.integrations.vaultwarden import VaultwardenAdapter, VaultCleanupRequired, validate_bundle
 
 PASSWORD = 'A-long-new-passphrase-482!'
 EMAIL = 'alex@example.com'
@@ -58,7 +58,7 @@ class NativeVaultTests(TestCase):
                                         'https://192.168.4.90', self.client_api)
 
     def call(self):
-        with patch('portal.vaultwarden.VaultHTTP', return_value=self.auth):
+        with patch('portal.integrations.vaultwarden.VaultHTTP', return_value=self.auth):
             return self.adapter.provision(user=self.user, password=PASSWORD, mode='isolated', bundle=fixture())
 
     def test_registers_private_vault_and_only_encrypted_logins(self):
