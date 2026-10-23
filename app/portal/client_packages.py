@@ -15,7 +15,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 from packaging.version import Version, InvalidVersion
-from .models import ClientPackage, ClientRelease, Notification
+from .models import ClientPackage, ClientRelease, Notification, SiteSettings
 from .notifications import notify
 
 CLIENTS = {'android': ('Android app', '.apk', 'application/vnd.android.package-archive'),
@@ -209,6 +209,9 @@ def apply_release(release):
 
 
 def maintain(check_only=False):
+    if SiteSettings.is_offline():
+        # Every step needs the internet; offline mode pauses them without raising notices.
+        return []
     cache_root().mkdir(mode=0o750, parents=True, exist_ok=True)
     with (cache_root() / '.maintenance.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

@@ -95,7 +95,7 @@ class CompensationTests(SimpleTestCase):
 
 
 class EnrollmentCleanupTests(TestCase):
-    def test_invitation_save_failure_removes_native_account(self):
+    def test_account_save_failure_removes_native_account_and_returns_invitation(self):
         from django.db import IntegrityError
         from portal.invitations import issue
         from portal.models import Invitation,User
@@ -106,7 +106,7 @@ class EnrollmentCleanupTests(TestCase):
             return_value=CreatedAccount('videos','new-1',rollback)))
         with patch.dict(ADAPTERS,{'videos':adapter}):
             invitation,code=issue('Alex','user',{'videos':'shared'},admin)
-            with patch.object(Invitation,'save',side_effect=IntegrityError('database write failed')):
+            with patch.object(User,'save',side_effect=IntegrityError('database write failed')):
                 response=self.client.post('/join',{'code':code,'email':'alex@example.com',
                     'password':'Do-not-store-this-password-123!','password_confirm':'Do-not-store-this-password-123!'},secure=True)
         self.assertContains(response,'Account setup is temporarily unavailable',status_code=503)

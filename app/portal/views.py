@@ -1,7 +1,6 @@
 import base64
 import io
 import logging
-import uuid
 import qrcode
 import qrcode.image.svg
 from django.conf import settings
@@ -16,7 +15,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 from django.views.decorators.debug import sensitive_post_parameters
 from .invitations import find_valid, issue, rate_limit
-from .models import User
+from .models import Invitation, SiteSettings, User
 from .services import SERVICES, ADAPTERS, provision, rollback_accounts
 from .enrollment import enrollment_user, invitation_default, SetupConfigurationError
 from .integrations.native_http import NativeError
@@ -38,6 +37,7 @@ def page(request, mode, **context):
     from .client_packages import client_rows
     return render(request, 'users.html', {'mode': mode, 'services': services,
                   'client_rows': client_rows() if mode == 'admin' else [],
+                  'offline_mode': SiteSettings.is_offline() if mode == 'admin' else False,
                   'name': request.POST.get('name', ''),
                   'selected_role': request.POST.get('role', 'user'), **context}, status=status)
 
@@ -53,6 +53,7 @@ def join(request):
         return page(request, 'join')
     reference, context_token = begin('join')
     created = []
+    claimed = None
     committed = False
     stage = 'validation'
     try:
@@ -66,32 +67,35 @@ def join(request):
         validate_email(email)
         if len(email) > 254 or len(password) > 1024:
             raise ValidationError('Email or password is too long.')
-        # SQLite IMMEDIATE serializes the first-admin decision and invite use.
+        # A short IMMEDIATE transaction checks the request and claims the single-use
+        # invitation. Slow work (vault key checks, other apps' APIs) then runs without
+        # holding SQLite's write lock, so the rest of the portal stays responsive.
         with transaction.atomic():
             stage = 'policy'
             invitation = find_valid(request.POST.get('code', ''))
             if User.objects.filter(email__iexact=email).exists():
                 raise ValidationError('An account already uses that email. Sign in instead.')
             user = enrollment_user(invitation, email)
-            event('policy_selected', stage='invitation' if invitation else 'first_admin')
+            event('policy_selected', stage='invitation')
             stage = 'password_validation'
             validate_password(password, user)
-            stage = 'vault_bundle'
-            from .vault_views import join_bundle
-            bundle = join_bundle(request, invitation, user, password)
-            event('bundle_validated', stage=stage)
             if not User.objects.exists() and user.role != 'admin':
                 raise ValidationError('The first account must be Admin.')
-            stage = 'portal_account'
-            user.set_password(password)
+            stage = 'claim'
+            if not Invitation.objects.filter(pk=invitation.pk, used_at=None).update(used_at=timezone.now()):
+                raise ValidationError('Invalid or expired invitation code.')
+            claimed = invitation
+        stage = 'vault_bundle'
+        from .vault_views import join_bundle
+        bundle = join_bundle(request, invitation, user, password)
+        event('bundle_validated', stage=stage)
+        stage = 'services'
+        user.set_password(password)
+        created = provision(user, password, vault_bundle=bundle) or []
+        stage = 'portal_account'
+        with transaction.atomic():
             user.save()
-            stage = 'services'
-            created = provision(user, password, vault_bundle=bundle) or []
-            user.save(update_fields=['vault_user_id', 'vault_items'])
-            if invitation is not None:
-                invitation.used_at = timezone.now()
-                invitation.save(update_fields=['used_at'])
-            stage = 'commit'
+        stage = 'commit'
         committed = True
         event('account_committed', stage=stage)
         stage = 'session'
@@ -102,6 +106,12 @@ def join(request):
         failures = list(getattr(error, 'cleanup_failures', []))
         if not committed:
             failures.extend(rollback_accounts(created))
+            if claimed is not None:
+                # Return the invitation so the person can simply try again.
+                try:
+                    Invitation.objects.filter(pk=claimed.pk).update(used_at=None)
+                except Exception as release_error:
+                    event('invitation_release_failed', stage=stage, error=release_error, level=logging.ERROR)
         if failures:
             # This is outside the rolled-back identity transaction.
             try:
@@ -180,6 +190,16 @@ def add_user(request):
     except ValidationError as error:
         event('invitation_rejected', stage='invitation', status=400, error=error, level=logging.WARNING)
         return page(request, 'admin', error=error_text(error), status_code=400)
+
+
+@require_POST
+def offline_mode(request):
+    if not request.user.is_authenticated:
+        return redirect('/users/sign-in')
+    if request.user.role != 'admin':
+        return HttpResponseForbidden()
+    SiteSettings.set_offline(request.POST.get('offline') == 'on')
+    return redirect('/users/add')
 
 
 @require_POST

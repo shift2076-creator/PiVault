@@ -177,8 +177,13 @@
     {% endif %}
   </div>
   {% if mode == 'admin' %}
+  <section class="client-updates" id="offline-mode"><h2>Offline mode</h2>
+    {% if offline_mode %}<p><strong>On.</strong> <span class="secondary">Nightly jobs that need the internet are paused: release checks, approved app downloads and cinema downloads. Nothing reports internet errors.</span></p>
+    {% else %}<p><strong>Off.</strong> <span class="secondary">Nightly jobs use the internet for release checks and downloads. Turn this on when the internet is gone for good.</span></p>{% endif %}
+    <form action="/users/offline-mode" method="post">{% csrf_token %}<input type="hidden" name="offline" value="{% if offline_mode %}off{% else %}on{% endif %}"><button type="submit">{% if offline_mode %}Turn offline mode off{% else %}Turn offline mode on{% endif %}</button></form>
+  </section>
   <section class="client-updates"><h2>Local apps and extensions</h2>
-    <p class="secondary">Checked daily at 2:00 AM. Local downloads change only after an Admin approves the notification.</p>
+    <p class="secondary">{% if offline_mode %}Paused by offline mode. Already approved local copies stay available.{% else %}Checked daily at 2:00 AM. Local downloads change only after an Admin approves the notification.{% endif %}</p>
     <div class="client-row secondary"><span>Client</span><span>Local</span><span>Available</span><span>Status</span></div>
     {% for client in client_rows %}<div class="client-row"><strong>{{ client.label }}</strong><span>{{ client.current }}</span><span>{{ client.latest }}</span>
       <span>{{ client.status }}{% if client.review_url %} · <a href="{{ client.review_url }}">Review update</a>{% endif %}
