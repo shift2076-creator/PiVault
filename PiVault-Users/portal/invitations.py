@@ -1,0 +1,66 @@
+import hashlib
+import hmac
+import re
+import secrets
+import string
+from datetime import timedelta
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
+from django.utils import timezone
+from .models import Attempt, Invitation
+from .services import normalize_access
+
+
+def code_digest(code):
+    return hmac.new(settings.SECRET_KEY.encode(), code.strip().upper().encode(), hashlib.sha256).hexdigest()
+
+
+def issue(name, role, services, issuer=None):
+    name = name.strip()
+    if not name or len(name) > 80 or any(ord(c) < 32 for c in name):
+        raise ValidationError('Enter a name of 1–80 characters.')
+    if role not in ('admin', 'user'):
+        raise ValidationError('Choose Admin or User.')
+    services = normalize_access(services)
+    if services.get('passwords') == 'isolated' and len(name) > 50:
+        raise ValidationError('Password Manager names must be 50 characters or fewer.')
+    for _ in range(100):
+        code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
+        try:
+            with transaction.atomic():
+                invitation = Invitation.objects.create(
+                    digest=code_digest(code), name=name, role=role, services=services,
+                    created_by=issuer, expires_at=timezone.now() + timedelta(minutes=30),
+                )
+            return invitation, code
+        except IntegrityError:
+            continue
+    raise ValidationError('Could not issue a code. Try again.')
+
+
+def find_valid(code):
+    code = code.strip()
+    if not re.fullmatch('[A-Za-z0-9]{4}', code, flags=re.ASCII):
+        raise ValidationError('Invalid or expired invitation code.')
+    invitation = Invitation.objects.filter(
+        digest=code_digest(code), used_at=None, expires_at__gt=timezone.now(),
+    ).first()
+    if not invitation:
+        raise ValidationError('Invalid or expired invitation code.')
+    return invitation
+
+
+def rate_limit(request, action):
+    # Bound IP is supplied by trusted Caddy, never a client-controlled XFF chain.
+    ip = request.META.get('HTTP_X_PIVAULT_CLIENT_IP', request.META.get('REMOTE_ADDR', ''))
+    scope = hmac.new(settings.SECRET_KEY.encode(), f'{action}:{ip}'.encode(), hashlib.sha256).hexdigest()
+    now = timezone.now()
+    cutoff = now - timedelta(minutes=30)
+    with transaction.atomic():
+        Attempt.objects.filter(at__lt=cutoff).delete()
+        attempts = Attempt.objects.filter(at__gte=cutoff)
+        if attempts.filter(scope=scope).count() >= 12 or attempts.count() >= 180:
+            return False
+        Attempt.objects.create(scope=scope, at=now)
+    return True
