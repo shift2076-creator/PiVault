@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -42,14 +43,19 @@ def download(url, part, size):
     offset = part.stat().st_size if part.exists() else 0
     while offset < size:
         request = Request(url, headers={'Range': 'bytes=%d-' % offset})
-        with urlopen(request, timeout=120) as response, open(part, 'ab') as stream:
-            if offset and response.status != 206:
-                raise SystemExit('Mirror refused to resume; delete ' + str(part) + ' and rerun.')
-            while chunk := response.read(CHUNK):
-                stream.write(chunk)
-                offset += len(chunk)
-                if offset % 1_000_000_000 < len(chunk):
-                    print('%.0f / %.0f GB' % (offset / 1e9, size / 1e9), flush=True)
+        try:
+            with urlopen(request, timeout=120) as response, open(part, 'ab') as stream:
+                if offset and response.status != 206:
+                    raise SystemExit('Mirror refused to resume; delete ' + str(part) + ' and rerun.')
+                while chunk := response.read(CHUNK):
+                    stream.write(chunk)
+                    offset += len(chunk)
+                    if offset % 1_000_000_000 < len(chunk):
+                        print('%.0f / %.0f GB' % (offset / 1e9, size / 1e9), flush=True)
+        except OSError as error:
+            offset = part.stat().st_size
+            print('Connection lost (%s); retrying in 60 s at %.1f GB' % (error, offset / 1e9), flush=True)
+            time.sleep(60)
 
 
 def sha256(path):
