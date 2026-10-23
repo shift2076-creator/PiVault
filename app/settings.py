@@ -74,5 +74,6 @@ LOGGING = {
 }
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 365 * 10  # No practical inactivity expiry, as before.
+SESSION_SAVE_EVERY_REQUEST = False
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'

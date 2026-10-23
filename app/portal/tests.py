@@ -177,6 +177,14 @@ class EnrollmentTests(TestCase):
         self.assertEqual(cookie['samesite'],'Lax')
         self.assertEqual(response['Cache-Control'],'no-store, private')
 
+    def test_authenticated_read_does_not_write_session(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        self.client.force_login(self.admin)
+        with CaptureQueriesContext(connection) as queries:
+            self.client.get('/users/session', secure=True)
+        self.assertFalse([q for q in queries if 'django_session' in q['sql'] and q['sql'].lstrip().upper().startswith(('UPDATE', 'INSERT'))])
+
 
 class BootstrapTests(TestCase):
     def test_first_admin_is_local_command_not_public_race(self):
