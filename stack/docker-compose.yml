@@ -1,7 +1,7 @@
 version: '3.7'
 services:
   jellyfin:
-    image: jellyfin/jellyfin:12.2@sha256:357724bf0ae27a672c7cbaa899db2d9abeb13dbd8657ccce750258a4c059d037
+    image: jellyfin/jellyfin:12.2
     container_name: jellyfin
     user: 1000:1000
     ports:
@@ -24,7 +24,7 @@ services:
       ND_BASEURL: /music
       ND_UIWELCOMEMESSAGE: PiVault Music
   calibre-web:
-    image: lscr.io/linuxserver/calibre-web:0.6.27-ls406@sha256:b206b791d77b731203fb47b5733d055c8d4ebd7c9fa59a4569a5d6a2b3ebda54
+    image: lscr.io/linuxserver/calibre-web:0.6.27-ls406
     container_name: calibre-web
     environment:
       PUID: '1000'
