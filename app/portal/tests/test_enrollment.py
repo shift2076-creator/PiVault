@@ -214,9 +214,20 @@ class EnrollmentTests(TestCase):
         from django.db import connection
         from django.test.utils import CaptureQueriesContext
         self.client.force_login(self.admin)
+        self.client.get('/users/session', secure=True)  # First read stamps the monthly renewal.
         with CaptureQueriesContext(connection) as queries:
             self.client.get('/users/session', secure=True)
         self.assertFalse([q for q in queries if 'django_session' in q['sql'] and q['sql'].lstrip().upper().startswith(('UPDATE', 'INSERT'))])
+
+    def test_session_cookie_is_renewed_monthly(self):
+        self.client.force_login(self.admin)
+        self.assertIn('__Host-pivault', self.client.get('/users/session', secure=True).cookies)
+        self.assertNotIn('__Host-pivault', self.client.get('/users/session', secure=True).cookies)
+        session = self.client.session
+        session['_pivault_refreshed'] -= 31 * 24 * 60 * 60
+        session.save()
+        renewed = self.client.get('/users/session', secure=True).cookies['__Host-pivault']
+        self.assertGreater(int(renewed['max-age']), 365 * 24 * 60 * 60)
 
 
 class BootstrapTests(TestCase):
