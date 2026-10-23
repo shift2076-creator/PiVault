@@ -5,8 +5,8 @@
 
 BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/home/snx/pi-services/cinema"
-VIDEO_ROOT="/media/snx/C29C87F99C87E66F/Server/Videos"
-DISK_UUID="C29C87F99C87E66F"
+VIDEO_DISK="/srv/disk1"
+VIDEO_ROOT="$VIDEO_DISK/videos"
 NOTIFICATION_ROOT="/srv/pi-server/config/notifications"
 export TZ=America/New_York
 
@@ -14,19 +14,8 @@ log() { printf '[%s] %s\n' "$(date '+%F %T %Z')" "$*"; }
 die() { log "ERROR: $*" >&2; return 1; }
 
 host_check() {
-    [[ "$(hostname -s)" == pivault ]] || { die 'Run this on pivault, not Greenie.'; return 1; }
-    [[ "$(id -un)" == snx ]] || { die 'Run as snx, without sudo in front of bash.'; return 1; }
-    local actual
-    actual=$(findmnt -n -o UUID --target /media/snx/C29C87F99C87E66F 2>/dev/null)
-    [[ "${actual^^}" == "$DISK_UUID" ]] || { die 'The PiVault USB disk is not mounted at its expected path.'; return 1; }
-}
-
-dependencies() {
-    local cmd missing=0
-    for cmd in curl python3 flock findmnt du df stat md5sum awk date systemctl systemd-analyze; do
-        command -v "$cmd" >/dev/null || { printf 'Missing command: %s\n' "$cmd" >&2; missing=1; }
-    done
-    [[ "$missing" == 0 ]]
+    (( EUID != 0 )) || { die 'Run as snx, not with sudo.'; return 1; }
+    mountpoint -q -- "$VIDEO_DISK" || { die "$VIDEO_DISK is not mounted."; return 1; }
 }
 
 catalogue() {
@@ -150,7 +139,6 @@ transfer() {
     fi
     used=$(du -sb -- "$VIDEO_ROOT" | awk '{print $1}') || return 1
     free=$(df -B1 --output=avail -- "$VIDEO_ROOT" | awk 'NR==2 {print $1}') || return 1
-    [[ "$used" =~ ^[0-9]+$ && "$free" =~ ^[0-9]+$ ]] || return 1
     remaining=$((size-have+rights_bytes+8192))
     summary=$(awk -v n="$size" -v m="$minutes" 'BEGIN {printf "%.2f GiB; reference runtime %s min; approx %.2f Mbps",n/1073741824,m,n*8/(m*60*1000000)}')
     log "Preflight $title ($year), $provider: $summary."
@@ -173,7 +161,6 @@ transfer() {
         die "Verification failed; partial retained for inspection: $part"
         return 1
     fi
-    mkdir -p -- "$folder" || return 1
     mkdir -p -- "$folder/rights" || return 1
     cp -a -- "$dossier/." "$folder/rights/" || return 1
     mv -n -- "$part" "$final" || return 1
@@ -190,11 +177,7 @@ run_round() {
     [[ -f "$BASE/cinema.conf" ]] || { die 'Install this script first.'; return 1; }
     # This file is generated locally by install, containing only CAP_BYTES.
     source "$BASE/cinema.conf" || return 1
-    [[ "$CAP_BYTES" =~ ^[1-9][0-9]*$ ]] || return 1
-    [[ "$TOLERANCE_PERCENT" =~ ^[1-9][0-9]?$ ]] || return 1
-    [[ -f "$BASE/cinema-notifications.py" ]] || { die 'Missing notification helper.'; return 1; }
     host_check || return 1
-    dependencies || return 1
     mkdir -p -- "$BASE/state" "$VIDEO_ROOT/.pivault-incoming" || return 1
     exec 9>"$BASE/state/run.lock" || return 1
     flock -n 9 || { die 'A cinema round is already running.'; return 75; }
@@ -283,11 +266,8 @@ run_round() {
 install_cinema() {
     local cap=${1:-} service timer
     [[ "$cap" =~ ^[1-9][0-9]{0,5}$ ]] || { die 'Usage: bash PiVault-Cinema.sh install CAP_IN_GiB'; return 1; }
-    dependencies || return 1
     host_check || return 1
     [[ -f "$BASE/cinema-rights.py" && -f "$BASE/rights-evidence/catalogue.json" ]] || { die 'Keep the rights helper and rights-evidence folder beside the installer.'; return 1; }
-    [[ -f "$BASE/cinema-notifications.py" ]] || { die 'Keep cinema-notifications.py beside PiVault-Cinema.sh when installing.'; return 1; }
-    systemd-analyze calendar '*-*-* 02:00:00 America/New_York' >/dev/null || return 1
     mkdir -p -- "$INSTALL_DIR/state" "$INSTALL_DIR/rights-evidence" "$VIDEO_ROOT" || return 1
     if [[ "$BASE/PiVault-Cinema.sh" != "$INSTALL_DIR/PiVault-Cinema.sh" ]]; then
         cp -- "${BASH_SOURCE[0]}" "$INSTALL_DIR/PiVault-Cinema.sh" || return 1
