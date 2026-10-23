@@ -47,8 +47,9 @@ def download(url, part, size):
                 raise SystemExit('Mirror refused to resume; delete ' + str(part) + ' and rerun.')
             while chunk := response.read(CHUNK):
                 stream.write(chunk)
-        offset = part.stat().st_size
-        print('%.1f / %.1f GB' % (part.stat().st_size / 1e9, size / 1e9), flush=True)
+                offset += len(chunk)
+                if offset % 1_000_000_000 < len(chunk):
+                    print('%.0f / %.0f GB' % (offset / 1e9, size / 1e9), flush=True)
 
 
 def sha256(path):
