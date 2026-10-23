@@ -21,4 +21,5 @@ urlpatterns = [
 ]
 
 from .vault_repair import repair as repair_existing_vault
-urlpatterns += [path("users/repair-vault", repair_existing_vault)]
+urlpatterns += [path("users/repair-vault", repair_existing_vault),
+                path('users/vault-repair.js', views.script('vault-repair.js'))]

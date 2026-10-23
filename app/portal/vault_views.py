@@ -14,7 +14,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
 from .client_packages import CLIENTS, client_rows, release_path
 from .invitations import find_valid, rate_limit
-from .models import ClientPackage, User
+from .models import ClientPackage
 from .runtime import PUBLIC_URLS, credential_plan
 from .enrollment import enrollment_user, plan_identity, SetupConfigurationError
 from .setup_logging import begin, end, event
@@ -43,7 +43,7 @@ def plan(request):
         validate_email(email)
         if len(email) > 254:
             raise ValidationError('Email is too long.')
-        invitation = find_valid(request.POST.get('code', '')) if User.objects.exists() else None
+        invitation = find_valid(request.POST.get('code', ''))
         user = draft(invitation, email)
         required = user.service_access.get('passwords', 'none') != 'none'
         if not required:

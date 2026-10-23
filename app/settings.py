@@ -6,7 +6,7 @@ DATA_DIR = Path(os.environ.get('PIVAULT_DATA', BASE_DIR / 'data'))
 DATA_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
 SECRET_KEY = os.environ['PIVAULT_SECRET_KEY']
 DEBUG = False
-ALLOWED_HOSTS = ['192.168.4.90', 'localhost', '127.0.0.1', 'testserver']
+ALLOWED_HOSTS = ['pivault.home.arpa', '192.168.4.90', 'localhost', '127.0.0.1']
 ROOT_URLCONF = 'portal.urls'
 INSTALLED_APPS = [
     'django.contrib.auth', 'django.contrib.contenttypes',
@@ -51,7 +51,7 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_NAME = '__Host-pivault-csrf'
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_SAMESITE = 'Lax'
-CSRF_TRUSTED_ORIGINS = ['https://192.168.4.90:8443']
+CSRF_TRUSTED_ORIGINS = ['https://pivault.home.arpa', 'https://192.168.4.90:8443']
 # Only use behind a private, trusted Caddy upstream which overwrites this header.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
@@ -59,7 +59,7 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'same-origin'
 X_FRAME_OPTIONS = 'DENY'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 131072
-JOIN_URL = 'https://192.168.4.90:8443/join'
+JOIN_URL = 'https://pivault.home.arpa/join'
 EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
 PIVAULT_NOTIFICATION_ROOT = os.environ.get('PIVAULT_NOTIFICATION_ROOT', '/srv/pi-server/config/notifications')
 PIVAULT_CLIENT_ROOT = os.environ.get('PIVAULT_CLIENT_ROOT', DATA_DIR / 'client-packages')
@@ -74,5 +74,6 @@ LOGGING = {
 }
 
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 365 * 10  # No practical inactivity expiry, as before.
+SESSION_SAVE_EVERY_REQUEST = False
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'

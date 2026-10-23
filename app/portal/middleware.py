@@ -4,10 +4,6 @@ class PrivateResponseMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        # Authenticated sessions have no inactivity countdown.
-        if request.user.is_authenticated:
-            from datetime import datetime, timezone
-            request.session.set_expiry(datetime.max.replace(tzinfo=timezone.utc))
         response['Cache-Control'] = 'no-store, private'
         response['X-Frame-Options'] = 'DENY'
         response['Content-Security-Policy'] = (

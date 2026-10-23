@@ -14,7 +14,7 @@ class EntryFlowTests(TestCase):
  def test_first_admin_join_goes_to_dashboard(self):
   output=StringIO();call_command('first_admin','Owner',stdout=output)
   code=re.search(r'Code: ([A-Z0-9]{4})',output.getvalue()).group(1)
-  result=self.client.post('/join',{'code':code,'email':'owner@example.com','password':'Local-only-passphrase-849!'},secure=True)
+  result=self.client.post('/join',{'code':code,'email':'owner@example.com','password':'Local-only-passphrase-849!','password_confirm':'Local-only-passphrase-849!'},secure=True)
   self.assertRedirects(result,'/',fetch_redirect_response=False)
   self.assertEqual(User.objects.get().role,'admin')
   self.assertTrue(self.client.get('/users/session',secure=True).json()['admin'])
@@ -38,5 +38,7 @@ class NavigationTests(TestCase):
   with patch.dict(PUBLIC_URLS,{'passwords':'https://192.168.4.90'}):response=self.client.get('/users/complete',secure=True)
   self.assertContains(response,'Go to my Dashboard',count=1)
   self.assertContains(response,'Install Password Manager')
-  for removed in ['Open my vault','Self-hosted server address','copy-server','vault-server','>Home</a>','Sign out','/users/complete.js']:
+  # The server address row stays: Bitwarden clients need it for Self-hosted sign-in.
+  self.assertContains(response,'id="vault-server"')
+  for removed in ['Open my vault','>Home</a>','Sign out']:
    self.assertNotContains(response,removed)
