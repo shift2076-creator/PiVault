@@ -73,7 +73,7 @@ def main():
     target, part = LIBRARY / name, LIBRARY / (name + '.part')
     have = part.stat().st_size if part.exists() else 0
     free = shutil.disk_usage(LIBRARY).free
-    print('%s: %.1f GB; %.1f GB free on the Kiwix drive' % (name, size / 1e9, free / 1e9))
+    print('%s: %.1f GB; %.1f GB free on the Kiwix drive' % (name, size / 1e9, free / 1e9), flush=True)
     if args.size_only or target.exists():
         print('Already in the library.' if target.exists() else 'Size check only; nothing downloaded.')
         return
