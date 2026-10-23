@@ -24,7 +24,7 @@ try:
 except ImportError:
     raise SystemExit('The Pi needs its existing python3-yaml package. Nothing was installed.')
 
-from configuration import (SERVICE, compose_configuration, homepage_js,
+from configuration import (PORTAL_SITE, SERVICE, compose_configuration, homepage_js,
                            portal_caddyfile, private_vault_admin, verify_routes)
 from native import vault_configuration, maintenance_units
 
@@ -172,14 +172,14 @@ def portal_probe():
     if ca is None:
         raise InstallError('Cannot verify the existing Caddy local CA certificate.')
     base = ['curl', '--silent', '--show-error', '--fail', '--max-time', '15',
-            '--cacert', str(ca), '--noproxy', '*',
-            '--resolve', 'pivault.home.arpa:443:192.168.4.90']
-    body = run(base + ['https://pivault.home.arpa/users/sign-in'])
-    if 'name="password"' not in body or 'Sign in' not in body:
+            '--cacert', str(ca), '--noproxy', '*']
+    body = run(base + [PORTAL_SITE + '/users/sign-in'])
+    # Before the first account exists, the same route shows the join form instead.
+    if 'name="password"' not in body or ('Sign in' not in body and 'Create account' not in body):
         raise InstallError('The live HTTPS sign-in route did not return the portal.')
     # The gate must stay private even after a successful installation.
     code = run([x for x in base if x != '--fail'] + ['--output', '/dev/null',
-        '--write-out', '%{http_code}', 'https://pivault.home.arpa/internal/gate']).strip()
+        '--write-out', '%{http_code}', PORTAL_SITE + '/internal/gate']).strip()
     if code != '404':
         raise InstallError('The private gate was not blocked by Caddy.')
 
@@ -382,7 +382,7 @@ def install_portal():
             bootstrap = run(['docker', 'exec', SERVICE, 'python', 'manage.py', 'shell', '-c',
                 'from portal.models import User; from django.core.management import call_command; '
                 'call_command("first_admin", "snx") if not User.objects.exists() '
-                'else print("An Admin account already exists. Sign in at https://pivault.home.arpa/users/sign-in")'])
+                'else print("An Admin account already exists. Sign in at ' + PORTAL_SITE + '/users/sign-in")'])
         except BaseException:
             say('Installation did not finish. Restoring the previous live configuration…')
             recovery_errors = []

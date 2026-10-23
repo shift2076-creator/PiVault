@@ -126,7 +126,7 @@ class NotificationTests(TestCase):
         self.assertEqual(client.post(url, {'action': 'resolve'}, secure=True).status_code, 403)
         token = client.get('/notifications/api', secure=True).json()['csrf_token']
         self.assertEqual(client.post(url, {'action': 'resolve'}, secure=True, HTTP_X_CSRFTOKEN=token,
-                                     HTTP_ORIGIN='https://pivault.home.arpa').status_code, 302)
+                                     HTTP_ORIGIN='https://192.168.4.90:8443').status_code, 302)
 
     def test_untrusted_urls_cannot_be_approved_through_a_forged_inbox_event(self):
         payload = self.movie_event()

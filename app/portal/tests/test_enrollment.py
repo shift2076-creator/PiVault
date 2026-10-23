@@ -156,7 +156,7 @@ class EnrollmentTests(TestCase):
         self.client.force_login(self.admin)
         response=self.client.post('/users/add',{'name':'Alex','role':'user'},secure=True)
         self.assertContains(response,'data:image/svg+xml;base64,')
-        self.assertEqual(response.context['join_url'],'https://pivault.home.arpa/join')
+        self.assertEqual(response.context['join_url'],'https://192.168.4.90:8443/join')
         self.assertNotIn(response.context['code'],response.context['join_url'])
 
     def test_gate_does_not_trust_client_role_headers(self):

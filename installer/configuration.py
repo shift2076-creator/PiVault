@@ -7,7 +7,10 @@ BEGIN = '# BEGIN PIVAULT USERS INSTALLER'
 END = '# END PIVAULT USERS INSTALLER'
 JS_BEGIN = '/* BEGIN PIVAULT USERS INSTALLER */'
 JS_END = '/* END PIVAULT USERS INSTALLER */'
-HOST = 'pivault.home.arpa'
+# The portal shares the launcher's site; the vault has its own site on port 443.
+PORTAL_HOST = '192.168.4.90'
+PORTAL_PORT = 8443
+PORTAL_SITE = f'https://{PORTAL_HOST}:{PORTAL_PORT}'
 SERVICE = 'pivault-users'
 
 PORTAL = '''
@@ -62,8 +65,7 @@ def portal_caddyfile(text):
         if value == '{':
             if depth == 0:
                 names = [x.strip(',').strip('"`') for x in header]
-                target = any(x in (HOST, 'https://' + HOST, HOST + ':443',
-                                  'https://' + HOST + ':443') for x in names)
+                target = any(x in (f'{PORTAL_HOST}:{PORTAL_PORT}', PORTAL_SITE) for x in names)
                 if target:
                     matches.append(finish)
                 header = []
@@ -77,7 +79,7 @@ def portal_caddyfile(text):
         elif depth == 0:
             header.append(value)
     if depth or len(matches) != 1:
-        raise ValueError('Expected one explicit pivault.home.arpa site block in the active Caddyfile.')
+        raise ValueError('Expected one explicit ' + PORTAL_SITE + ' site block in the active Caddyfile.')
     position = matches[0]
     return clean[:position] + PORTAL + clean[position:]
 
@@ -161,7 +163,7 @@ def _matches(match, host, path):
     return True
 
 
-def terminal_handler(config, host, path):
+def terminal_handler(config, host, path, port=443):
     def walk(routes):
         for route in routes:
             if route.get('match') and not any(_matches(item, host, path) for item in route['match']):
@@ -178,7 +180,7 @@ def terminal_handler(config, host, path):
                     raise ValueError('Cannot verify portal routing with the existing Caddy handler: ' + str(kind))
         return None
     for server in config.get('apps', {}).get('http', {}).get('servers', {}).values():
-        if any(address.endswith(':443') for address in server.get('listen', [])):
+        if any(address.endswith(f':{port}') for address in server.get('listen', [])):
             found = walk(server.get('routes', []))
             if found:
                 return found
@@ -187,19 +189,20 @@ def terminal_handler(config, host, path):
 
 def verify_routes(before, after, vault_host=None):
     for path in ('/join', '/users/add', '/users/sign-in', '/users/session', '/notifications', '/notifications/api'):
-        value = terminal_handler(after, HOST, path)
+        value = terminal_handler(after, PORTAL_HOST, path, PORTAL_PORT)
         if not value or value.get('handler') != 'reverse_proxy' or value.get('upstreams') != [{'dial': 'pivault-users:8000'}]:
             raise ValueError('The candidate Caddy routes do not reach the portal before the existing handlers.')
         request_headers = value.get('headers', {}).get('request', {}).get('set', {})
         if request_headers.get('X-Forwarded-Proto') != ['https'] or request_headers.get('X-Pivault-Client-Ip') != ['{http.request.remote.host}']:
             raise ValueError('The candidate proxy does not overwrite the trusted HTTPS/client address headers.')
     for path in ('/internal', '/internal/gate'):
-        value = terminal_handler(after, HOST, path)
+        value = terminal_handler(after, PORTAL_HOST, path, PORTAL_PORT)
         if not value or value.get('handler') != 'static_response' or value.get('status_code') != 404:
             raise ValueError('The private authentication endpoint would be publicly reachable.')
-    if terminal_handler(before, HOST, '/') != terminal_handler(after, HOST, '/'):
+    if (terminal_handler(before, PORTAL_HOST, '/', PORTAL_PORT)
+            != terminal_handler(after, PORTAL_HOST, '/', PORTAL_PORT)):
         raise ValueError('The candidate configuration changes the existing launcher route.')
-    if terminal_handler(before, '192.168.4.90', '/') != terminal_handler(after, '192.168.4.90', '/'):
+    if terminal_handler(before, PORTAL_HOST, '/') != terminal_handler(after, PORTAL_HOST, '/'):
         raise ValueError('The candidate configuration changes the existing Vaultwarden IP route.')
     if before.get('apps', {}).get('tls') != after.get('apps', {}).get('tls'):
         raise ValueError('The candidate configuration changes TLS settings.')

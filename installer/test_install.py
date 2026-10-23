@@ -24,8 +24,8 @@ import native
 CADDYFILE = '''{
     admin localhost:2019
 }
-# The launcher and Vaultwarden have separate existing TLS routes.
-pivault.home.arpa {
+# The launcher and Vaultwarden have separate existing TLS routes (live layout).
+https://192.168.4.90:8443 {
     tls internal
     reverse_proxy homepage:3000
 }
@@ -51,18 +51,23 @@ def native_config(portal=False):
                         'X-Pivault-Client-Ip': ['{http.request.remote.host}']}}}}]},
             ]}]})
     return {'apps': {'tls': {'automation': {'policies': [{'issuers': [{'module': 'internal'}]}]}},
-        'http': {'servers': {'srv0': {'listen': [':443'], 'routes': [
-            {'match': [{'host': ['pivault.home.arpa']}], 'handle': [{'handler': 'subroute', 'routes': routes}]},
-            {'match': [{'host': ['192.168.4.90']}], 'handle': [
-                {'handler': 'reverse_proxy', 'upstreams': [{'dial': 'vaultwarden:80'}]}]},
-        ]}}}}}
+        'http': {'servers': {
+            'srv0': {'listen': [':443'], 'routes': [
+                {'match': [{'host': ['192.168.4.90']}], 'handle': [
+                    {'handler': 'reverse_proxy', 'upstreams': [{'dial': 'vaultwarden:80'}]}]}]},
+            'srv1': {'listen': [':8443'], 'routes': [
+                {'match': [{'host': ['192.168.4.90']}], 'handle': [{'handler': 'subroute', 'routes': routes}]}]},
+        }}}}
 
 
 class ConfigurationTests(unittest.TestCase):
     def test_existing_certificate_and_vault_route_bytes_are_preserved(self):
         output = config.portal_caddyfile(CADDYFILE)
-        self.assertEqual(output[output.index('https://192.168.4.90'):],
-                         CADDYFILE[CADDYFILE.index('https://192.168.4.90'):])
+        self.assertEqual(output[output.index('https://192.168.4.90 {'):],
+                         CADDYFILE[CADDYFILE.index('https://192.168.4.90 {'):])
+        managed = output.index(config.BEGIN)
+        self.assertLess(output.index('https://192.168.4.90:8443 {'), managed)
+        self.assertLess(managed, output.index('https://192.168.4.90 {'))
         self.assertEqual(output.count('tls internal'), 2)
         self.assertIn('header_up X-PiVault-Client-IP {remote_host}', output)
         self.assertIn('respond @pivault_users_internal 404', output)
@@ -82,7 +87,8 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_ambiguous_or_missing_site_is_rejected(self):
         for original in ('localhost {\n reverse_proxy test:80\n}', CADDYFILE + CADDYFILE,
-                         'pivault.home.arpa {\n reverse_proxy test:80\n'):
+                         'https://192.168.4.90:8443 {\n reverse_proxy test:80\n',
+                         'https://192.168.4.90 {\n reverse_proxy test:80\n}'):
             with self.assertRaises(ValueError):
                 config.portal_caddyfile(original)
 
@@ -120,18 +126,18 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_public_gate_is_rejected(self):
         bad = native_config(True)
-        bad['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'].pop(0)
+        bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'].pop(0)
         with self.assertRaisesRegex(ValueError, 'publicly reachable'):
             config.verify_routes(native_config(), bad)
 
     def test_preserves_the_launcher_vault_and_tls(self):
         for mutate in ('launcher', 'vault', 'tls'):
             bad = native_config(True)
-            routes = bad['apps']['http']['servers']['srv0']['routes']
+            servers = bad['apps']['http']['servers']
             if mutate == 'launcher':
-                routes[0]['handle'][0]['routes'][-1]['handle'][0]['upstreams'][0]['dial'] = 'different:3000'
+                servers['srv1']['routes'][0]['handle'][0]['routes'][-1]['handle'][0]['upstreams'][0]['dial'] = 'different:3000'
             elif mutate == 'vault':
-                routes[-1]['handle'][0]['upstreams'][0]['dial'] = 'different:80'
+                servers['srv0']['routes'][0]['handle'][0]['upstreams'][0]['dial'] = 'different:80'
             else:
                 bad['apps']['tls'] = {}
             with self.assertRaises(ValueError):
@@ -139,7 +145,7 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_spoofable_protocol_or_client_ip_is_rejected(self):
         bad = native_config(True)
-        proxy = bad['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'][-1]['handle'][0]
+        proxy = bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'][-1]['handle'][0]
         proxy['headers']['request']['set']['X-Pivault-Client-Ip'] = ['{http.request.header.X-Forwarded-For}']
         with self.assertRaisesRegex(ValueError, 'trusted HTTPS'):
             config.verify_routes(native_config(), bad)
@@ -155,6 +161,39 @@ class ConfigurationTests(unittest.TestCase):
             install.restore_file(path, saved)
             self.assertEqual(path.read_text(), 'before')
             self.assertEqual(path.stat().st_ino, inode)
+
+
+class ProbeTests(unittest.TestCase):
+    def probe(self, body, gate='404'):
+        calls = []
+        def run(args, **kwargs):
+            calls.append(args)
+            return gate if '--write-out' in args else body
+        with tempfile.TemporaryDirectory() as data:
+            Path(data, 'caddy/pki/authorities/local').mkdir(parents=True)
+            Path(data, 'caddy/pki/authorities/local/root.crt').write_text('fixture CA')
+            caddy = {'Mounts': [{'Destination': '/data', 'Source': data}]}
+            with patch.object(install, 'inspect', return_value=caddy), patch.object(install, 'run', side_effect=run):
+                install.portal_probe()
+        return calls
+
+    def test_probe_uses_the_live_ip_site_with_tls_verification(self):
+        calls = self.probe('<input name="password"> Sign in')
+        self.assertEqual([c[-1] for c in calls], ['https://192.168.4.90:8443/users/sign-in',
+                                                   'https://192.168.4.90:8443/internal/gate'])
+        for args in calls:
+            self.assertIn('--cacert', args)
+            self.assertNotIn('--resolve', args)
+            self.assertNotIn('-k', args)
+
+    def test_probe_accepts_the_join_form_before_any_account_exists(self):
+        self.probe('<input name="password"> Create account')
+
+    def test_probe_rejects_other_pages_and_a_public_gate(self):
+        with self.assertRaises(install.InstallError):
+            self.probe('<html>Homepage</html>')
+        with self.assertRaises(install.InstallError):
+            self.probe('<input name="password"> Sign in', gate='401')
 
 
 class RelayTests(unittest.TestCase):
