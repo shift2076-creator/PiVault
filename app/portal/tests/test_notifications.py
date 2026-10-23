@@ -5,8 +5,8 @@ from pathlib import Path
 from unittest.mock import patch
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
-from .models import Notification, NotificationReceipt, User
-from .notifications import ingest, notify
+from portal.models import Notification, NotificationReceipt, User
+from portal.notifications import ingest, notify
 
 
 class NotificationTests(TestCase):

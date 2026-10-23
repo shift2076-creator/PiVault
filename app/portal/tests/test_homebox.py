@@ -2,8 +2,8 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
-from .homebox import HomeboxAdapter,HomeboxCleanupRequired
-from .native_http import NativeError
+from portal.integrations.homebox import HomeboxAdapter,HomeboxCleanupRequired
+from portal.integrations.native_http import NativeError
 
 
 class HomeboxTests(SimpleTestCase):

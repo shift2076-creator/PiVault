@@ -11,7 +11,7 @@ from urllib.request import Request
 import uuid
 from django.core.exceptions import ValidationError
 from .native_http import CreatedAccount, JSONClient, NativeError
-from .setup_logging import event
+from ..setup_logging import event
 
 ITERATIONS = 600000
 

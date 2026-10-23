@@ -7,8 +7,8 @@ from django.views.decorators.debug import sensitive_post_parameters
 from django.db import transaction
 from .models import User
 from .services import ADAPTERS
-from .vaultwarden import VaultHTTP,enc_string
-from .native_http import NativeError
+from .integrations.vaultwarden import VaultHTTP,enc_string
+from .integrations.native_http import NativeError
 
 @require_http_methods(['GET','POST'])
 @sensitive_post_parameters()

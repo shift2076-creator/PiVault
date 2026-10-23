@@ -1,7 +1,6 @@
 from functools import wraps
-from pathlib import Path
 from django.db import transaction
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -107,10 +106,3 @@ def resolve(request, event_id):
         return JsonResponse({'status': item.status, 'pending_delivery': item.status == 'open'},
                             status=202 if item.status == 'open' else 200)
     return redirect('/notifications/' + item.id)
-
-
-@require_GET
-@admin_only
-def bell_script(request):
-    return HttpResponse((Path(__file__).parent / 'notifications-bell.js').read_text(),
-                        content_type='application/javascript; charset=utf-8')
