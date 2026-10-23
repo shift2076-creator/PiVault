@@ -20,6 +20,7 @@ class EnrollmentTests(TestCase):
     def enroll(self, code, **extra):
         values = {'code':code, 'email':'alex@example.com', 'password':'A-long-new-passphrase-482!'}
         values.update(extra)
+        values.setdefault('password_confirm', values['password'])
         return self.client.post('/join', values, secure=True)
 
     def test_guest_and_user_cannot_create_invitations(self):
@@ -53,7 +54,7 @@ class EnrollmentTests(TestCase):
         invitation,code = issue('Alex','user',{},self.admin)
         invitation.expires_at=timezone.now()-timedelta(seconds=1)
         invitation.save()
-        self.assertContains(self.enroll(code),'Invalid or expired invitation code.')
+        self.assertContains(self.enroll(code),'Invalid or expired invitation code.',status_code=400)
         self.assertEqual(User.objects.count(),1)
 
     def test_bad_password_does_not_consume_code(self):
@@ -73,7 +74,7 @@ class EnrollmentTests(TestCase):
     def test_unconfigured_isolation_is_rejected_server_side(self):
         self.client.force_login(self.admin)
         response=self.client.post('/users/add',{'name':'Alex','role':'user','service_wiki':'isolated'},secure=True)
-        self.assertContains(response,'integration is not configured')
+        self.assertContains(response,'integration is not configured',status_code=400)
         self.assertFalse(Invitation.objects.exists())
 
     def test_unavailable_modes_are_removed_not_disabled(self):
@@ -99,7 +100,7 @@ class EnrollmentTests(TestCase):
         invitation,code=issue('Alex','user',{},self.admin)
         with patch('portal.views.provision', side_effect=ValidationError('Service unavailable.')):
             response=self.enroll(code)
-        self.assertContains(response,'Service unavailable.')
+        self.assertContains(response,'Service unavailable.',status_code=400)
         self.assertEqual(User.objects.count(),1)
         invitation.refresh_from_db()
         self.assertIsNone(invitation.used_at)
@@ -139,7 +140,7 @@ class EnrollmentTests(TestCase):
     def test_csrf_is_required(self):
         client=Client(enforce_csrf_checks=True)
         _,code=issue('Alex','user',{},self.admin)
-        response=client.post('/join',{'code':code,'email':'alex@example.com','password':'A-long-new-passphrase-482!'},secure=True)
+        response=client.post('/join',{'code':code,'email':'alex@example.com','password':'A-long-new-passphrase-482!','password_confirm':'A-long-new-passphrase-482!'},secure=True)
         self.assertEqual(response.status_code,403)
         self.assertEqual(User.objects.count(),1)
 
@@ -188,12 +189,12 @@ class EnrollmentTests(TestCase):
 
 class BootstrapTests(TestCase):
     def test_first_admin_is_local_command_not_public_race(self):
-        response=self.client.post('/join',{'code':'AAAA','email':'owner@example.com','password':'First-good-passphrase-938!'},secure=True)
+        response=self.client.post('/join',{'code':'AAAA','email':'owner@example.com','password':'First-good-passphrase-938!','password_confirm':'First-good-passphrase-938!'},secure=True)
         self.assertEqual(User.objects.count(),0)
         output=StringIO()
         call_command('first_admin','Owner',stdout=output)
         code=re.search(r'Code: ([A-Z0-9]{4})',output.getvalue()).group(1)
-        response=self.client.post('/join',{'code':code,'email':'owner@example.com','password':'First-good-passphrase-938!','role':'user','name':'Other'},secure=True)
+        response=self.client.post('/join',{'code':code,'email':'owner@example.com','password':'First-good-passphrase-938!','password_confirm':'First-good-passphrase-938!','role':'user','name':'Other'},secure=True)
         self.assertEqual(response.status_code,302)
         user=User.objects.get()
         self.assertEqual(user.role,'admin')

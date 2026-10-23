@@ -133,7 +133,7 @@ class VaultEnrollmentTests(TestCase):
         if payload is None:
             payload = {'token': self.plan().json()['token'], 'bundle': fixture()}
         return self.client.post('/join', {'code': self.code, 'email': EMAIL, 'password': PASSWORD,
-            'vault_bundle': json.dumps(payload)}, secure=True)
+            'password_confirm': PASSWORD, 'vault_bundle': json.dumps(payload)}, secure=True)
 
     def test_join_saves_native_ids_and_redirects_to_personal_completion_page(self):
         plan = self.plan().json()
@@ -151,20 +151,20 @@ class VaultEnrollmentTests(TestCase):
     def test_signed_manifest_cannot_be_reused_for_different_identity(self):
         token = self.plan(email='other@example.com').json()['token']
         response = self.join({'token': token, 'bundle': fixture()})
-        self.assertContains(response, 'Could not validate')
+        self.assertContains(response, 'Could not validate', status_code=400)
         self.adapter.provision.assert_not_called()
         self.assertFalse(User.objects.filter(email=EMAIL).exists())
 
     def test_missing_bundle_does_not_consume_invitation(self):
         response = self.join({})
-        self.assertContains(response, 'Could not validate')
+        self.assertContains(response, 'Could not validate', status_code=400)
         self.invitation.refresh_from_db(); self.assertIsNone(self.invitation.used_at)
         self.adapter.provision.assert_not_called()
 
     def test_failed_native_setup_keeps_invite_and_reports_cleanup_failure(self):
         self.adapter.provision.side_effect = VaultCleanupRequired('new-vault')
         response = self.join()
-        self.assertContains(response, 'admin must review')
+        self.assertContains(response, 'admin must review', status_code=503)
         self.assertFalse(User.objects.filter(email=EMAIL).exists())
         self.invitation.refresh_from_db(); self.assertIsNone(self.invitation.used_at)
         self.assertTrue(Notification.objects.filter(source='users', level='error').exists())

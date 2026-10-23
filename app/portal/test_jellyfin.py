@@ -108,8 +108,8 @@ class EnrollmentCleanupTests(TestCase):
             invitation,code=issue('Alex','user',{'videos':'shared'},admin)
             with patch.object(Invitation,'save',side_effect=IntegrityError('database write failed')):
                 response=self.client.post('/join',{'code':code,'email':'alex@example.com',
-                    'password':'Do-not-store-this-password-123!'},secure=True)
-        self.assertContains(response,'Could not create the account')
+                    'password':'Do-not-store-this-password-123!','password_confirm':'Do-not-store-this-password-123!'},secure=True)
+        self.assertContains(response,'Account setup is temporarily unavailable',status_code=503)
         rollback.assert_called_once()
         self.assertEqual(User.objects.count(),1)
         invitation.refresh_from_db()
@@ -126,8 +126,8 @@ class EnrollmentCleanupTests(TestCase):
         with patch.dict(ADAPTERS,{'music':first,'videos':second}):
             invitation,code=issue('Alex','user',{'videos':'shared','music':'shared'},admin)
             response=self.client.post('/join',{'code':code,'email':'alex@example.com',
-                'password':'Do-not-store-this-password-123!'},secure=True)
-        self.assertContains(response,'admin must review')
+                'password':'Do-not-store-this-password-123!','password_confirm':'Do-not-store-this-password-123!'},secure=True)
+        self.assertContains(response,'admin must review',status_code=503)
         self.assertEqual(User.objects.count(),1)
         invitation.refresh_from_db()
         self.assertIsNone(invitation.used_at)
