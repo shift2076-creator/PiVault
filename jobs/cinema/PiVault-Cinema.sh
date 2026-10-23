@@ -409,7 +409,8 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         preview) preview ;;
         *)
             printf '%s\n' 'Usage:' \
-                '  bash PiVault-Cinema.sh catalogue       # Read all 51 selections and their reasons.' +                '  bash PiVault-Cinema.sh preview         # Show the 17-film first round, sizes and runtimes.' \
+                '  bash PiVault-Cinema.sh catalogue       # Read all 51 selections and their reasons.' \
+                '  bash PiVault-Cinema.sh preview         # Show the 17-film first round, sizes and runtimes.' \
                 '  bash PiVault-Cinema.sh install 150     # On pivault: install, test one per genre, then schedule.' \
                 '  bash ~/pi-services/cinema/PiVault-Cinema.sh test  # Resume an incomplete test.'
             ;;
