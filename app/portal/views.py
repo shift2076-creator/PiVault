@@ -69,7 +69,7 @@ def join(request):
         # SQLite IMMEDIATE serializes the first-admin decision and invite use.
         with transaction.atomic():
             stage = 'policy'
-            invitation = find_valid(request.POST.get('code', '')) if User.objects.exists() else None
+            invitation = find_valid(request.POST.get('code', ''))
             if User.objects.filter(email__iexact=email).exists():
                 raise ValidationError('An account already uses that email. Sign in instead.')
             user = enrollment_user(invitation, email)

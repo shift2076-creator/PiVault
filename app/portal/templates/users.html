@@ -120,7 +120,7 @@
             <label><input type="radio" name="role" value="admin" {% if selected_role == 'admin' %}checked{% endif %}><span>Admin</span></label>
           </fieldset>
         </div>
-        {% if mode == 'join' and has_accounts %}
+        {% if mode == 'join' %}
         <div class="field" {% if mode != 'join' %}hidden{% endif %}>
           <label for="code">Invitation code</label>
           <input id="code" name="code" placeholder="Enter your code" maxlength="4" minlength="4" pattern="[A-Za-z0-9]{4}" autocomplete="off" autocapitalize="characters" spellcheck="false" {% if mode == 'join' %}required{% else %}disabled{% endif %}>
