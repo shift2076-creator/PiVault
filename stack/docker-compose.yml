@@ -8,7 +8,7 @@ services:
     - 192.168.4.90:8096:8096
     volumes:
     - /srv/pi-server/config/jellyfin:/config
-    - /media/snx/C29C87F99C87E66F/Server/Videos:/media/videos:ro
+    - /srv/disk1/videos:/media/videos:ro
     restart: unless-stopped
   navidrome:
     image: pivault-music-pinned:82838e7fadf89382
