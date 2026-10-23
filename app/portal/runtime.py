@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from django.conf import settings
 
-PUBLIC_URLS = {'pivault': 'https://192.168.4.90:8443/users/sign-in'}
+PUBLIC_URLS = {'pivault': settings.PUBLIC_ORIGIN + '/users/sign-in'}
 
 
 def configure():
