@@ -137,6 +137,38 @@ class EnrollmentTests(TestCase):
         self.assertEqual(response.status_code,429)
         self.assertFalse(User.objects.filter(email='alex@example.com').exists())
 
+    def test_other_apps_are_called_without_holding_the_database_lock(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        from django.db import connection
+        from portal.services import ADAPTERS
+        depth=[]
+        adapter=SimpleNamespace(modes=('shared',),provision=Mock(
+            side_effect=lambda **kwargs: depth.append(len(connection.atomic_blocks))))
+        base=len(connection.atomic_blocks)
+        with patch.dict(ADAPTERS,{'videos':adapter}):
+            invitation,code=issue('Alex','user',{'videos':'shared'},self.admin)
+            response=self.enroll(code)
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(depth,[base])
+        invitation.refresh_from_db()
+        self.assertIsNotNone(invitation.used_at)
+
+    def test_one_device_cannot_lock_out_other_devices(self):
+        from django.test import RequestFactory
+        from portal.invitations import rate_limit
+        def attempt(ip):
+            return rate_limit(RequestFactory().post('/users/sign-in',HTTP_X_PIVAULT_CLIENT_IP=ip),'login')
+        # 200 attempts spread across many devices exceed the old shared cap of 180.
+        for number in range(200):
+            attempt(f'10.0.{number // 10}.{number % 10}')
+        self.assertTrue(all(attempt('192.168.4.200') for _ in range(12)))
+        self.assertFalse(attempt('192.168.4.200'))
+        self.assertTrue(attempt('192.168.4.77'))
+        owner=Client().post('/users/sign-in',{'email':'admin@example.com','password':'Existing-good-password-928!'},
+                            secure=True,HTTP_X_PIVAULT_CLIENT_IP='192.168.4.78')
+        self.assertEqual(owner.status_code,302)
+
     def test_csrf_is_required(self):
         client=Client(enforce_csrf_checks=True)
         _,code=issue('Alex','user',{},self.admin)

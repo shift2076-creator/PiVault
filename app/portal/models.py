@@ -62,6 +62,19 @@ class ClientRelease(models.Model):
     notification = models.OneToOneField(Notification, null=True, on_delete=models.PROTECT)
 
 
+class SiteSettings(models.Model):
+    """One row of Admin-controlled switches for the whole PiVault."""
+    offline_mode = models.BooleanField(default=False)
+
+    @classmethod
+    def is_offline(cls):
+        return bool(cls.objects.filter(pk=1).values_list('offline_mode', flat=True).first())
+
+    @classmethod
+    def set_offline(cls, value):
+        cls.objects.update_or_create(pk=1, defaults={'offline_mode': bool(value)})
+
+
 class ClientPackage(models.Model):
     client = models.CharField(max_length=16, primary_key=True)
     current = models.ForeignKey(ClientRelease, null=True, on_delete=models.PROTECT, related_name='+')

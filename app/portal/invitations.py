@@ -57,10 +57,10 @@ def rate_limit(request, action):
     scope = hmac.new(settings.SECRET_KEY.encode(), f'{action}:{ip}'.encode(), hashlib.sha256).hexdigest()
     now = timezone.now()
     cutoff = now - timedelta(minutes=30)
+    # Per device only: a shared cap would let one misbehaving device lock everyone out.
     with transaction.atomic():
         Attempt.objects.filter(at__lt=cutoff).delete()
-        attempts = Attempt.objects.filter(at__gte=cutoff)
-        if attempts.filter(scope=scope).count() >= 12 or attempts.count() >= 180:
+        if Attempt.objects.filter(scope=scope, at__gte=cutoff).count() >= 12:
             return False
         Attempt.objects.create(scope=scope, at=now)
     return True

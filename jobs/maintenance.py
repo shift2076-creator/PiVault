@@ -32,8 +32,22 @@ def publish_failure(step):
         Path(temporary).unlink(missing_ok=True)
 
 
-def main(run=subprocess.run, publish=publish_failure, config_path=CONFIG):
+def offline_mode(run=subprocess.run):
+    """True only when the portal confirms the Admin turned offline mode on."""
+    try:
+        result = run(['docker', 'exec', 'pivault-users', 'python', 'manage.py', 'offline_mode', '--status'],
+                     timeout=120, check=False, capture_output=True, text=True)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0 and result.stdout.strip() == 'on'
+
+
+def main(run=subprocess.run, publish=publish_failure, config_path=CONFIG, offline=offline_mode):
     config = json.loads(config_path.read_text())
+    if offline():
+        # Every nightly job needs the internet; offline mode pauses them silently.
+        print('Offline mode is on: nightly internet jobs are paused.')
+        return 0
     jobs = [('client downloads', ['docker', 'exec', 'pivault-users', 'python', 'manage.py', 'maintain_clients'], 1800)]
     if config.get('cinema_enabled'):
         jobs.append(('cinema', ['systemctl', 'start', '--wait', 'pivault-cinema.service'], None))

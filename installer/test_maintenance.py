@@ -70,13 +70,31 @@ class NativeConfigurationTests(unittest.TestCase):
 
 
 class MaintenanceTests(unittest.TestCase):
-    def execute(self, cinema, run):
+    def execute(self, cinema, run, offline=False):
         with tempfile.TemporaryDirectory() as folder:
             config = Path(folder) / 'maintenance.json'
             config.write_text(json.dumps({'cinema_enabled': cinema}))
             publish = Mock()
-            result = maintenance.main(run=run, publish=publish, config_path=config)
+            result = maintenance.main(run=run, publish=publish, config_path=config, offline=lambda: offline)
         return result, publish
+
+    def test_offline_mode_pauses_every_internet_job_without_notices(self):
+        run = Mock(return_value=SimpleNamespace(returncode=1))
+        result, publish = self.execute(True, run, offline=True)
+        self.assertEqual(result, 0)
+        run.assert_not_called()
+        publish.assert_not_called()
+
+    def test_offline_status_comes_from_the_portal_and_fails_open(self):
+        def status(output, code=0):
+            return Mock(return_value=SimpleNamespace(returncode=code, stdout=output))
+        self.assertTrue(maintenance.offline_mode(status('on\n')))
+        self.assertFalse(maintenance.offline_mode(status('off\n')))
+        self.assertFalse(maintenance.offline_mode(status('', code=1)))
+        self.assertFalse(maintenance.offline_mode(Mock(side_effect=OSError)))
+        command = status('on\n')
+        maintenance.offline_mode(command)
+        self.assertEqual(command.call_args.args[0][-3:], ['manage.py', 'offline_mode', '--status'])
 
     def test_cinema_still_runs_if_client_checks_fail(self):
         run = Mock(side_effect=[SimpleNamespace(returncode=1), SimpleNamespace(returncode=0)])
