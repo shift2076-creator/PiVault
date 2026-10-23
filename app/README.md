@@ -55,16 +55,16 @@ Docker is unavailable in the development environment. A live ARM Docker installa
 
 ## Developer commands
 
-Use Python 3.12+, install `requirements.txt`, and set a development-only `PIVAULT_SECRET_KEY`:
+Use Python 3.12+, install `requirements.txt`, and set a development-only `PIVAULT_SECRET_KEY`. Run the first three commands from `app/` and the rest from the repository root:
 
 ```sh
 python manage.py test portal
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python -m unittest discover -s tools/install -p 'test*.py'
+python -m unittest discover -s installer -p 'test*.py'
 python -m unittest discover -s tools/check -p 'test*.py'
-python tools/verify/vault_compat.py /absolute/path/to/official/bitwarden/cli/build/bw.js
-python tools/install/build.py /absolute/path/PiVault-Users-Install.sh
+python tools/vault_compat.py /absolute/path/to/official/bitwarden/cli/build/bw.js
+python installer/build.py /absolute/path/PiVault-Users-Install.sh
 ```
 
 The compatibility check also requires Node and OpenSSL. Its temporary certificate is explicitly trusted only by the isolated test CLI; TLS verification stays enabled. Dummy fixture credentials are test-only. Never use the development secret or fixture passwords on PiVault.

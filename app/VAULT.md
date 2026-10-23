@@ -24,7 +24,7 @@ Failed registration or cipher creation compensates by deleting only this attempt
 - RSA-OAEP 2048-bit account keys: SPKI public key, personal-key-encrypted PKCS#8 private key.
 - Folder and every login name, username, password and URI are encrypted. URI matching is Host.
 
-`tools/verify/vault_compat.py` generates a fresh browser-format bundle in Node, checks the authentication hash independently with Python hashlib, then runs the official Bitwarden CLI against an isolated HTTPS API fixture. The CLI logs in, syncs and decrypts the expected password, username, URI and name. TLS verification remains enabled with an ephemeral local test certificate. No real user credentials are used.
+`tools/vault_compat.py` generates a fresh browser-format bundle in Node, checks the authentication hash independently with Python hashlib, then runs the official Bitwarden CLI against an isolated HTTPS API fixture. The CLI logs in, syncs and decrypts the expected password, username, URI and name. TLS verification remains enabled with an ephemeral local test certificate. No real user credentials are used.
 
 ## Client installation and updates
 
