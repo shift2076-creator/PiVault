@@ -33,7 +33,7 @@ CONFIG = ROOT / 'config'
 COMPOSE = Path('/home/snx/pi-services/docker-compose.yml')
 CADDY = 'pivault-https'
 LABEL = 'users-installer'
-SOURCE = Path(__file__).resolve().parents[2]
+SOURCE = Path(__file__).resolve().parents[1]  # Repository (payload) root.
 MODEL = Path('/proc/device-tree/model')
 SYSTEMD_DIR = Path('/etc/systemd/system')
 
@@ -213,7 +213,7 @@ def install_portal():
     before = {p: snapshot(p) for p in (COMPOSE, caddyfile, custom_js)}
     caddy_candidate = portal_caddyfile(caddyfile.read_text())
     js_candidate = homepage_js(custom_js.read_text() if custom_js.exists() else '',
-                               (SOURCE / 'homepage-addon.js').read_text())
+                               (SOURCE / 'stack/homepage-addon.js').read_text())
     old_container = inspect(SERVICE, missing=True)
     if old_container and (old_container.get('Config', {}).get('Labels', {}) or {}).get('org.pivault.managed') != LABEL:
         raise InstallError('An unmanaged pivault-users container already exists.')
@@ -239,10 +239,11 @@ def install_portal():
                       timer_before['pivault-cinema.timer']['active'] or old_maintenance.get('cinema_enabled', False))
     run(['systemd-analyze', 'calendar', '*-*-* 02:00:00 America/New_York'])
 
+    app_source = SOURCE / 'app'
     fingerprint = hashlib.sha256()
-    for path in sorted(SOURCE.rglob('*')):
+    for path in sorted(app_source.rglob('*')):
         if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc':
-            fingerprint.update(str(path.relative_to(SOURCE)).encode() + b'\0' + path.read_bytes())
+            fingerprint.update(str(path.relative_to(app_source)).encode() + b'\0' + path.read_bytes())
     image = 'pivault-users:' + fingerprint.hexdigest()[:16]
     candidate_document = compose_configuration(vault_plan['document'], image=image,
         uid=uid, gid=gid, network_names=networks)
@@ -263,7 +264,7 @@ def install_portal():
         verify_routes(original_json, adapt(candidate_caddy),
                       vault_host=vault_plan['host'] if vault_plan['protect_admin'] else None)
         say('Building and testing the portal image before changing the live configuration…')
-        run(['docker', 'build', '--tag', image, str(SOURCE)], stream=True, timeout=1200)
+        run(['docker', 'build', '--tag', image, str(app_source)], stream=True, timeout=1200)
         test_command = ['docker', 'run', '--rm', '--network', 'none', '--read-only',
             '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
             '--user', f'{uid}:{gid}', '--tmpfs', '/tmp:rw,noexec,nosuid,size=128m',
@@ -364,7 +365,7 @@ def install_portal():
             portal_probe()
             write_file(custom_js, js_candidate, mode=0o644)
             runtime_path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
-            write_file(runtime_path, (SOURCE / 'tools/install/maintenance.py').read_text(), mode=0o700)
+            write_file(runtime_path, (SOURCE / 'jobs/maintenance.py').read_text(), mode=0o700)
             write_file(maintenance_config, json.dumps({'cinema_enabled': bool(cinema_enabled)}, indent=2) + '\n')
             for name, contents in units.items():
                 write_file(SYSTEMD_DIR / name, contents, mode=0o644)

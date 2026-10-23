@@ -19,7 +19,6 @@ import configuration as config
 import install
 import build
 import native
-import maintenance
 
 
 CADDYFILE = '''{
@@ -284,9 +283,12 @@ class InstallationTransactionTests(unittest.TestCase):
             css.write_text('/* ACCEPTED CSS */')
             source = folder / 'source'
             source.mkdir()
-            source.joinpath('homepage-addon.js').write_text('window.usersAddon=true;')
-            source.joinpath('tools/install').mkdir(parents=True)
-            source.joinpath('tools/install/maintenance.py').write_text('# runtime fixture\n')
+            source.joinpath('app').mkdir()
+            source.joinpath('app/Dockerfile').write_text('# image fixture\n')
+            source.joinpath('stack').mkdir()
+            source.joinpath('stack/homepage-addon.js').write_text('window.usersAddon=true;')
+            source.joinpath('jobs').mkdir()
+            source.joinpath('jobs/maintenance.py').write_text('# runtime fixture\n')
             vault_data = config_dir / 'vaultwarden'
             vault_data.mkdir()
             systemd_dir = folder / 'systemd'
@@ -387,6 +389,16 @@ class PackageTests(unittest.TestCase):
         compile(build.bootstrap(build.package()), '<remote>', 'exec')
         self.assertNotIn("'__REMOTE_COMMAND__'", code)
         self.assertNotIn("'__PAYLOAD_B64__'", code)
+
+    def test_payload_holds_exactly_what_the_pi_installer_reads(self):
+        import gzip, tarfile
+        with tarfile.open(fileobj=io.BytesIO(gzip.decompress(build.package()))) as archive:
+            names = set(archive.getnames())
+        for required in ('installer/install.py', 'installer/configuration.py', 'installer/native.py',
+                         'app/Dockerfile', 'app/manage.py', 'app/healthcheck.py',
+                         'stack/homepage-addon.js', 'jobs/maintenance.py'):
+            self.assertIn(required, names)
+        self.assertFalse([n for n in names if n.startswith(('jobs/cinema/', 'tools/', 'stack/docker-compose'))])
 
 
 if __name__ == '__main__':

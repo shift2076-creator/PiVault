@@ -8,13 +8,24 @@ import shlex
 import sys
 import tarfile
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
+# Repository paths the Pi-side installer needs; nothing else is shipped.
+PAYLOAD = ('app', 'installer', 'stack/homepage-addon.js', 'jobs/maintenance.py')
+
+
+def payload_files():
+    for entry in PAYLOAD:
+        base = ROOT / entry
+        if base.is_file():
+            yield base
+        else:
+            yield from base.rglob('*')
 
 
 def package():
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode='w', format=tarfile.PAX_FORMAT) as archive:
-        for path in sorted(ROOT.rglob('*')):
+        for path in sorted(payload_files()):
             relative = path.relative_to(ROOT)
             if (not path.is_file() or path.is_symlink() or
                 any(part in ('data', '__pycache__', '.git') for part in relative.parts) or
@@ -51,7 +62,7 @@ with tempfile.TemporaryDirectory(prefix='pivault-users-install-') as folder:
             with archive.extractfile(item) as source,destination.open('wb') as target:
                 target.write(source.read())
             destination.chmod(0o600)
-    result=subprocess.run([sys.executable,str(root/'tools/install/install.py')])
+    result=subprocess.run([sys.executable,str(root/'installer/install.py')])
     raise SystemExit(result.returncode)
 '''
 
@@ -62,7 +73,7 @@ def build(destination):
     command = 'sudo -S -p __PIVAULT_INSTALL_SUDO__ python3 -c ' + shlex.quote(code)
     if len(command.encode()) > 110000:
         raise ValueError('The SSH command exceeds the safe argument-size limit.')
-    relay = (ROOT / 'tools/install/relay.py').read_text()
+    relay = (ROOT / 'installer/relay.py').read_text()
     relay = relay.replace("'__REMOTE_COMMAND__'", repr(command))
     relay = relay.replace("'__PAYLOAD_B64__'", repr(base64.b64encode(payload).decode()))
     content = '''#!/usr/bin/env bash
