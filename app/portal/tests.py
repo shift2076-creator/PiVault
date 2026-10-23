@@ -198,3 +198,19 @@ class BootstrapTests(TestCase):
         user=User.objects.get()
         self.assertEqual(user.role,'admin')
         self.assertEqual(user.display_name,'Owner')
+
+
+class VaultRepairPageTests(TestCase):
+    def test_repair_page_loads_its_script_externally_under_csp(self):
+        admin=User.objects.create_user(username='repair-admin',email='repair@example.com',role='admin',display_name='Owner',vault_user_id='vault-id')
+        self.client.force_login(admin)
+        response=self.client.get('/users/repair-vault',secure=True)
+        self.assertEqual(response.status_code,200)
+        self.assertIn("script-src 'self'",response['Content-Security-Policy'])
+        markup=response.content.decode()
+        self.assertNotRegex(markup,r'<script(?![^>]*\bsrc=)')
+        self.assertIn('<script src="/users/vault-repair.js" defer></script>',markup)
+        script=self.client.get('/users/vault-repair.js',secure=True)
+        self.assertEqual(script.status_code,200)
+        self.assertEqual(script['Content-Type'],'application/javascript; charset=utf-8')
+        self.assertIn("document.getElementById('unlock')",script.content.decode())

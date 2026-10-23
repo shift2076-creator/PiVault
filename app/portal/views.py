@@ -218,3 +218,19 @@ def account_form_script(request):
     from pathlib import Path
     return HttpResponse((Path(__file__).parent / 'account-form.js').read_text(),
                         content_type='application/javascript; charset=utf-8')
+
+
+from functools import lru_cache
+
+
+@lru_cache(maxsize=None)
+def _asset(name):
+    from pathlib import Path
+    return (Path(__file__).parent / name).read_text()
+
+
+def script(name):
+    @require_GET
+    def view(request):
+        return HttpResponse(_asset(name), content_type='application/javascript; charset=utf-8')
+    return view
