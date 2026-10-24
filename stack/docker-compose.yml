@@ -167,45 +167,6 @@ services:
     volumes:
     - /srv/pi-server/config/grocy:/config
     restart: unless-stopped
-  calendar-db:
-    image: postgres:17-alpine
-    container_name: pivault-calendar-db
-    env_file:
-    - /srv/pi-server/config/calendar/calendar.env
-    volumes:
-    - /srv/pi-server/config/calendar/postgres:/var/lib/postgresql/data
-    restart: unless-stopped
-  calendar:
-    image: nextcloud:34.0.5-apache
-    container_name: pivault-calendar
-    depends_on:
-    - calendar-db
-    env_file:
-    - /srv/pi-server/config/calendar/calendar.env
-    environment:
-      POSTGRES_HOST: calendar-db
-      NEXTCLOUD_TRUSTED_DOMAINS: 192.168.4.90
-      TZ: America/New_York
-    ports:
-    - 192.168.4.90:8088:80
-    volumes:
-    - ./calendar-no-jit.ini:/usr/local/etc/php/conf.d/zz-calendar-no-jit.ini:ro
-    - /srv/pi-server/config/calendar/html:/var/www/html
-    restart: unless-stopped
-  calendar-cron:
-    image: nextcloud:34.0.5-apache
-    container_name: pivault-calendar-cron
-    entrypoint: /cron.sh
-    depends_on:
-    - calendar
-    env_file:
-    - /srv/pi-server/config/calendar/calendar.env
-    environment:
-      POSTGRES_HOST: calendar-db
-      TZ: America/New_York
-    volumes:
-    - /srv/pi-server/config/calendar/html:/var/www/html
-    restart: unless-stopped
   pivault-users:
     image: pivault-users:e2120183f2a319aa
     container_name: pivault-users

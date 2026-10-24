@@ -7,7 +7,7 @@ An offline services hub on a Raspberry Pi 5: media, knowledge, organization and 
 | Folder | What it is | Where it runs |
 |---|---|---|
 | `app/` | The PiVault web app: sign-in, joining, invitations, password vault, notifications (Django) | Docker container `pivault-users` on pivault |
-| `stack/` | The container stack around the app: reference `docker-compose.yml`, Homepage add-on, PHP setting | Docker Compose on pivault |
+| `stack/` | The container stack around the app: reference `docker-compose.yml`, Homepage add-on | Docker Compose on pivault |
 | `jobs/` | Scheduled scripts: `maintenance.py` (nightly 02:00) and `cinema/` (video downloads) | systemd on pivault |
 | `installer/` | Builds the one-file installer and installs `app/` onto pivault | Built on Greenie, runs on pivault |
 | `tools/` | Read-only integration check and Bitwarden compatibility check | Greenie |
