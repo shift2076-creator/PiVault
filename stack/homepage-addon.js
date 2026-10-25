@@ -159,16 +159,16 @@
   else start();
 })();
 
-/* Unified search: a field under the PiVault title and a tickbox before each searchable app.
-   The portal decides which apps this user may search; unticked apps are never queried.
-   The field sits in the launcher's own "title" grid area, which every launcher layout keeps,
-   so it follows the launcher's gutters and breakpoints. */
+/* Unified search: a field under the PiVault title with a row of tickboxes directly beneath it,
+   one per app this user may search. Unticked apps are never queried. The field sits in the
+   launcher's own "title" grid area, which every launcher layout keeps, so it follows the
+   launcher's gutters and breakpoints. App tiles are left untouched. */
 (() => {
   if (window.piVaultSearchLoaded) return;
   window.piVaultSearchLoaded = true;
   const STORE = 'pivault-search-unticked';
   const CHECK = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23151c22' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")";
-  let apps = [], bar = null, hint = null, queued = false;
+  let apps = [], bar = null, hint = null;
   const unticked = () => { try { return new Set(JSON.parse(localStorage.getItem(STORE) || '[]')); } catch { return new Set(); } };
   const remember = set => { try { localStorage.setItem(STORE, JSON.stringify([...set])); } catch { /* Per-browser convenience only. */ } };
   const make = (tag, props = {}) => Object.assign(document.createElement(tag), props);
@@ -176,7 +176,7 @@
   // The repeated ID outranks the launcher CSS (body:has(#pivault-books) #layout-groups ...).
   const L = '#layout-groups#layout-groups#layout-groups';
   style.textContent = `
-    ${L} > #pv-search{grid-area:title;align-self:start;display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;
+    ${L} > #pv-search{grid-area:title;align-self:start;display:flex;flex-wrap:wrap;align-items:center;gap:12px;
       margin:64px 0 56px;color:var(--pv-text,#e8edf2);font:inherit;font-size:16px;z-index:1}
     @media (max-width:1279px){${L} > #pv-search{margin:60px 0 0}}
     #pv-search .pv-field{flex:1 1 320px;display:flex;align-items:center;gap:12px;min-height:52px;padding:0 16px;
@@ -189,16 +189,20 @@
     #pv-search .pv-go{min-height:52px;padding:0 26px;border:0;border-radius:.5em;cursor:pointer;color:var(--pv-text,#e8edf2);
       font:inherit;font-size:16px;font-weight:500;background:linear-gradient(145deg,#2b3643,#202a35);box-shadow:inset 0 1px 0 rgb(206 220 235 / 26%)}
     #pv-search .pv-go:hover{box-shadow:0 4px 6px -1px rgb(0 0 0 / 20%),inset 0 1px 0 rgb(206 220 235 / 26%)}
-    #pv-search .pv-hint{flex:1 1 100%;color:var(--pv-secondary,#91acc3);font-size:14px}
-    #pv-search .pv-hint button{padding:0 2px;border:0;background:none;color:var(--pv-accent,#b4c0ce);font:inherit;text-decoration:underline;cursor:pointer}
-    #pv-search :focus-visible,.pv-pick input:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:3px}
-    ${L} .services-group.pv-picks .service{position:relative!important;padding-left:30px!important}
-    .pv-pick{position:absolute;left:0;top:0;bottom:0;z-index:40;display:flex;align-items:center;width:26px;cursor:pointer}
-    .pv-pick input{appearance:none;-webkit-appearance:none;width:18px;height:18px;margin:0;border:1.5px solid var(--pv-secondary,#91acc3);
+    #pv-search fieldset{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0;padding:0;border:0;min-width:0}
+    #pv-search legend{float:left;margin-right:6px;padding:0;color:var(--pv-secondary,#91acc3);font-size:12px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase}
+    #pv-search .pv-chip{display:flex;align-items:center;gap:9px;min-height:36px;padding:0 14px;border:1px solid var(--pv-divider,rgba(151,170,190,.48));
+      border-radius:18px;font-size:15px;cursor:pointer;user-select:none;color:var(--pv-secondary,#91acc3)}
+    #pv-search .pv-chip:has(input:checked){color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
+    #pv-search .pv-chip input{appearance:none;-webkit-appearance:none;flex:none;width:16px;height:16px;margin:0;border:1.5px solid var(--pv-secondary,#91acc3);
       border-radius:4px;background:transparent;cursor:pointer;color:transparent;box-shadow:none}
-    .pv-pick input:checked{background:var(--pv-secondary,#91acc3) ${CHECK} center/14px no-repeat;border-color:var(--pv-secondary,#91acc3)}
+    #pv-search .pv-chip input:checked{background:var(--pv-secondary,#91acc3) ${CHECK} center/12px no-repeat}
+    #pv-search .pv-all{padding:0 4px;border:0;background:none;color:var(--pv-accent,#b4c0ce);font:inherit;font-size:14px;text-decoration:underline;cursor:pointer}
+    #pv-search .pv-hint{flex:1 1 100%;color:var(--pv-secondary,#91acc3);font-size:14px}
+    #pv-search .pv-hint:empty{display:none}
+    #pv-search :focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:3px}
   `;
-  function mountBar() {
+  function mount() {
     const host = document.getElementById('layout-groups');
     if (!host || bar?.isConnected) return;
     if (!style.isConnected) document.head.append(style);
@@ -208,66 +212,46 @@
     for (const [k, v] of Object.entries({viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':'1.8', 'stroke-linecap':'round', 'aria-hidden':'true'})) svg.setAttribute(k, v);
     const lens = document.createElementNS(ns, 'path'); lens.setAttribute('d', 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4'); svg.append(lens);
     const input = make('input', {type: 'search', name: 'q', required: true, minLength: 2, maxLength: 200,
-      autocomplete: 'off', placeholder: 'Search ' + apps.map(a => a.label).join(', ')});
+      autocomplete: 'off', placeholder: 'Search PiVault'});
     input.setAttribute('aria-label', 'Search PiVault');
     field.append(svg, input);
-    hint = make('div', {className: 'pv-hint'});
-    hint.setAttribute('aria-live', 'polite');
-    bar.append(field, make('button', {type: 'submit', className: 'pv-go', textContent: 'Search'}), hint);
-    bar.addEventListener('submit', event => {
-      if (!document.querySelector('.pv-pick input:checked')) {
-        event.preventDefault(); showHint('Tick at least one app to search.');
-      }
-    });
-    host.prepend(bar);
-    showHint();
-  }
-  function showHint(message) {
-    if (!hint) return;
-    hint.replaceChildren(message || 'Tick the apps below to choose where to search: ');
-    if (message) return;
-    for (const [text, value] of [['All', true], ['None', false]]) {
-      const b = make('button', {type: 'button', textContent: text});
-      b.addEventListener('click', () => setAll(value));
-      hint.append(b, ' ');
-    }
-  }
-  function setAll(value) {
-    remember(value ? new Set() : new Set(apps.map(a => a.key)));
-    document.querySelectorAll('.pv-pick input').forEach(box => { box.checked = value; });
-  }
-  function decorate() {
-    queued = false;
-    if (!apps.length) return;
-    mountBar();
+    const picks = make('fieldset');
+    picks.append(make('legend', {textContent: 'Search in'}));
     const off = unticked();
     for (const app of apps) {
-      const tile = document.querySelector(`li.service[data-name="${CSS.escape(app.label)}"]`);
-      if (!tile || tile.querySelector(':scope > .pv-pick')) continue;
-      const pick = make('label', {className: 'pv-pick', title: 'Include ' + app.label + ' in search'});
+      const chip = make('label', {className: 'pv-chip'});
       const box = make('input', {type: 'checkbox', name: 'app', value: app.key, checked: !off.has(app.key)});
-      box.setAttribute('form', 'pv-search');
-      box.setAttribute('aria-label', 'Search ' + app.label);
       box.addEventListener('change', () => {
-        const set = unticked(); box.checked ? set.delete(app.key) : set.add(app.key); remember(set);
+        const set = unticked(); box.checked ? set.delete(app.key) : set.add(app.key); remember(set); hint.textContent = '';
       });
-      pick.append(box);
-      tile.prepend(pick);
-      // Indent every tile in this column alike, so tiles without a tickbox stay aligned.
-      tile.closest('.services-group')?.classList.add('pv-picks');
+      chip.append(box, document.createTextNode(app.label));
+      picks.append(chip);
     }
+    for (const [text, value] of [['All', true], ['None', false]]) {
+      const b = make('button', {type: 'button', className: 'pv-all', textContent: text});
+      b.addEventListener('click', () => {
+        remember(value ? new Set() : new Set(apps.map(a => a.key)));
+        picks.querySelectorAll('input').forEach(box => { box.checked = value; });
+      });
+      picks.append(b);
+    }
+    hint = make('div', {className: 'pv-hint'});
+    hint.setAttribute('aria-live', 'polite');
+    bar.append(field, make('button', {type: 'submit', className: 'pv-go', textContent: 'Search'}), picks, hint);
+    bar.addEventListener('submit', event => {
+      if (!picks.querySelector('input:checked')) { event.preventDefault(); hint.textContent = 'Tick at least one app to search.'; }
+    });
+    host.prepend(bar);
   }
-  const observer = new MutationObserver(() => {
-    if (!queued) { queued = true; requestAnimationFrame(decorate); }
-  });
   async function start() {
     try {
       const response = await fetch('/search/apps', {credentials: 'same-origin', cache: 'no-store'});
       apps = response.ok ? ((await response.json()).apps || []) : [];
     } catch { apps = []; }
     if (!apps.length) return;  // Signed out, or nothing this account may search.
-    decorate();
-    observer.observe(document.body, {childList: true, subtree: true});
+    mount();
+    // Homepage can re-render the launcher; put the bar back if it disappears.
+    new MutationObserver(mount).observe(document.body, {childList: true, subtree: true});
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
   else start();
