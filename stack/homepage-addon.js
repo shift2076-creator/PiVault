@@ -333,3 +333,39 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
   else start();
 })();
+
+/* Board Keyhole logo: the mark before the launcher's "PiVault" title (custom.css draws the
+   title as #layout-groups::before) and the tab icon. Both are inline SVG data URIs, so nothing
+   is fetched; the wordmark keeps Homepage's bundled Manrope. Next.js can re-render <head>, so
+   any icon it re-adds is replaced again. */
+(() => {
+  if (window.piVaultLogoLoaded) return;
+  window.piVaultLogoLoaded = true;
+  const L = '#layout-groups#layout-groups#layout-groups';
+  const pins = [27, 35, 43, 51, 59, 67, 75, 83, 91].map(x => `<rect x="${x}" y="28" width="5" height="5" rx="1"/>`).join('');
+  const holes = [[16, 30], [104, 30], [16, 90], [104, 90]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3"/>`).join('');
+  const mark = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">' +
+    '<rect x="8" y="22" width="104" height="76" rx="7" stroke="#91acc3" stroke-width="3"/>' +
+    `<g fill="#91acc3">${pins}</g><g stroke="#91acc3" stroke-width="2">${holes}</g>` +
+    '<path d="M54 61.9A10 10 0 1 1 66 61.9L70.5 84H49.5Z" stroke="#91acc3" stroke-width="3" stroke-linejoin="round"/></svg>';
+  const icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#202a35"/>' +
+    '<svg x="3" y="3" width="26" height="26" viewBox="0 0 120 120" fill="none">' +
+    '<rect x="8" y="20" width="104" height="80" rx="10" stroke="#91acc3" stroke-width="11"/>' +
+    '<path d="M53 60A13 13 0 1 1 67 60L72 86H48Z" stroke="#91acc3" stroke-width="11" stroke-linejoin="round"/></svg></svg>';
+  const uri = svg => 'data:image/svg+xml,' + encodeURIComponent(svg);
+  const style = document.createElement('style');
+  style.id = 'pv-logo';
+  style.textContent = `
+    body:has(#pivault-books) ${L}::before{padding-left:60px;min-height:48px;line-height:48px;
+      background:url("${uri(mark)}") no-repeat left center/48px 48px}
+  `;
+  const tab = Object.assign(document.createElement('link'), {id: 'pv-icon', rel: 'icon', type: 'image/svg+xml', href: uri(icon)});
+  const apply = () => {
+    document.head.querySelectorAll('link[rel~="icon"]:not(#pv-icon),link[rel="apple-touch-icon"]').forEach(link => link.remove());
+    if (!style.isConnected) document.head.append(style);
+    if (!tab.isConnected) document.head.append(tab);
+  };
+  const start = () => { apply(); new MutationObserver(apply).observe(document.head, {childList: true}); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
+  else start();
+})();
