@@ -92,10 +92,10 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   style.id = 'pv-columns';
   style.textContent = `
     @media (min-width:1280px){
-      .pv-five{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start}
-      .pv-five>.services-group{flex-basis:auto!important;max-width:none!important;min-width:0}
-      .pv-five>.pv-media{grid-column:span 2}
-      .pv-media .services-list{display:grid!important;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:1.5rem}
+      #layout-groups.pv-five,#services.pv-five{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;align-items:start}
+      #layout-groups.pv-five>.services-group,#services.pv-five>.services-group{flex:none!important;width:auto!important;max-width:none!important;min-width:0!important}
+      #layout-groups.pv-five>.pv-media,#services.pv-five>.pv-media{grid-column:span 2!important}
+      #layout-groups .pv-media .services-list,#services .pv-media .services-list{display:grid!important;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:1.5rem}
     }
   `;
   let queued = false;
