@@ -70,10 +70,10 @@ class NativeConfigurationTests(unittest.TestCase):
 
 
 class MaintenanceTests(unittest.TestCase):
-    def execute(self, cinema, run, offline=False):
+    def execute(self, cinema, run, offline=False, books=False):
         with tempfile.TemporaryDirectory() as folder:
             config = Path(folder) / 'maintenance.json'
-            config.write_text(json.dumps({'cinema_enabled': cinema}))
+            config.write_text(json.dumps({'cinema_enabled': cinema, 'books_enabled': books}))
             publish = Mock()
             result = maintenance.main(run=run, publish=publish, config_path=config, offline=lambda: offline)
         return result, publish
@@ -114,6 +114,20 @@ class MaintenanceTests(unittest.TestCase):
         run = Mock(side_effect=[SimpleNamespace(returncode=0), SimpleNamespace(returncode=1)])
         _, publish = self.execute(True, run)
         publish.assert_called_once_with('cinema')
+
+    def test_enabled_books_run_after_cinema_and_report_failures(self):
+        run = Mock(side_effect=[SimpleNamespace(returncode=0), SimpleNamespace(returncode=0), SimpleNamespace(returncode=1)])
+        result, publish = self.execute(True, run, books=True)
+        self.assertEqual(result, 1)
+        self.assertIn('pivault-books.service', run.call_args.args[0])
+        publish.assert_called_once_with('books')
+
+    def test_books_pause_in_offline_mode_and_stay_off_unless_enabled(self):
+        run = Mock(return_value=SimpleNamespace(returncode=0))
+        self.execute(False, run, offline=True, books=True)
+        run.assert_not_called()
+        self.execute(False, run)
+        self.assertNotIn('pivault-books.service', run.call_args.args[0])
 
     def test_one_two_am_eastern_timer_has_no_unrequested_catchup(self):
         units = native.maintenance_units(Path('/srv/pi-server/users/maintenance.py'))

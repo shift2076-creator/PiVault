@@ -1,4 +1,4 @@
-"""One local systemd run for approved client copies, release checks and cinema."""
+"""One local systemd run for approved client copies, release checks, cinema and books."""
 import hashlib
 import json
 import os
@@ -51,6 +51,8 @@ def main(run=subprocess.run, publish=publish_failure, config_path=CONFIG, offlin
     jobs = [('client downloads', ['docker', 'exec', 'pivault-users', 'python', 'manage.py', 'maintain_clients'], 1800)]
     if config.get('cinema_enabled'):
         jobs.append(('cinema', ['systemctl', 'start', '--wait', 'pivault-cinema.service'], None))
+    if config.get('books_enabled'):
+        jobs.append(('books', ['systemctl', 'start', '--wait', 'pivault-books.service'], None))
     failed = False
     for name, command, timeout in jobs:
         try:
