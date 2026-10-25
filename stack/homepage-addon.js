@@ -335,7 +335,10 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
 })();
 
 /* Board Keyhole logo: the mark before the launcher's "PiVault" title (custom.css draws the
-   title as #layout-groups::before) and the tab icon. Both are inline SVG data URIs, so nothing
+   title as #layout-groups::before) and the tab icon. The title shares its grid area with the
+   search bar, so it is pinned to the top and centred rather than stretched over the search row.
+   Its 44px Manrope 200 in the mark's colour sets the cap height (0.72em) to the board outline's
+   height and the stem weight closest to the mark's stroke. Both are inline SVG data URIs, so nothing
    is fetched; the wordmark keeps Homepage's bundled Manrope. Next.js can re-render <head>, so
    any icon it re-adds is replaced again. */
 (() => {
@@ -356,8 +359,9 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   const style = document.createElement('style');
   style.id = 'pv-logo';
   style.textContent = `
-    body:has(#pivault-books) ${L}::before{padding-left:60px;min-height:48px;line-height:48px;
-      background:url("${uri(mark)}") no-repeat left center/48px 48px}
+    body:has(#pivault-books) ${L}::before{align-self:start;justify-self:center;height:48px;padding-left:60px;
+      font-size:44px;font-weight:200;line-height:48px;letter-spacing:-1.4px;color:#91acc3;
+      background:url("${uri(mark)}") no-repeat left 0 top 1px/48px 48px}
   `;
   const tab = Object.assign(document.createElement('link'), {id: 'pv-icon', rel: 'icon', type: 'image/svg+xml', href: uri(icon)});
   const apply = () => {
