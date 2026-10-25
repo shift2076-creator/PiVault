@@ -79,7 +79,8 @@ add_book() {
     output=$(calibredb add --library-path "$LIBRARY" --title "$title" --authors "$author" \
         --identifier "pivault:$key" --tags "$TAG" --languages eng -- "$file" 2>&1) || { die "$output"; return 1; }
     id=$(printf '%s\n' "$output" | sed -n 's/^Added book ids: \([0-9]*\).*/\1/p')
-    [[ "$id" =~ ^[0-9]+$ ]] || { die "Calibre did not add $title; a book with the same title and author may already exist."; return 1; }
+    if [[ ! "$id" =~ ^[0-9]+$ && "$output" == *"already exist in the database"* ]]; then return 3; fi
+    [[ "$id" =~ ^[0-9]+$ ]] || { die "Calibre did not add $title: $output"; return 1; }
     calibredb set_metadata --library-path "$LIBRARY" "${dated[@]}" \
         --field "comments:Source: $url<br>Rights basis: $rights" "$id" >/dev/null || { die "Added $title as book $id, but its date and rights note were not saved."; return 1; }
 }
@@ -134,9 +135,16 @@ run_round() {
         if [[ -z "$used_url" ]]; then
             failures=$((failures+1)); log "Incomplete: $title; the next round will retry it."; continue
         fi
-        if ! add_book "$part" "$key" "$title" "$author" "$year" "$used_url" "$rights"; then
-            failures=$((failures+1)); continue
-        fi
+        add_book "$part" "$key" "$title" "$author" "$year" "$used_url" "$rights"
+        case $? in
+            0) ;;
+            3)
+                rm -f -- "$part"
+                mark_done "$key" existing "$source" "$used_url" || return 1
+                log "Already in the library under the same title and author: $name."
+                continue ;;
+            *) failures=$((failures+1)); continue ;;
+        esac
         rm -f -- "$part"
         mark_done "$key" "$RUN_DAY" "$source" "$used_url" || return 1
         today=$((today+1)); new=$((new+1))
