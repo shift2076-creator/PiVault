@@ -110,7 +110,9 @@ class WikiSearch(Connector):
             # The catalog <name> is ZIM metadata, not the server's URL name, so
             # books.name rejects it ("No such book"); the UUID always matches.
             book = (entry.findtext(ATOM + 'id') or '').removeprefix('urn:uuid:')
-            if book:
+            # One unindexed ZIM makes kiwix reject its whole language batch (404).
+            tags = (entry.findtext(ATOM + 'tags') or '').split(';')
+            if book and '_ftindex:no' not in tags:
                 languages.setdefault(entry.findtext(ATOM + 'language') or '', []).append(book)
         results = []
         for books in languages.values():
