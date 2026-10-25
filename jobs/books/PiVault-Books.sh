@@ -10,6 +10,7 @@ LIBRARY="$BOOK_DISK/Server/Books"
 INCOMING="$BOOK_DISK/Server/.pivault-books-incoming"
 MAINTENANCE_RUNTIME="/srv/pi-server/users/maintenance.py"
 MAINTENANCE_CONFIG="/srv/pi-server/config/users/maintenance.json"
+MAX_ATTEMPTS=3  # separate rounds a title may fail before it is parked
 TAG="PiVault Americana"
 export TZ=America/New_York
 
@@ -86,12 +87,36 @@ add_book() {
 }
 
 mark_done() {
-    printf '%s\t%s\t%s\n' "$2" "$3" "$4" > "$INSTALL_DIR/state/$1.done.tmp" && mv -- "$INSTALL_DIR/state/$1.done.tmp" "$INSTALL_DIR/state/$1.done"
+    printf '%s\t%s\t%s\n' "$2" "$3" "$4" > "$INSTALL_DIR/state/$1.done.tmp" && mv -- "$INSTALL_DIR/state/$1.done.tmp" "$INSTALL_DIR/state/$1.done" &&
+        rm -f -- "$INSTALL_DIR/state/$1.failed"
+}
+
+sources_reachable() {
+    curl --silent --head --output /dev/null --max-time 30 --proto '=https' https://www.gutenberg.org/
+}
+
+# Count one failed round for each title; park a title after MAX_ATTEMPTS so it stops failing the job.
+note_failures() {
+    local key count
+    for key in "$@"; do
+        count=0
+        [[ ! -f "$INSTALL_DIR/state/$key.failed" ]] || read -r count < "$INSTALL_DIR/state/$key.failed"
+        [[ "$count" =~ ^[0-9]+$ ]] || count=0
+        count=$((count+1))
+        if (( count >= MAX_ATTEMPTS )); then
+            printf '%s\t%s\n' "$RUN_DAY" "$count" > "$INSTALL_DIR/state/$key.parked" || return 1
+            rm -f -- "$INSTALL_DIR/state/$key.failed" "$INCOMING/$key".*.part
+            log "PARKED: $key failed in $count separate rounds and will not be retried. Delete $INSTALL_DIR/state/$key.parked to retry it."
+        else
+            printf '%s\n' "$count" > "$INSTALL_DIR/state/$key.failed" || return 1
+        fi
+    done
 }
 
 run_round() {
     local mode=$1 key title author year source url size md5 fb_url fb_size fb_md5 rights
-    local today=0 new=0 failures=0 remaining=0 file day ext part used_url free name
+    local today=0 new=0 fetched=0 stopped=0 unreachable=0 remaining=0 parked=0 file day ext part used_url free name
+    local -a failed=()
     [[ -f "$INSTALL_DIR/books.conf" ]] || { die 'Install this script first.'; return 1; }
     source "$INSTALL_DIR/books.conf" || return 1
     host_check || return 1
@@ -106,7 +131,7 @@ run_round() {
     done
     log "Starting $mode: up to $DAILY_COUNT new books for $RUN_DAY ($today already added today)."
     while IFS=$'\t' read -r key title author year source url size md5 fb_url fb_size fb_md5 rights; do
-        [[ ! -f "$INSTALL_DIR/state/$key.done" ]] || continue
+        [[ ! -f "$INSTALL_DIR/state/$key.done" && ! -f "$INSTALL_DIR/state/$key.parked" ]] || continue
         name=$title; [[ "$year" == - ]] || name="$title ($year)"
         if (( today >= DAILY_COUNT )); then remaining=$((remaining+1)); continue; fi
         if in_library "$key"; then
@@ -117,7 +142,7 @@ run_round() {
         free=$(df -B1 --output=avail -- "$LIBRARY" | awk 'NR==2 {print $1}') || return 1
         if (( free < 1073741824 + ${size/#-/0} * 2 )); then
             log "SPACE: not enough free space on $BOOK_DISK for $name; round stopped."
-            failures=$((failures+1)); break
+            stopped=1; break
         fi
         ext=pdf; [[ "$source" != gutenberg && "$source" != standard ]] || ext=epub
         part="$INCOMING/$key.$source.$ext.part"
@@ -133,8 +158,9 @@ run_round() {
             fi
         fi
         if [[ -z "$used_url" ]]; then
-            failures=$((failures+1)); log "Incomplete: $title; the next round will retry it."; continue
+            failed+=("$key"); log "Incomplete: $title; a later round will retry it."; continue
         fi
+        fetched=$((fetched+1))
         add_book "$part" "$key" "$title" "$author" "$year" "$used_url" "$rights"
         case $? in
             0) ;;
@@ -143,15 +169,25 @@ run_round() {
                 mark_done "$key" existing "$source" "$used_url" || return 1
                 log "Already in the library under the same title and author: $name."
                 continue ;;
-            *) failures=$((failures+1)); continue ;;
+            *) failed+=("$key"); continue ;;
         esac
         rm -f -- "$part"
         mark_done "$key" "$RUN_DAY" "$source" "$used_url" || return 1
         today=$((today+1)); new=$((new+1))
         log "Added: $name."
     done < <(queue)
-    log "Round result: $new new; $remaining waiting for later rounds; $failures incomplete."
-    (( failures == 0 ))
+    if (( ${#failed[@]} )); then
+        if (( fetched > 0 )) || sources_reachable; then
+            note_failures "${failed[@]}" || return 1
+        else
+            unreachable=1
+            log 'Download sources are unreachable; failed titles do not count toward their retry limit.'
+        fi
+    fi
+    for file in "$INSTALL_DIR"/state/*.parked; do [[ -f "$file" ]] && parked=$((parked+1)); done
+    log "Round result: $new new; $remaining waiting for later rounds; ${#failed[@]} incomplete (retried later); $parked parked."
+    # Individual titles never fail the job; only a stopped round or unreachable sources do.
+    (( stopped == 0 && unreachable == 0 ))
 }
 
 install_books() {
