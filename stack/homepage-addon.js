@@ -159,59 +159,72 @@
   else start();
 })();
 
-/* Unified search: a field above the launcher and a tickbox before each searchable app.
-   The portal decides which apps this user may search; unticked apps are never queried. */
+/* Unified search: a field under the PiVault title and a tickbox before each searchable app.
+   The portal decides which apps this user may search; unticked apps are never queried.
+   The field sits in the launcher's own "title" grid area, which every launcher layout keeps,
+   so it follows the launcher's gutters and breakpoints. */
 (() => {
   if (window.piVaultSearchLoaded) return;
   window.piVaultSearchLoaded = true;
   const STORE = 'pivault-search-unticked';
+  const CHECK = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23151c22' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")";
   let apps = [], bar = null, hint = null, queued = false;
   const unticked = () => { try { return new Set(JSON.parse(localStorage.getItem(STORE) || '[]')); } catch { return new Set(); } };
   const remember = set => { try { localStorage.setItem(STORE, JSON.stringify([...set])); } catch { /* Per-browser convenience only. */ } };
-  const groups = () => document.getElementById('layout-groups') || document.getElementById('services');
   const make = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+  const style = make('style', {id: 'pv-search-style'});
+  // The repeated ID outranks the launcher CSS (body:has(#pivault-books) #layout-groups ...).
+  const L = '#layout-groups#layout-groups#layout-groups';
+  style.textContent = `
+    ${L} > #pv-search{grid-area:title;align-self:start;display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;
+      margin:64px 0 56px;color:var(--pv-text,#e8edf2);font:inherit;font-size:16px;z-index:1}
+    @media (max-width:1279px){${L} > #pv-search{margin:60px 0 0}}
+    #pv-search .pv-field{flex:1 1 320px;display:flex;align-items:center;gap:12px;min-height:52px;padding:0 16px;
+      border:1px solid var(--pv-divider,rgba(151,170,190,.48));border-radius:.5em;background:rgba(151,170,190,.06);box-sizing:border-box}
+    #pv-search .pv-field:focus-within{border-color:var(--pv-secondary,#91acc3)}
+    #pv-search .pv-field svg{flex:none;width:20px;height:20px;color:var(--pv-secondary,#91acc3)}
+    #pv-search input[type=search]{flex:1;min-width:0;height:50px;padding:0;border:0;background:transparent;box-shadow:none;
+      color:var(--pv-text,#e8edf2);font:inherit;font-size:17px;outline:none}
+    #pv-search input[type=search]::placeholder{color:var(--pv-secondary,#91acc3);opacity:.8}
+    #pv-search .pv-go{min-height:52px;padding:0 26px;border:0;border-radius:.5em;cursor:pointer;color:var(--pv-text,#e8edf2);
+      font:inherit;font-size:16px;font-weight:500;background:linear-gradient(145deg,#2b3643,#202a35);box-shadow:inset 0 1px 0 rgb(206 220 235 / 26%)}
+    #pv-search .pv-go:hover{box-shadow:0 4px 6px -1px rgb(0 0 0 / 20%),inset 0 1px 0 rgb(206 220 235 / 26%)}
+    #pv-search .pv-hint{flex:1 1 100%;color:var(--pv-secondary,#91acc3);font-size:14px}
+    #pv-search .pv-hint button{padding:0 2px;border:0;background:none;color:var(--pv-accent,#b4c0ce);font:inherit;text-decoration:underline;cursor:pointer}
+    #pv-search :focus-visible,.pv-pick input:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:3px}
+    ${L} .services-group.pv-picks .service{position:relative!important;padding-left:30px!important}
+    .pv-pick{position:absolute;left:0;top:0;bottom:0;z-index:40;display:flex;align-items:center;width:26px;cursor:pointer}
+    .pv-pick input{appearance:none;-webkit-appearance:none;width:18px;height:18px;margin:0;border:1.5px solid var(--pv-secondary,#91acc3);
+      border-radius:4px;background:transparent;cursor:pointer;color:transparent;box-shadow:none}
+    .pv-pick input:checked{background:var(--pv-secondary,#91acc3) ${CHECK} center/14px no-repeat;border-color:var(--pv-secondary,#91acc3)}
+  `;
   function mountBar() {
-    const host = groups();
+    const host = document.getElementById('layout-groups');
     if (!host || bar?.isConnected) return;
+    if (!style.isConnected) document.head.append(style);
     bar = make('form', {id: 'pv-search', method: 'get', action: '/search', role: 'search'});
-    const style = make('style');
-    style.textContent = `
-      #pv-search{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:0 2rem 1.5rem;padding:0 .25rem;font:15px/1.45 Arial,Helvetica,sans-serif;color:var(--pv-text,#e8edf2)}
-      #pv-search .pv-field{flex:1 1 420px;display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px;border:1px solid #3a4956;border-radius:.5em;background:#1c252d}
-      #pv-search .pv-field:focus-within{border-color:var(--pv-secondary,#91acc3)}
-      #pv-search input[type=search]{flex:1;min-width:0;border:0;background:transparent;color:inherit;font:16px Arial,Helvetica,sans-serif;outline:none}
-      #pv-search button{min-height:48px;padding:0 22px;border:0;border-radius:.5em;background:#52667e;color:var(--pv-text,#e8edf2);font:inherit;cursor:pointer}
-      #pv-search button:hover{background:#60758e}
-      #pv-search .pv-hint{flex:1 1 100%;color:var(--pv-secondary,#91acc3);font-size:13px}
-      #pv-search .pv-hint button{min-height:0;padding:0;background:none;color:inherit;text-decoration:underline;font-size:13px}
-      #pv-search button:focus-visible,.pv-pick input:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:3px}
-      .service.pv-searchable{display:flex;align-items:center;gap:4px}
-      .service.pv-searchable>:not(.pv-pick){flex:1;min-width:0}
-      .pv-pick{flex:none;align-self:stretch;display:grid;place-items:center;width:28px;cursor:pointer}
-      .pv-pick input{width:16px;height:16px;margin:0;accent-color:var(--pv-secondary,#91acc3);cursor:pointer}
-    `;
     const field = make('label', {className: 'pv-field'});
     const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
-    for (const [k, v] of Object.entries({viewBox:'0 0 24 24', width:'20', height:'20', fill:'none', stroke:'#91acc3', 'stroke-width':'1.8', 'aria-hidden':'true'})) svg.setAttribute(k, v);
+    for (const [k, v] of Object.entries({viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':'1.8', 'stroke-linecap':'round', 'aria-hidden':'true'})) svg.setAttribute(k, v);
     const lens = document.createElementNS(ns, 'path'); lens.setAttribute('d', 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4'); svg.append(lens);
     const input = make('input', {type: 'search', name: 'q', required: true, minLength: 2, maxLength: 200,
-      autocomplete: 'off', placeholder: 'Search ' + apps.map(a => a.label.toLowerCase()).join(', ')});
+      autocomplete: 'off', placeholder: 'Search ' + apps.map(a => a.label).join(', ')});
     input.setAttribute('aria-label', 'Search PiVault');
     field.append(svg, input);
     hint = make('div', {className: 'pv-hint'});
     hint.setAttribute('aria-live', 'polite');
-    bar.append(style, field, make('button', {type: 'submit', textContent: 'Search'}), hint);
+    bar.append(field, make('button', {type: 'submit', className: 'pv-go', textContent: 'Search'}), hint);
     bar.addEventListener('submit', event => {
       if (!document.querySelector('.pv-pick input:checked')) {
         event.preventDefault(); showHint('Tick at least one app to search.');
       }
     });
-    host.before(bar);
+    host.prepend(bar);
     showHint();
   }
   function showHint(message) {
     if (!hint) return;
-    hint.replaceChildren(message || 'Tick the apps below to choose where to search. ');
+    hint.replaceChildren(message || 'Tick the apps below to choose where to search: ');
     if (message) return;
     for (const [text, value] of [['All', true], ['None', false]]) {
       const b = make('button', {type: 'button', textContent: text});
@@ -220,8 +233,7 @@
     }
   }
   function setAll(value) {
-    const off = value ? new Set() : new Set(apps.map(a => a.key));
-    remember(off);
+    remember(value ? new Set() : new Set(apps.map(a => a.key)));
     document.querySelectorAll('.pv-pick input').forEach(box => { box.checked = value; });
   }
   function decorate() {
@@ -240,8 +252,9 @@
         const set = unticked(); box.checked ? set.delete(app.key) : set.add(app.key); remember(set);
       });
       pick.append(box);
-      tile.classList.add('pv-searchable');
       tile.prepend(pick);
+      // Indent every tile in this column alike, so tiles without a tickbox stay aligned.
+      tile.closest('.services-group')?.classList.add('pv-picks');
     }
   }
   const observer = new MutationObserver(() => {
