@@ -5,7 +5,7 @@ The launcher's search field opens `/search`, a portal page that queries each tic
 ## Who sees what
 
 - Only signed-in portal users can search.
-- A user sees an app's tickbox only when their account has access to that app. Inventory additionally requires the shared household.
+- Videos, Music and Inventory have per-user portal accounts: a user sees their tickbox only with access to that app (Inventory: the shared household). Wiki, Books, Documents and Pantry have no per-user portal accounts, so every signed-in user sees them.
 - Unticked apps are never queried.
 - Each app is searched with one read-only search credential. Results are exactly what that credential can see, so give it only content every user with access to that app already shares.
 

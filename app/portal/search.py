@@ -63,6 +63,11 @@ class Connector:
         self.opener = build_opener(ProxyHandler({}), NoRedirect())
 
     def allowed(self, user):
+        from .services import ADAPTERS
+        # Apps without per-user portal accounts (Kiwix, Calibre-Web, Paperless, Grocy) are
+        # shared with every signed-in user; provisioned apps follow the user's access.
+        if self.key not in ADAPTERS:
+            return True
         return user.service_access.get(self.key, 'none') in self.modes
 
     def fetch(self, path, query=()):

@@ -78,10 +78,15 @@ class SearchTests(TestCase):
         self.assertRedirects(response, '/users/sign-in', fetch_redirect_response=False)
         self.assertEqual(self.calls, [])
 
-    def test_apps_list_follows_service_access_and_isolated_inventory_is_excluded(self):
-        self.user.service_access = {'wiki': 'shared', 'inventory': 'isolated', 'music': 'none'}
+    def test_provisioned_apps_follow_access_and_unprovisioned_apps_are_shared(self):
+        self.user.service_access = {'inventory': 'isolated', 'music': 'none', 'videos': 'shared'}
         self.user.save()
-        self.assertEqual(self.get('/search/apps').json(), {'apps': [{'key': 'wiki', 'label': 'Offline Wiki'}]})
+        provisioned = {key: object() for key in ('inventory', 'music', 'videos')}
+        with patch.dict('portal.services.ADAPTERS', provisioned, clear=True):
+            keys = [app['key'] for app in self.get('/search/apps').json()['apps']]
+        # Isolated Inventory and no-access Music are hidden; Wiki, Books, Documents and
+        # Pantry have no portal accounts, so every signed-in user shares them.
+        self.assertEqual(keys, ['books', 'videos', 'documents', 'wiki', 'pantry'])
 
     def test_only_ticked_apps_are_called(self):
         response = self.get('/search?q=apollo&app=wiki&app=videos&app=passwords')
