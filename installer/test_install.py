@@ -173,6 +173,30 @@ class ConfigurationTests(unittest.TestCase):
             self.assertEqual(path.stat().st_ino, inode)
 
 
+class ComposeLabelTests(unittest.TestCase):
+    DOCUMENT = {'services': {'vault-https': {}}}
+
+    def caddy(self, files, folder):
+        return {'Config': {'Labels': {'com.docker.compose.service': 'vault-https',
+            'com.docker.compose.project': 'pi-services',
+            'com.docker.compose.project.config_files': files,
+            'com.docker.compose.project.working_dir': folder}}}
+
+    def test_relative_compose_path_from_the_project_folder_is_accepted(self):
+        # Standalone docker-compose on pivault records the file name relative to its folder.
+        container = self.caddy('docker-compose.yml', str(install.COMPOSE.parent))
+        self.assertEqual(install.compose_service(self.DOCUMENT, container)[1], 'pi-services')
+
+    def test_absolute_compose_path_is_accepted(self):
+        container = self.caddy(str(install.COMPOSE), '/elsewhere')
+        self.assertEqual(install.compose_service(self.DOCUMENT, container)[1], 'pi-services')
+
+    def test_a_different_compose_file_is_rejected(self):
+        for files, folder in (('docker-compose.yml', '/srv/other'), ('/srv/other/docker-compose.yml', '/srv/other')):
+            with self.assertRaisesRegex(install.InstallError, 'different Compose file'):
+                install.compose_service(self.DOCUMENT, self.caddy(files, folder))
+
+
 class ProbeTests(unittest.TestCase):
     def probe(self, body, gate='404'):
         calls = []

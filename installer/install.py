@@ -121,7 +121,10 @@ def compose_service(document, container):
     if name not in document.get('services', {}):
         raise InstallError('Caddy is not managed by the expected pi-services Compose file.')
     paths = labels.get('com.docker.compose.project.config_files', '')
-    if paths and str(COMPOSE) not in paths.split(','):
+    # Standalone docker-compose records the file as given (often relative to the
+    # project folder), so resolve each entry against the recorded working directory.
+    folder = Path(labels.get('com.docker.compose.project.working_dir', '') or '/')
+    if paths and COMPOSE not in [folder / item.strip() for item in paths.split(',')]:
         raise InstallError('The active Caddy container uses a different Compose file.')
     project = labels.get('com.docker.compose.project')
     if not project:
