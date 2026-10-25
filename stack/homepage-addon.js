@@ -10,15 +10,20 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   return bar;
 });
 
-/* Settings menu (Admin only): holds Add User. The server, not the browser, enforces Admin access. */
+/* Settings menu: File Sync and Password Manager for everyone, plus Add User for Admins.
+   The server, not the browser, enforces Admin access on /users/add. */
 (() => {
   if (window.piVaultUsersLoaded) return;
   window.piVaultUsersLoaded = true;
-  let root, button, panel, opened = false;
+  let root, button, panel, add, opened = false, admin = false;
   const ns = 'http://www.w3.org/2000/svg';
-  // Gear and user-plus outlines from Feather Icons (MIT License, compatible with this project).
+  // Gear, user-plus, refresh and lock outlines from Feather Icons (MIT License, compatible with this project).
   const GEAR = 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z';
   const USER_PLUS = 'M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M20 8v6M17 11h6M12 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0';
+  const SYNC = 'M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15';
+  const LOCK = 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4';
+  // These apps leave the launcher columns for this menu; their links come from their tiles.
+  const MOVED = [['#pivault-file-sync', 'File Sync', SYNC], ['li.service[data-name="Password Manager"]', 'Password Manager', LOCK]];
   function icon(d, size) {
     const svg = document.createElementNS(ns, 'svg');
     for (const [name, value] of Object.entries({viewBox:'0 0 24 24', width:size, height:size, fill:'none',
@@ -36,11 +41,11 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     root = document.createElement('div'); root.id = 'pv-settings';
     const style = document.createElement('style');
     style.textContent = `
-      #pv-settings{position:relative;order:2;color:var(--pv-text,#e8edf2);font:15px/1.45 Arial,Helvetica,sans-serif}
+      #pv-settings{position:relative;order:2;color:var(--pv-text,#e8edf2);font:inherit;font-size:16px;line-height:1.45}
       #pv-settings [hidden]{display:none!important}
       #pv-settings .pv-gear{display:grid;place-items:center;width:46px;height:46px;padding:0;border:0;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer}
       #pv-settings .pv-gear:hover,#pv-settings .pv-gear[aria-expanded=true]{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
-      #pv-settings .pv-menu{position:absolute;right:0;top:54px;min-width:220px;padding:8px;border:1px solid var(--pv-divider,rgba(151,170,190,.48));border-radius:.5em;background:var(--pv-background,#151c22);box-shadow:0 10px 30px #0005}
+      #pv-settings .pv-menu{position:absolute;right:0;top:54px;min-width:240px;padding:8px;border:1px solid var(--pv-divider,rgba(151,170,190,.48));border-radius:.5em;background:var(--pv-background,#151c22);box-shadow:0 10px 30px #0005}
       #pv-settings h2{margin:6px 10px 8px;font-size:12px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--pv-secondary,#91acc3)}
       #pv-settings a{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 10px;border-radius:.4em;color:var(--pv-text,#e8edf2);text-decoration:none}
       #pv-settings a:hover{background:rgba(151,170,190,.1)}
@@ -55,25 +60,43 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     panel = document.createElement('nav'); panel.id = 'pv-settings-menu'; panel.className = 'pv-menu';
     panel.setAttribute('aria-label', 'Settings'); panel.hidden = true;
     const heading = document.createElement('h2'); heading.textContent = 'Settings';
-    const add = document.createElement('a'); add.href = '/users/add';
+    panel.append(heading);
+    for (const [selector, label, path] of MOVED) {
+      const link = document.createElement('a'); link.dataset.source = selector;
+      link.append(icon(path, 20), document.createTextNode(label));
+      panel.append(link);
+    }
+    add = document.createElement('a'); add.href = '/users/add'; add.hidden = !admin;
     add.append(icon(USER_PLUS, 20), document.createTextNode('Add User'));
-    panel.append(heading, add);
+    panel.append(add);
     root.append(style, button, panel);
     window.piVaultToolbar().append(root);
     button.addEventListener('click', () => {
       if (opened) { close(); return; }
+      links();
       opened = true; panel.hidden = false; button.setAttribute('aria-expanded', 'true');
     });
+    links();
   }
-  function hide() { root?.remove(); root = null; opened = false; }
+  function links() {
+    // Copy each app's address (and new-tab choice) from its launcher tile.
+    for (const link of panel.querySelectorAll('a[data-source]')) {
+      const tile = document.querySelector(link.dataset.source)?.querySelector('a[href]');
+      link.hidden = !tile;
+      if (!tile) continue;
+      link.href = tile.href;
+      if (tile.target) { link.target = tile.target; link.rel = 'noopener noreferrer'; }
+    }
+  }
   async function refresh() {
-    let admin = false;
+    admin = false;
     try {
       const response = await fetch('/users/session', {credentials:'same-origin', cache:'no-store'});
       const state = response.ok ? await response.json() : {};
       admin = state.authenticated === true && state.admin === true;
     } catch { admin = false; }
-    if (admin) mount(); else hide();
+    mount();
+    if (add) add.hidden = !admin;
   }
   document.addEventListener('click', event => { if (root && !root.contains(event.target)) close(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { close(); button?.focus(); } });
@@ -83,20 +106,23 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   else refresh();
 })();
 
-/* Launcher columns: Entertainment spans two columns of two tiles, so the launcher shows
-   five columns of two rows wherever five fit (from 1680px; the launcher's 20px names need
-   about 260px per column). The launcher CSS already places each group
-   in a named grid area (entertainment, knowledge, organization, tools); this only redefines
-   the row of areas. The repeated ID outranks the launcher CSS's own container rules. */
+/* Launcher columns: Entertainment spans two columns of two tiles, and Tools (now in the
+   settings menu) leaves the launcher, so wide screens show four columns of two rows. The
+   launcher CSS places each group in a named grid area; this only redefines the row of areas.
+   The repeated ID outranks the launcher CSS's own rules. */
 (() => {
   if (window.piVaultColumnsLoaded) return;
   window.piVaultColumnsLoaded = true;
+  const L = '#layout-groups#layout-groups#layout-groups';
   const style = document.createElement('style');
   style.id = 'pv-columns';
   style.textContent = `
-    @media (min-width:1680px){
-      #layout-groups#layout-groups#layout-groups:has(#pivault-books){display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;grid-template-areas:"title title title title title" "entertainment entertainment knowledge organization tools"!important}
-      #layout-groups#layout-groups > .services-group:has(#pivault-books) .services-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;column-gap:var(--pv-column-gap,48px)!important}
+    ${L} > .services-group:has(#pivault-file-sync){display:none!important}
+    @media (min-width:1280px){
+      ${L}:has(#pivault-books){grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-areas:"title title title title" "entertainment entertainment knowledge organization"!important}
+    }
+    @media (min-width:768px){
+      ${L} > .services-group:has(#pivault-books) .services-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;column-gap:var(--pv-column-gap,48px)!important}
     }
   `;
   const mount = () => { if (!style.isConnected) document.head.append(style); };
