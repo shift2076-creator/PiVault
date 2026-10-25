@@ -187,7 +187,7 @@
       #pv-search button:focus-visible,.pv-pick input:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:3px}
       .service.pv-searchable{display:flex;align-items:center;gap:4px}
       .service.pv-searchable>:not(.pv-pick){flex:1;min-width:0}
-      .pv-pick{flex:none;display:grid;place-items:center;width:28px;height:44px;cursor:pointer}
+      .pv-pick{flex:none;align-self:stretch;display:grid;place-items:center;width:28px;cursor:pointer}
       .pv-pick input{width:16px;height:16px;margin:0;accent-color:var(--pv-secondary,#91acc3);cursor:pointer}
     `;
     const field = make('label', {className: 'pv-field'});
