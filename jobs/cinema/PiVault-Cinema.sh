@@ -40,16 +40,20 @@ catalogue() {
 preview() {
     local genre key title year url size hash loc reason rights minutes height gib bitrate total=0
     declare -A shown=()
-    printf 'FIRST ROUND — archive fallback sizes (LoC files may differ)\n'
+    printf 'NEXT DOWNLOADS — one per genre, skipping films already downloaded\n'
     while IFS=$'\t' read -r genre key title year url size hash loc reason rights minutes height; do
-        [[ -z "${shown[$genre]:-}" && "$url" != - ]] || continue
+        [[ -z "${shown[$genre]:-}" && ! -f "$INSTALL_DIR/state/$key.done" ]] || continue
         shown[$genre]=1
+        if [[ "$url" == - ]]; then
+            printf '%-24s %-42s %6s min  size found at download time\n' "$genre" "$title ($year)" "$minutes"
+            continue
+        fi
         gib=$(awk -v n="$size" 'BEGIN {printf "%.2f",n/1073741824}')
         bitrate=$(awk -v n="$size" -v m="$minutes" 'BEGIN {printf "%.2f",n*8/(m*60*1000000)}')
         printf '%-24s %-42s %6s min  %5s GiB  %5s Mbps\n' "$genre" "$title ($year)" "$minutes" "$gib" "$bitrate"
         total=$((total+size))
     done < <(queue)
-    awk -v n="$total" 'BEGIN {printf "Archive fallback total: %.2f GiB\n",n/1073741824}'
+    awk -v n="$total" 'BEGIN {printf "Pinned files total: %.2f GiB\n",n/1073741824}'
 }
 
 valid_file() {
