@@ -310,6 +310,7 @@ class InstallationTransactionTests(unittest.TestCase):
             config_dir.joinpath('users/data').mkdir(parents=True)
             database = config_dir / 'users/data/users.sqlite3'
             database.write_bytes(b'ORIGINAL_DATABASE')
+            config_dir.joinpath('users/maintenance.json').write_text('{"books_enabled": true}\n')
             env = config_dir / 'users/users.env'
             env.write_text('PIVAULT_SECRET_KEY=' + 'existing-secret-' * 6 + '\n')
             caddyfile = config_dir / 'Caddyfile'
@@ -402,7 +403,9 @@ class InstallationTransactionTests(unittest.TestCase):
                 self.assertIn(config.JS_BEGIN, js.read_text())
                 self.assertEqual(database.read_bytes(), b'NEW_DATABASE_FORMAT')
                 self.assertIn('Other service-wide SSO', output.getvalue())
-                self.assertEqual(json.loads((config_dir / 'users/maintenance.json').read_text())['cinema_enabled'], cinema_enabled)
+                saved = json.loads((config_dir / 'users/maintenance.json').read_text())
+                self.assertEqual(saved['cinema_enabled'], cinema_enabled)
+                self.assertTrue(saved['books_enabled'])
                 self.assertEqual(any(c[:3] == ['systemctl', 'disable', '--now'] for c in calls), cinema_enabled)
                 self.assertIn('02:00:00 America/New_York', (systemd_dir / 'pivault-maintenance.timer').read_text())
 

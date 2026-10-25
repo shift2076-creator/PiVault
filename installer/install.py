@@ -366,7 +366,7 @@ def install_portal():
             write_file(custom_js, js_candidate, mode=0o644)
             runtime_path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
             write_file(runtime_path, (SOURCE / 'jobs/maintenance.py').read_text(), mode=0o700)
-            write_file(maintenance_config, json.dumps({'cinema_enabled': bool(cinema_enabled)}, indent=2) + '\n')
+            write_file(maintenance_config, json.dumps({**old_maintenance, 'cinema_enabled': bool(cinema_enabled)}, indent=2) + '\n')
             for name, contents in units.items():
                 write_file(SYSTEMD_DIR / name, contents, mode=0o644)
             timers_changed = True
