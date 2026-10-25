@@ -7,7 +7,8 @@ BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/home/snx/pi-services/cinema"
 VIDEO_DISK="/srv/disk1"
 VIDEO_ROOT="$VIDEO_DISK/videos"
-DISK_LIMIT_PERCENT=90
+VIDEO_PERCENT=80        # videos may use at most this share of the drive
+DISK_LIMIT_PERCENT=90   # shared ceiling with the music job; the rest stays free
 NOTIFICATION_ROOT="/srv/pi-server/config/notifications"
 export TZ=America/New_York
 
@@ -143,7 +144,7 @@ transfer() {
     local key=$1 title=$2 year=$3 url=$4 size=$5 hash=$6 provider=$7 genre=$8 source_height=$9
     local part="$VIDEO_ROOT/.pivault-incoming/${key}.${provider}.part"
     local folder="$VIDEO_ROOT/$title ($year)" final="$VIDEO_ROOT/$title ($year)/$title ($year).mp4"
-    local have=0 disk used remaining free summary rights_bytes
+    local have=0 videos disk used remaining free summary rights_bytes
     local dossier="$BASE/state/$key.$provider.rights"
     if [[ -f "$final" ]]; then
         die "Existing target left untouched: $final"
@@ -162,10 +163,15 @@ transfer() {
         die "Partial file is larger than the published source: $part. It was left untouched."
         return 1
     fi
+    videos=$(du -sb -- "$VIDEO_ROOT" | awk '{print $1}') || return 1
     read -r disk used free < <(df -B1 --output=size,used,avail -- "$VIDEO_ROOT" | awk 'NR==2') || return 1
     remaining=$((size-have+rights_bytes+8192))
     summary=$(awk -v n="$size" -v m="$minutes" 'BEGIN {printf "%.2f GiB; reference runtime %s min; approx %.2f Mbps",n/1073741824,m,n*8/(m*60*1000000)}')
     log "Preflight $title ($year), $provider: $summary."
+    if (( (videos + remaining) * 100 > disk * VIDEO_PERCENT )); then
+        log "CAP: $title ($year) would take Videos past $VIDEO_PERCENT% of the drive."
+        return 3
+    fi
     if (( (used + remaining) * 100 > disk * DISK_LIMIT_PERCENT )); then
         log "CAP: $title ($year) would fill $(df --output=target -- "$VIDEO_ROOT" | awk 'NR==2') past $DISK_LIMIT_PERCENT%."
         return 3
@@ -340,7 +346,7 @@ UNIT
     sudo systemctl daemon-reload || return 1
     sudo systemctl disable --now pivault-cinema.timer || return 1
     preview
-    log "Installed; downloads stop at $DISK_LIMIT_PERCENT% of the video drive. Starting the real first-round test (one film per genre)."
+    log "Installed; Videos stop at $VIDEO_PERCENT% of the drive and the drive at $DISK_LIMIT_PERCENT%. Starting the real first-round test (one film per genre)."
     if ! bash "$INSTALL_DIR/PiVault-Cinema.sh" test; then
         die 'First-round test is incomplete. Nightly scheduling remains disabled. Fix the reported problem, then rerun install to resume.'
         return 1
