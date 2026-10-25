@@ -83,6 +83,38 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   else refresh();
 })();
 
+/* Launcher columns: Entertainment spans two columns of two tiles, so the launcher shows
+   five columns of two rows wherever five fit. Narrower screens keep Homepage's layout. */
+(() => {
+  if (window.piVaultColumnsLoaded) return;
+  window.piVaultColumnsLoaded = true;
+  const style = document.createElement('style');
+  style.id = 'pv-columns';
+  style.textContent = `
+    @media (min-width:1280px){
+      .pv-five{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start}
+      .pv-five>.services-group{flex-basis:auto!important;max-width:none!important;min-width:0}
+      .pv-five>.pv-media{grid-column:span 2}
+      .pv-media .services-list{display:grid!important;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:1.5rem}
+    }
+  `;
+  let queued = false;
+  function apply() {
+    queued = false;
+    if (!style.isConnected) document.head.append(style);
+    for (const group of document.querySelectorAll('.services-group:not(.subgroup)')) {
+      const name = group.querySelector('.service-group-name')?.textContent.trim().toLowerCase();
+      if (name !== 'entertainment' || group.classList.contains('pv-media')) continue;
+      group.classList.add('pv-media');
+      group.parentElement?.classList.add('pv-five');
+    }
+  }
+  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(apply); } })
+    .observe(document.documentElement, {childList: true, subtree: true});
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, {once: true});
+  else apply();
+})();
+
 /* PiVault's shared admin inbox. The server, not the browser, enforces Admin access. */
 (() => {
   if (window.piVaultNotificationsLoaded) return;
@@ -187,36 +219,4 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   function start() { refresh(); window.setInterval(refresh,60000); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',start,{once:true});
   else start();
-})();
-
-/* Launcher columns: Entertainment spans two columns of two tiles, so the launcher shows
-   five columns of two rows wherever five fit. Narrower screens keep Homepage's layout. */
-(() => {
-  if (window.piVaultColumnsLoaded) return;
-  window.piVaultColumnsLoaded = true;
-  const style = document.createElement('style');
-  style.id = 'pv-columns';
-  style.textContent = `
-    @media (min-width:1280px){
-      .pv-five{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start}
-      .pv-five>.services-group{flex-basis:auto!important;max-width:none!important;min-width:0}
-      .pv-five>.pv-media{grid-column:span 2}
-      .pv-media .services-list{display:grid!important;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:1.5rem}
-    }
-  `;
-  let queued = false;
-  function apply() {
-    queued = false;
-    if (!style.isConnected) document.head.append(style);
-    for (const group of document.querySelectorAll('.services-group:not(.subgroup)')) {
-      const name = group.querySelector('.service-group-name')?.textContent.trim().toLowerCase();
-      if (name !== 'entertainment' || group.classList.contains('pv-media')) continue;
-      group.classList.add('pv-media');
-      group.parentElement?.classList.add('pv-five');
-    }
-  }
-  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(apply); } })
-    .observe(document.documentElement, {childList: true, subtree: true});
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, {once: true});
-  else apply();
 })();
