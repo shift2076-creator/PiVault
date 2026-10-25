@@ -7,7 +7,7 @@ BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/home/snx/pi-services/music"
 MUSIC_DISK="/srv/disk1"
 MUSIC_ROOT="$MUSIC_DISK/music"
-MUSIC_PERCENT=10        # music may use at most this share of the drive
+MUSIC_PERCENT=10        # music may use at most this share of the media drive
 DISK_LIMIT_PERCENT=90   # shared ceiling with the cinema job; the rest stays free
 export TZ=America/New_York
 
@@ -69,11 +69,11 @@ transfer() {
     read -r disk used free < <(df -B1 --output=size,used,avail -- "$MUSIC_ROOT" | awk 'NR==2') || return 1
     log "Preflight $artist — $label: ${#files[@]} file(s), $(awk -v n="$remaining" 'BEGIN {printf "%.1f MiB",n/1048576}') to fetch."
     if (( (music + remaining) * 100 > disk * MUSIC_PERCENT )); then
-        log "CAP: $label would take Music past $MUSIC_PERCENT% of the drive."
+        log "CAP: $label would take Music past $MUSIC_PERCENT% of the media drive."
         return 3
     fi
     if (( (used + remaining) * 100 > disk * DISK_LIMIT_PERCENT )); then
-        log "CAP: $label would fill the drive past $DISK_LIMIT_PERCENT%."
+        log "CAP: $label would fill the media drive past $DISK_LIMIT_PERCENT%."
         return 3
     fi
     if (( free < remaining + 65536 )); then
@@ -201,7 +201,7 @@ UNIT
     printf '%s\n' "$timer" | sudo tee /etc/systemd/system/pivault-music.timer >/dev/null || return 1
     sudo systemctl daemon-reload || return 1
     sudo systemctl disable --now pivault-music.timer || return 1
-    log "Installed; Music stops at $MUSIC_PERCENT% of the drive and the drive at $DISK_LIMIT_PERCENT%. Starting the real first-round test (one recording per genre)."
+    log "Installed; Music stops at $MUSIC_PERCENT% of the media drive and the whole media drive at $DISK_LIMIT_PERCENT%. Starting the real first-round test (one recording per genre)."
     if ! bash "$INSTALL_DIR/PiVault-Music.sh" test; then
         die 'First-round test is incomplete. Nightly scheduling remains disabled. Fix the reported problem, then rerun install to resume.'
         return 1
