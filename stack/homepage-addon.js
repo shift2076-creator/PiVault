@@ -84,7 +84,9 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
 })();
 
 /* Launcher columns: Entertainment spans two columns of two tiles, so the launcher shows
-   five columns of two rows wherever five fit. Narrower screens keep Homepage's layout. */
+   five columns of two rows wherever five fit. The launcher CSS already places each group
+   in a named grid area (entertainment, knowledge, organization, tools); this only redefines
+   the row of areas. The repeated ID outranks the launcher CSS's own container rules. */
 (() => {
   if (window.piVaultColumnsLoaded) return;
   window.piVaultColumnsLoaded = true;
@@ -92,27 +94,13 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   style.id = 'pv-columns';
   style.textContent = `
     @media (min-width:1280px){
-      #layout-groups.pv-five,#services.pv-five{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;align-items:start}
-      #layout-groups.pv-five>.services-group,#services.pv-five>.services-group{flex:none!important;width:auto!important;max-width:none!important;min-width:0!important}
-      #layout-groups.pv-five>.pv-media,#services.pv-five>.pv-media{grid-column:span 2!important}
-      #layout-groups .pv-media .services-list,#services .pv-media .services-list{display:grid!important;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:1.5rem}
+      #layout-groups#layout-groups#layout-groups:has(#pivault-books){display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;grid-template-areas:"entertainment entertainment knowledge organization tools"!important}
+      #layout-groups#layout-groups > .services-group:has(#pivault-books) .services-list{display:grid!important;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:1.5rem}
     }
   `;
-  let queued = false;
-  function apply() {
-    queued = false;
-    if (!style.isConnected) document.head.append(style);
-    for (const group of document.querySelectorAll('.services-group:not(.subgroup)')) {
-      const name = group.querySelector('.service-group-name')?.textContent.trim().toLowerCase();
-      if (name !== 'entertainment' || group.classList.contains('pv-media')) continue;
-      group.classList.add('pv-media');
-      group.parentElement?.classList.add('pv-five');
-    }
-  }
-  new MutationObserver(() => { if (!queued) { queued = true; requestAnimationFrame(apply); } })
-    .observe(document.documentElement, {childList: true, subtree: true});
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, {once: true});
-  else apply();
+  const mount = () => { if (!style.isConnected) document.head.append(style); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, {once: true});
+  else mount();
 })();
 
 /* PiVault's shared admin inbox. The server, not the browser, enforces Admin access. */
