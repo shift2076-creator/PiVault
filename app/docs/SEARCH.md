@@ -36,3 +36,5 @@ Add an optional `search` object to `/srv/pi-server/config/users/native.json`. Ea
 | Pantry | Grocy `/api/objects/products?query[]=name~…` | a Grocy API key |
 
 Restart `pivault-users` after editing `native.json`.
+
+`tools/enable_search.py` (run with sudo on pivault) adds Wiki, Videos and Music from existing enrollment credentials, backs up `native.json`, test-searches each app inside the portal, removes any that fail, and restores the backup if the portal becomes unhealthy.
