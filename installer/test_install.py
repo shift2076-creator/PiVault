@@ -42,7 +42,7 @@ def native_config(portal=False):
     routes = [{'handle': [homepage]}]
     if portal:
         routes.insert(0, {'match': [{'path': ['/join', '/join/*', '/users', '/users/*',
-            '/notifications', '/notifications/*', '/internal', '/internal/*']}],
+            '/notifications', '/notifications/*', '/search', '/search/*', '/internal', '/internal/*']}],
             'handle': [{'handler': 'subroute', 'routes': [
                 {'match': [{'path': ['/internal', '/internal/*']}], 'handle': [
                     {'handler': 'static_response', 'status_code': 404}]},
@@ -124,6 +124,16 @@ class ConfigurationTests(unittest.TestCase):
     def test_native_routing_verification_accepts_only_the_private_portal(self):
         config.verify_routes(native_config(), native_config(True))
 
+    def test_search_must_reach_the_portal(self):
+        bad = native_config(True)
+        paths = bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['match'][0]['path']
+        paths.remove('/search')
+        with self.assertRaisesRegex(ValueError, 'do not reach the portal'):
+            config.verify_routes(native_config(), bad)
+
+    def test_managed_route_includes_search(self):
+        self.assertIn(' /search /search/* ', config.portal_caddyfile(CADDYFILE))
+
     def test_public_gate_is_rejected(self):
         bad = native_config(True)
         bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'].pop(0)
@@ -161,6 +171,30 @@ class ConfigurationTests(unittest.TestCase):
             install.restore_file(path, saved)
             self.assertEqual(path.read_text(), 'before')
             self.assertEqual(path.stat().st_ino, inode)
+
+
+class ComposeLabelTests(unittest.TestCase):
+    DOCUMENT = {'services': {'vault-https': {}}}
+
+    def caddy(self, files, folder):
+        return {'Config': {'Labels': {'com.docker.compose.service': 'vault-https',
+            'com.docker.compose.project': 'pi-services',
+            'com.docker.compose.project.config_files': files,
+            'com.docker.compose.project.working_dir': folder}}}
+
+    def test_relative_compose_path_from_the_project_folder_is_accepted(self):
+        # Standalone docker-compose on pivault records the file name relative to its folder.
+        container = self.caddy('docker-compose.yml', str(install.COMPOSE.parent))
+        self.assertEqual(install.compose_service(self.DOCUMENT, container)[1], 'pi-services')
+
+    def test_absolute_compose_path_is_accepted(self):
+        container = self.caddy(str(install.COMPOSE), '/elsewhere')
+        self.assertEqual(install.compose_service(self.DOCUMENT, container)[1], 'pi-services')
+
+    def test_a_different_compose_file_is_rejected(self):
+        for files, folder in (('docker-compose.yml', '/srv/other'), ('/srv/other/docker-compose.yml', '/srv/other')):
+            with self.assertRaisesRegex(install.InstallError, 'different Compose file'):
+                install.compose_service(self.DOCUMENT, self.caddy(files, folder))
 
 
 class ProbeTests(unittest.TestCase):

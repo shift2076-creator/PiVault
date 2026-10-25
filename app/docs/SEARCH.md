@@ -1,0 +1,38 @@
+# Unified search
+
+The launcher's search field opens `/search`, a portal page that queries each ticked app on the private Docker network and lists every result on one page. Clicking a result opens that item in its own app.
+
+## Who sees what
+
+- Only signed-in portal users can search.
+- Videos, Music and Inventory have per-user portal accounts: a user sees their tickbox only with access to that app (Inventory: the shared household). Wiki, Books, Documents and Pantry have no per-user portal accounts, so every signed-in user sees them.
+- Unticked apps are never queried.
+- Each app is searched with one read-only search credential. Results are exactly what that credential can see, so give it only content every user with access to that app already shares.
+
+## Configuration
+
+Add an optional `search` object to `/srv/pi-server/config/users/native.json`. Each app is enabled only when present. `origin` is the private address; `link` is the address browsers use for result links.
+
+```json
+"search": {
+  "wiki":      {"origin": "http://kiwix:8080",       "link": "http://192.168.4.90:8084"},
+  "videos":    {"link": "http://192.168.4.90:8096"},
+  "music":     {"link": "http://192.168.4.90:4533/music"},
+  "books":     {"origin": "http://calibre-web:8083", "link": "http://192.168.4.90:8083", "username": "…", "password": "…"},
+  "documents": {"origin": "http://paperless:8000",   "link": "http://192.168.4.90:8085", "token": "…"},
+  "inventory": {"origin": "http://homebox:7745",     "link": "http://192.168.4.90:8087", "api_key": "…"},
+  "pantry":    {"origin": "http://grocy:80",         "link": "http://192.168.4.90:9283", "api_key": "…"}
+}
+```
+
+| App | Upstream API | Credential |
+|---|---|---|
+| Offline Wiki | kiwix-serve `/catalog/v2/entries`, then `/search?format=xml` once per ZIM language | none |
+| Videos | Jellyfin `/Search/Hints` | defaults to the enrollment `jellyfin.api_key` |
+| Music | Navidrome Subsonic `search3`, limited to `library_ids` | defaults to the enrollment `navidrome` account; token auth |
+| Books | Calibre-Web `/opds/search` | a read-only Calibre-Web user |
+| Documents | Paperless-ngx `/api/documents/?query=` | token of a user who can view only shared documents |
+| Inventory | Homebox `/api/v1/entities?q=` | API key of a member of the shared household |
+| Pantry | Grocy `/api/objects/products?query[]=name~…` | a Grocy API key |
+
+Restart `pivault-users` after editing `native.json`.

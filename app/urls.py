@@ -1,7 +1,7 @@
 """Every portal route. Browser scripts are served from portal/static/portal/."""
 from django.urls import path
 from portal import notification_views as notifications
-from portal import vault_views, views
+from portal import search_views, vault_views, views
 from portal.vault_repair import repair as repair_existing_vault
 
 urlpatterns = [
@@ -28,6 +28,9 @@ urlpatterns = [
     path('users/complete', vault_views.complete),
     path('users/clients/<str:client>', vault_views.download),
     path('users/repair-vault', repair_existing_vault),
+    # Unified launcher search (signed-in users; only apps they can use).
+    path('search', search_views.results),
+    path('search/apps', search_views.apps),
     # Private Caddy-only auth endpoint; Caddy answers 404 for it publicly.
     path('internal/gate', views.gate),
 ]
