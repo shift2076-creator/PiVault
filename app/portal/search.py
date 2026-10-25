@@ -188,7 +188,8 @@ class MusicSearch(Connector):
 class BookSearch(Connector):
     """Calibre-Web OPDS search with a dedicated read-only account."""
     key = 'books'
-    COVER = re.compile(r'/opds/cover/(\d+)')
+    # Calibre-Web emits a cover link only for books with a cover; download links carry the id too.
+    BOOK = re.compile(r'/opds/(?:cover|download)/(\d+)')
 
     def __init__(self, origin, link, username, password):
         if not username or not password:
@@ -200,7 +201,7 @@ class BookSearch(Connector):
         results = []
         for entry in self.xml('/opds/search', {'query': term}).iter(ATOM + 'entry'):
             book = next((m.group(1) for link in entry.iter(ATOM + 'link')
-                         for m in [self.COVER.search(link.get('href', ''))] if m), None)
+                         for m in [self.BOOK.search(link.get('href', ''))] if m), None)
             if not book:
                 continue
             authors = ', '.join(a.findtext(ATOM + 'name') or '' for a in entry.findall(ATOM + 'author'))
