@@ -35,4 +35,8 @@ Add an optional `search` object to `/srv/pi-server/config/users/native.json`. Ea
 | Inventory | Homebox `/api/v1/entities?q=` | API key of a member of the shared household |
 | Pantry | Grocy `/api/objects/products?query[]=name~…` | a Grocy API key |
 
+### Books account
+
+Calibre-Web OPDS uses HTTP Basic auth unless anonymous browsing is on (it is off), and applies the account's language and tag filters to search results. Create the search user under Admin → Users → Add New User with every permission unticked and **Show Books in Language: Show All**, and leave allowed/denied tags empty.
+
 Restart `pivault-users` after editing `native.json`.

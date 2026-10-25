@@ -28,8 +28,14 @@ CATALOG = b'''<feed xmlns="http://www.w3.org/2005/Atom">
 KIWIX = b'''<rss version="2.0"><channel><item><title>Apollo 11</title>
 <link>/content/wikipedia_en/A/Apollo_11</link><description>The <b>Apollo</b> mission...</description>
 <book><title>Wikipedia</title></book></item></channel></rss>'''
-OPDS = b'''<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Moon Book</title>
-<author><name>A. Writer</name></author><link rel="http://opds-spec.org/image" href="/opds/cover/42"/>
+OPDS = b'''<feed xmlns="http://www.w3.org/2005/Atom">
+<entry><title>Moon Book</title><id>urn:uuid:0d0d</id><author><name>A. Writer</name></author>
+<link type="image/jpeg" href="/opds/cover/42" rel="http://opds-spec.org/image"/>
+<link type="image/jpeg" href="/opds/cover/42" rel="http://opds-spec.org/image/thumbnail"/>
+<link rel="http://opds-spec.org/acquisition" href="/opds/download/42/epub/" title="EPUB" type="application/epub+zip"/>
+</entry>
+<entry><title>Moon Atlas</title><id>urn:uuid:0e0e</id><author><name>B. Maker</name></author>
+<link rel="http://opds-spec.org/acquisition" href="/opds/download/43/pdf/" title="PDF" type="application/pdf"/>
 </entry></feed>'''
 
 
@@ -108,6 +114,7 @@ class SearchTests(TestCase):
     def test_every_app_returns_links_into_itself(self):
         response = self.get('/search?q=moon')
         for link in ('http://192.168.4.90:4533/music/app/#/album/al1/show', 'http://192.168.4.90:8083/book/42',
+                     'http://192.168.4.90:8083/book/43',
                      'http://192.168.4.90:8085/documents/7/details', 'http://192.168.4.90:8087/item/u-1',
                      'http://192.168.4.90:9283/product/3'):
             self.assertContains(response, 'href="' + link + '"')
