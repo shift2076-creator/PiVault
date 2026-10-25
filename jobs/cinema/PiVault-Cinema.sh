@@ -19,11 +19,16 @@ host_check() {
 }
 
 catalogue() {
-    printf 'PiVault Americana — 51 films in 17 primary genre queues\n'
+    printf 'PiVault Americana — %s films in %s primary genre queues\n' "$(queue | wc -l)" "$(queue | cut -f1 | sort -u | wc -l)"
     printf 'Existing comparison: Shadow of a Doubt (1943); Spellbound (1945).\n'
     printf 'Each film is downloaded only once, under its primary genre.\n\n'
     local gib minutes height bitrate
     while IFS=$'\t' read -r genre key title year url size hash loc reason rights minutes height; do
+        if [[ "$url" == - ]]; then
+            printf '%s | %s (%s) | %s min | source found at download time\n  %s\n  Rights basis: %s\n' \
+                "$genre" "$title" "$year" "$minutes" "$reason" "$rights"
+            continue
+        fi
         gib=$(awk -v n="$size" 'BEGIN {printf "%.2f",n/1073741824}')
         bitrate=$(awk -v n="$size" -v m="$minutes" 'BEGIN {printf "%.2f",n*8/(m*60*1000000)}')
         printf '%s | %s (%s) | %s min | %.2f GiB | %sp | %s Mbps\n  %s\n  Archive: %s\n  Rights basis: %s\n' \
@@ -36,7 +41,7 @@ preview() {
     declare -A shown=()
     printf 'FIRST ROUND — archive fallback sizes (LoC files may differ)\n'
     while IFS=$'\t' read -r genre key title year url size hash loc reason rights minutes height; do
-        [[ -z "${shown[$genre]:-}" ]] || continue
+        [[ -z "${shown[$genre]:-}" && "$url" != - ]] || continue
         shown[$genre]=1
         gib=$(awk -v n="$size" 'BEGIN {printf "%.2f",n/1073741824}')
         bitrate=$(awk -v n="$size" -v m="$minutes" 'BEGIN {printf "%.2f",n*8/(m*60*1000000)}')
@@ -109,9 +114,24 @@ daily_count() {
 }
 
 prepare_rights() {
+    local found=()
+    [[ ! -f "$BASE/state/$1.record.json" ]] || \
+        found=(--record "$BASE/state/$1.record.json" --archive-metadata "$BASE/state/$1.archive.json")
     python3 "$BASE/cinema-rights.py" --evidence "$BASE/rights-evidence" \
         --key "$1" --provider "$2" --url "$3" --bytes "$4" --md5 "$5" \
-        --loc-metadata "$BASE/state/$1.loc.json" --output "$6"
+        --loc-metadata "$BASE/state/$1.loc.json" --output "$6" "${found[@]}"
+}
+
+# Curated films without a pinned transfer are found on archive.org once, then kept fixed.
+find_source() {
+    local key=$1 title=$2 year=$3 reference=$4 rights=$5 line
+    if [[ ! -s "$BASE/state/$key.source" ]]; then
+        line=$(python3 "$BASE/cinema-resolve.py" --title "$title" --year "$year" --minutes "$reference" \
+            --key "$key" --rights "$rights" --metadata-out "$BASE/state/$key.archive.json" \
+            --record-out "$BASE/state/$key.record.json") || return 1
+        printf '%s\n' "$line" > "$BASE/state/$key.source.tmp" && mv -- "$BASE/state/$key.source.tmp" "$BASE/state/$key.source" || return 1
+    fi
+    IFS=$'\t' read -r url size hash minutes height _ < "$BASE/state/$key.source"
 }
 
 transfer() {
@@ -207,6 +227,10 @@ run_round() {
             log "$genre: its review state could not be read; left untouched."
             continue
         fi
+        if [[ "$url" == - ]] && ! find_source "$key" "$title" "$year" "$minutes" "$rights"; then
+            log "No safe archive.org copy found yet for $title ($year); trying the next film."
+            continue
+        fi
         # A previously downloaded copy at the exact final path is never replaced.
         if [[ -f "$VIDEO_ROOT/$title ($year)/$title ($year).mp4" ]]; then
             if valid_file "$VIDEO_ROOT/$title ($year)/$title ($year).mp4" "$size" "$hash"; then
@@ -273,6 +297,7 @@ install_cinema() {
         cp -- "${BASH_SOURCE[0]}" "$INSTALL_DIR/PiVault-Cinema.sh" || return 1
         cp -- "$BASE/cinema-notifications.py" "$INSTALL_DIR/cinema-notifications.py" || return 1
         cp -- "$BASE/cinema-rights.py" "$INSTALL_DIR/cinema-rights.py" || return 1
+        cp -- "$BASE/cinema-resolve.py" "$INSTALL_DIR/cinema-resolve.py" || return 1
         cp -a -- "$BASE/rights-evidence/." "$INSTALL_DIR/rights-evidence/" || return 1
     fi
     printf 'CAP_BYTES=%s\nTOLERANCE_PERCENT=75\n' "$((cap*1024*1024*1024))" > "$INSTALL_DIR/cinema.conf" || return 1
@@ -322,7 +347,8 @@ UNIT
     systemctl list-timers --all pivault-cinema.timer --no-pager
 }
 
-# The fixed, reviewed title queue is appended below. No runtime movie searches.
+# The curated title queue is appended below. Pinned rows name an exact transfer; rows whose
+# URL is "-" are looked up once on archive.org by cinema-resolve.py, then kept fixed.
 
 queue() {
 cat <<'PIVAULT_QUEUE'
@@ -389,8 +415,8 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         preview) preview ;;
         *)
             printf '%s\n' 'Usage:' \
-                '  bash PiVault-Cinema.sh catalogue       # Read all 51 selections and their reasons.' \
-                '  bash PiVault-Cinema.sh preview         # Show the 17-film first round, sizes and runtimes.' \
+                '  bash PiVault-Cinema.sh catalogue       # Read every selection and its reason.' \
+                '  bash PiVault-Cinema.sh preview         # Show the pinned first round, sizes and runtimes.' \
                 '  bash PiVault-Cinema.sh install 150     # On pivault: install, test one per genre, then schedule.' \
                 '  bash ~/pi-services/cinema/PiVault-Cinema.sh test  # Resume an incomplete test.'
             ;;

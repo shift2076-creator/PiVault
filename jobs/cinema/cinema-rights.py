@@ -8,14 +8,20 @@ import pathlib
 import shutil
 
 
-def prepare(evidence, key, provider, url, size, md5, destination, loc_metadata=None):
+def prepare(evidence, key, provider, url, size, md5, destination, loc_metadata=None,
+            record_path=None, archive_metadata=None):
     evidence, destination = pathlib.Path(evidence), pathlib.Path(destination)
-    record = next(r for r in json.loads((evidence/'catalogue.json').read_text()) if r['key']==key)
+    if record_path:
+        # Films resolved at run time carry their own record and the metadata saved at lookup.
+        record = json.loads(pathlib.Path(record_path).read_text())
+    else:
+        record = next(r for r in json.loads((evidence/'catalogue.json').read_text()) if r['key']==key)
     destination.mkdir(parents=True, exist_ok=True)
     license_url = record['license'] if provider=='archive' and record['license']!='-' else None
     names = ['LoC-public-domain-guidance.html', 'snapshot-manifest.json']
     if provider=='archive':
-        shutil.copyfile(evidence/'archive-metadata'/(key+'.json'), destination/'source-metadata.json')
+        source = pathlib.Path(archive_metadata) if archive_metadata else evidence/'archive-metadata'/(key+'.json')
+        shutil.copyfile(source, destination/'source-metadata.json')
         if license_url and license_url!='-':
             names.append('CC-BY-3.0.txt' if '/by/3.0/' in license_url else
                          'CC0-1.0.txt' if '/zero/' in license_url else
@@ -59,7 +65,10 @@ def main():
     parser=argparse.ArgumentParser()
     for name in ('evidence','key','provider','url','bytes','md5','output'): parser.add_argument('--'+name,required=True)
     parser.add_argument('--loc-metadata')
+    parser.add_argument('--record')
+    parser.add_argument('--archive-metadata')
     args=parser.parse_args()
-    prepare(args.evidence,args.key,args.provider,args.url,args.bytes,args.md5,args.output,args.loc_metadata)
+    prepare(args.evidence,args.key,args.provider,args.url,args.bytes,args.md5,args.output,args.loc_metadata,
+            args.record,args.archive_metadata)
 
 if __name__=='__main__': main()
