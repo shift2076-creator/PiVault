@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PiVault Books — public-domain books added to the Calibre-Web library a few per night.
-# Source order per title: Project Gutenberg EPUB, Library of Congress PDF, Internet Archive PDF.
+# Source order per title: Standard Ebooks or Project Gutenberg EPUB, Library of Congress PDF, Internet Archive PDF.
 # Books are added with calibredb; nothing in the library is replaced or removed.
 
 BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,7 +27,7 @@ catalogue() {
     local key title author year source url size md5 fb_url fb_size fb_md5 rights total=0
     printf 'PiVault Americana — %s public-domain books\n\n' "$(queue | wc -l)"
     while IFS=$'\t' read -r key title author year source url size md5 fb_url fb_size fb_md5 rights; do
-        printf '%-9s %s (%s) — %s\n' "$source" "$title" "$year" "$author"
+        printf '%-9s %s (%s) — %s\n' "$source" "$title" "${year/#-/undated}" "$author"
         [[ "$size" == - ]] || total=$((total+size))
     done < <(queue)
     awk -v n="$total" 'BEGIN {printf "\nPinned PDF total: %.2f GiB (Gutenberg EPUBs are about 1 MB each)\n",n/1073741824}'
@@ -74,11 +74,13 @@ in_library() {
 
 add_book() {
     local file=$1 key=$2 title=$3 author=$4 year=$5 url=$6 rights=$7 output id
+    local dated=()
+    [[ "$year" == - ]] || dated=(--field "pubdate:$year-01-01")
     output=$(calibredb add --library-path "$LIBRARY" --title "$title" --authors "$author" \
         --identifier "pivault:$key" --tags "$TAG" --languages eng -- "$file" 2>&1) || { die "$output"; return 1; }
     id=$(printf '%s\n' "$output" | sed -n 's/^Added book ids: \([0-9]*\).*/\1/p')
     [[ "$id" =~ ^[0-9]+$ ]] || { die "Calibre did not add $title; a book with the same title and author may already exist."; return 1; }
-    calibredb set_metadata --library-path "$LIBRARY" --field "pubdate:$year-01-01" \
+    calibredb set_metadata --library-path "$LIBRARY" "${dated[@]}" \
         --field "comments:Source: $url<br>Rights basis: $rights" "$id" >/dev/null || { die "Added $title as book $id, but its date and rights note were not saved."; return 1; }
 }
 
@@ -88,7 +90,7 @@ mark_done() {
 
 run_round() {
     local mode=$1 key title author year source url size md5 fb_url fb_size fb_md5 rights
-    local today=0 new=0 failures=0 remaining=0 file day ext part used_url free
+    local today=0 new=0 failures=0 remaining=0 file day ext part used_url free name
     [[ -f "$INSTALL_DIR/books.conf" ]] || { die 'Install this script first.'; return 1; }
     source "$INSTALL_DIR/books.conf" || return 1
     host_check || return 1
@@ -104,26 +106,28 @@ run_round() {
     log "Starting $mode: up to $DAILY_COUNT new books for $RUN_DAY ($today already added today)."
     while IFS=$'\t' read -r key title author year source url size md5 fb_url fb_size fb_md5 rights; do
         [[ ! -f "$INSTALL_DIR/state/$key.done" ]] || continue
+        name=$title; [[ "$year" == - ]] || name="$title ($year)"
         if (( today >= DAILY_COUNT )); then remaining=$((remaining+1)); continue; fi
         if in_library "$key"; then
             mark_done "$key" existing "$source" "$url" || return 1
-            log "Already in the library: $title ($year)."
+            log "Already in the library: $name."
             continue
         fi
         free=$(df -B1 --output=avail -- "$LIBRARY" | awk 'NR==2 {print $1}') || return 1
         if (( free < 1073741824 + ${size/#-/0} * 2 )); then
-            log "SPACE: not enough free space on $BOOK_DISK for $title ($year); round stopped."
+            log "SPACE: not enough free space on $BOOK_DISK for $name; round stopped."
             failures=$((failures+1)); break
         fi
-        ext=pdf; [[ "$source" != gutenberg ]] || ext=epub
+        ext=pdf; [[ "$source" != gutenberg && "$source" != standard ]] || ext=epub
         part="$INCOMING/$key.$source.$ext.part"
-        log "Book $((today+1)) of $DAILY_COUNT: $title ($year), $author — from $source."
+        log "Book $((today+1)) of $DAILY_COUNT: $name, $author — from $source."
         used_url=$url
         if ! fetch "$url" "$size" "$md5" "$part"; then
             used_url=
             if [[ "$fb_url" != - ]]; then
-                log "$source copy unavailable; using the pinned Internet Archive copy."
-                part="$INCOMING/$key.archive.pdf.part"
+                log "$source copy unavailable; using the pinned fallback copy."
+                ext=pdf; [[ "$fb_url" != https://www.gutenberg.org/* ]] || ext=epub
+                part="$INCOMING/$key.fallback.$ext.part"
                 fetch "$fb_url" "$fb_size" "$fb_md5" "$part" && used_url=$fb_url
             fi
         fi
@@ -136,7 +140,7 @@ run_round() {
         rm -f -- "$part"
         mark_done "$key" "$RUN_DAY" "$source" "$used_url" || return 1
         today=$((today+1)); new=$((new+1))
-        log "Added: $title ($year)."
+        log "Added: $name."
     done < <(queue)
     log "Round result: $new new; $remaining waiting for later rounds; $failures incomplete."
     (( failures == 0 ))
