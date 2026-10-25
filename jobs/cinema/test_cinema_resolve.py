@@ -26,6 +26,8 @@ class AcceptableTests(unittest.TestCase):
         self.assertFalse(self.check('Intolerance', 1916, title='Intolerance 1916 doblada'))
         self.assertFalse(self.check('Wings', 1927, title='Wings (1927) colorized'))
         self.assertFalse(self.check('Wings', 1927, title='Wings - Silent - Trimmed', year='1927'))
+        self.assertFalse(self.check('Wings', 1927, title='Wings (1927)', identifier='wings.1927.1080p.bluray.x264'))
+        self.assertFalse(self.check('The Kid', 1921, title='The Kid (1921) Featurettes'))
 
     def test_foreign_language_metadata_is_rejected(self):
         self.assertFalse(self.check('Greed', 1924, title='Greed', year='1924', language='spa'))
@@ -65,12 +67,12 @@ class ResolveTests(unittest.TestCase):
                 {'identifier': 'right', 'title': 'Wings', 'year': '1927'}]
         meta = {'right': {'metadata': {'title': 'Wings', 'year': '1927'}, 'files': [mp4('Wings.mp4', 140)]}}
         found = resolver.resolve('Wings', 1927, 144, fetch=lambda url: meta[url.rsplit('/', 1)[1]],
-                                 searcher=lambda title, year, with_year: docs)
+                                 searcher=lambda title, year, form: docs)
         self.assertEqual(found[0], 'right')
 
     def test_nothing_safe_returns_none(self):
         self.assertIsNone(resolver.resolve('Wings', 1927, 144, fetch=None,
-                                           searcher=lambda title, year, with_year: []))
+                                           searcher=lambda title, year, form: []))
 
 
 if __name__ == '__main__':

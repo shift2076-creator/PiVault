@@ -24,7 +24,7 @@ REJECT = re.compile(
     r'colou?ri[sz]ed|subtitulad[ao]|legendado|sottotitol\w*|espa[nñ]ol|castellano|fran[cç]ais|'
     r'deutsch|italiano|portugu[eê]s|remake|reviews?|reaction|commentary|parody|abridged|'
     r'condensed|highlights|recut|re-?edit\w*|edited|trimmed|shortened|cut\s+version|tribute|mashup|gif|'
-    r'reels?|part\s*\d+)\b', re.I)
+    r'reels?|part\s*\d+|featurettes?|blu-?\s?ray|brrip|bdrip|webrip|web-dl|yify|yts|rarbg)\b', re.I)
 ENGLISH = {'english', 'eng', 'en', 'en-us', 'silent', 'no linguistic content', 'zxx'}
 LENGTH_RANGE = (0.6, 1.6)  # silent projection speeds vary widely between transfers
 
@@ -126,12 +126,19 @@ def fetch_json(url, timeout=40):
         return json.loads(response.read(16 * 1024 * 1024))
 
 
-def search(title, year, with_year):
-    phrase = ' '.join(core(title)) or title
-    query = f'title:("{phrase}") AND mediatype:movies'
-    if with_year:
-        query += f' AND (year:[{year - 1} TO {year + 1}] OR date:[{year - 1}-01-01 TO {year + 1}-12-31])'
-    params = [('q', query), ('rows', '40'), ('output', 'json'), ('sort[]', 'downloads desc')]
+QUERIES = (
+    # Exact title within a year of release, then the title next to its year anywhere in the record,
+    # then the title alone; short common titles ("The Kid", "It") need the second form.
+    'title:("{full}") AND mediatype:movies AND (year:[{lo} TO {hi}] OR date:[{lo}-01-01 TO {hi}-12-31])',
+    '"{full}" AND "{year}" AND mediatype:movies',
+    'title:("{core}") AND mediatype:movies',
+)
+
+
+def search(title, year, form):
+    full = ' '.join(words(title)) or title
+    query = QUERIES[form].format(full=full, core=' '.join(core(title)) or full, year=year, lo=year - 1, hi=year + 1)
+    params = [('q', query), ('rows', '60'), ('output', 'json'), ('sort[]', 'downloads desc')]
     params += [('fl[]', f) for f in ('identifier', 'title', 'year', 'date', 'language', 'downloads')]
     return fetch_json(SEARCH + '?' + urllib.parse.urlencode(params))['response']['docs']
 
@@ -140,11 +147,11 @@ def resolve(title, year, minutes, fetch=None, searcher=None):
     fetch = fetch or fetch_json
     searcher = searcher or search
     seen = []
-    for with_year in (True, False):
-        for doc in searcher(title, year, with_year):
+    for form in range(len(QUERIES)):
+        for doc in searcher(title, year, form):
             if doc.get('identifier') not in [d['identifier'] for d in seen] and acceptable(doc, title, year, words(title)):
                 seen.append(doc)
-    for doc in seen[:8]:
+    for doc in seen[:20]:
         identifier = doc['identifier']
         metadata = fetch(METADATA + urllib.parse.quote(identifier))
         meta = metadata.get('metadata', {})
