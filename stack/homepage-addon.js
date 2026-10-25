@@ -84,7 +84,8 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
 })();
 
 /* Launcher columns: Entertainment spans two columns of two tiles, so the launcher shows
-   five columns of two rows wherever five fit. The launcher CSS already places each group
+   five columns of two rows wherever five fit (from 1680px; the launcher's 20px names need
+   about 260px per column). The launcher CSS already places each group
    in a named grid area (entertainment, knowledge, organization, tools); this only redefines
    the row of areas. The repeated ID outranks the launcher CSS's own container rules. */
 (() => {
@@ -93,9 +94,9 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   const style = document.createElement('style');
   style.id = 'pv-columns';
   style.textContent = `
-    @media (min-width:1280px){
-      #layout-groups#layout-groups#layout-groups:has(#pivault-books){display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;grid-template-areas:"entertainment entertainment knowledge organization tools"!important}
-      #layout-groups#layout-groups > .services-group:has(#pivault-books) .services-list{display:grid!important;grid-template-rows:repeat(2,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:1.5rem}
+    @media (min-width:1680px){
+      #layout-groups#layout-groups#layout-groups:has(#pivault-books){display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;grid-template-areas:"title title title title title" "entertainment entertainment knowledge organization tools"!important}
+      #layout-groups#layout-groups > .services-group:has(#pivault-books) .services-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;column-gap:var(--pv-column-gap,48px)!important}
     }
   `;
   const mount = () => { if (!style.isConnected) document.head.append(style); };
