@@ -101,18 +101,22 @@ class Connector:
 
 
 class WikiSearch(Connector):
-    """kiwix-serve full-text search; one request per ZIM language (a kiwix rule)."""
+    """kiwix-serve full-text search by book UUID; one request per ZIM language (a kiwix rule)."""
     key = 'wiki'
 
     def search(self, term):
         languages = {}
         for entry in self.xml('/catalog/v2/entries', {'count': -1}).iter(ATOM + 'entry'):
-            name = entry.findtext(ATOM + 'name') or ''
-            if name:
-                languages.setdefault(entry.findtext(ATOM + 'language') or '', []).append(name)
+            # The catalog <name> is ZIM metadata, not the server's URL name, so
+            # books.name rejects it ("No such book"); the UUID always matches.
+            book = (entry.findtext(ATOM + 'id') or '').removeprefix('urn:uuid:')
+            # One unindexed ZIM makes kiwix reject its whole language batch (404).
+            tags = (entry.findtext(ATOM + 'tags') or '').split(';')
+            if book and '_ftindex:no' not in tags:
+                languages.setdefault(entry.findtext(ATOM + 'language') or '', []).append(book)
         results = []
-        for names in languages.values():
-            feed = self.xml('/search', {'pattern': term, 'books.name': names,
+        for books in languages.values():
+            feed = self.xml('/search', {'pattern': term, 'books.id': books,
                                         'format': 'xml', 'pageLength': LIMIT})
             for item in feed.iter('item'):
                 link = item.findtext('link') or ''

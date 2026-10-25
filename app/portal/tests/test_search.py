@@ -20,9 +20,11 @@ CONFIG = {
     },
 }
 CATALOG = b'''<feed xmlns="http://www.w3.org/2005/Atom">
-<entry><name>wikipedia_en</name><language>eng</language></entry>
-<entry><name>wikivoyage_en</name><language>eng</language></entry>
-<entry><name>wikipedia_fr</name><language>fra</language></entry></feed>'''
+<entry><id>urn:uuid:aaaa</id><name>wikipedia_en</name><language>eng</language></entry>
+<entry><id>urn:uuid:bbbb</id><name>wikivoyage_en</name><language>eng</language></entry>
+<entry><id>urn:uuid:cccc</id><name>wikipedia_fr</name><language>fra</language></entry>
+<entry><id>urn:uuid:dddd</id><name>gutenberg_en</name><language>eng</language>
+<tags>_category:gutenberg;_ftindex:no</tags></entry></feed>'''
 KIWIX = b'''<rss version="2.0"><channel><item><title>Apollo 11</title>
 <link>/content/wikipedia_en/A/Apollo_11</link><description>The <b>Apollo</b> mission...</description>
 <book><title>Wikipedia</title></book></item></channel></rss>'''
@@ -98,8 +100,10 @@ class SearchTests(TestCase):
 
     def test_wiki_searches_once_per_language(self):
         self.get('/search?q=apollo&app=wiki')
-        books = [query['books.name'] for key, path, query in self.calls if path == '/search']
-        self.assertEqual(sorted(books), [['wikipedia_en', 'wikivoyage_en'], ['wikipedia_fr']])
+        books = [query['books.id'] for key, path, query in self.calls if path == '/search']
+        # gutenberg_en has no full-text index, so it is left out of the English batch.
+        self.assertEqual(sorted(books), [['aaaa', 'bbbb'], ['cccc']])
+        self.assertFalse(any('books.name' in query for _, _, query in self.calls))
 
     def test_every_app_returns_links_into_itself(self):
         response = self.get('/search?q=moon')
