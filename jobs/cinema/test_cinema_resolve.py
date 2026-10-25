@@ -25,6 +25,7 @@ class AcceptableTests(unittest.TestCase):
     def test_dubs_and_colorized_copies_are_rejected(self):
         self.assertFalse(self.check('Intolerance', 1916, title='Intolerance 1916 doblada'))
         self.assertFalse(self.check('Wings', 1927, title='Wings (1927) colorized'))
+        self.assertFalse(self.check('Wings', 1927, title='Wings - Silent - Trimmed', year='1927'))
 
     def test_foreign_language_metadata_is_rejected(self):
         self.assertFalse(self.check('Greed', 1924, title='Greed', year='1924', language='spa'))

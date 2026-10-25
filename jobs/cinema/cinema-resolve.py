@@ -23,7 +23,8 @@ REJECT = re.compile(
     r'\b(trailers?|clips?|excerpts?|scenes?|samples?|previews?|teasers?|dub|dubbed|doblad[ao]|'
     r'colou?ri[sz]ed|subtitulad[ao]|legendado|sottotitol\w*|espa[nñ]ol|castellano|fran[cç]ais|'
     r'deutsch|italiano|portugu[eê]s|remake|reviews?|reaction|commentary|parody|abridged|'
-    r'condensed|highlights|recut|re-?edit\w*|tribute|mashup|gif|reels?|part\s*\d+)\b', re.I)
+    r'condensed|highlights|recut|re-?edit\w*|edited|trimmed|shortened|cut\s+version|tribute|mashup|gif|'
+    r'reels?|part\s*\d+)\b', re.I)
 ENGLISH = {'english', 'eng', 'en', 'en-us', 'silent', 'no linguistic content', 'zxx'}
 LENGTH_RANGE = (0.6, 1.6)  # silent projection speeds vary widely between transfers
 
