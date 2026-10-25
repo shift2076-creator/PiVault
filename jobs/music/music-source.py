@@ -63,6 +63,7 @@ def write_rights(metadata_path, destination, evidence, record, files):
         f"Creator(s) as supplied by source: {creator}\n"
         "PiVault changes: none; original downloaded bytes retained.\n\n"
         "Source declarations are preserved as evidence, not a new license granted by PiVault.\n"
+        "A public-domain recording may contain compositions or arrangements with separate rights.\n"
         "Retain this complete folder when copying or sharing the recordings.\n")
 
 

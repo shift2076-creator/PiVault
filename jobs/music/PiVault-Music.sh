@@ -7,6 +7,8 @@ BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/home/snx/pi-services/music"
 MUSIC_DISK="/srv/disk1"
 MUSIC_ROOT="$MUSIC_DISK/music"
+MUSIC_PERCENT=10        # music may use at most this share of the drive
+DISK_LIMIT_PERCENT=90   # shared ceiling with the cinema job; the rest stays free
 export TZ=America/New_York
 
 log() { printf '[%s] %s\n' "$(date '+%F %T %Z')" "$*"; }
@@ -46,7 +48,7 @@ valid_file() {
 transfer() {
     local genre=$1 key=$2 artist=$3 title=$4 year=$5 id=$6 pick=$7 rights=$8
     local metadata="$BASE/state/$key.json" incoming="$MUSIC_ROOT/.pivault-incoming/$key"
-    local label folder name path size hash part have remaining=0 used free
+    local label folder name path size hash part have remaining=0 music disk used free
     local -a files=()
     if [[ "$year" == - ]]; then label=$title; else label="$title ($year)"; fi
     folder="$MUSIC_ROOT/$artist/$label"
@@ -63,11 +65,15 @@ transfer() {
         [[ ! -f "$part" ]] || have=$(stat -c %s -- "$part")
         [[ -f "$folder/${name##*/}" ]] || remaining=$((remaining+size-have))
     done
-    used=$(du -sb -- "$MUSIC_ROOT" | awk '{print $1}') || return 1
-    free=$(df -B1 --output=avail -- "$MUSIC_ROOT" | awk 'NR==2 {print $1}') || return 1
+    music=$(du -sb -- "$MUSIC_ROOT" | awk '{print $1}') || return 1
+    read -r disk used free < <(df -B1 --output=size,used,avail -- "$MUSIC_ROOT" | awk 'NR==2') || return 1
     log "Preflight $artist — $label: ${#files[@]} file(s), $(awk -v n="$remaining" 'BEGIN {printf "%.1f MiB",n/1048576}') to fetch."
-    if (( used + remaining + 65536 > CAP_BYTES )); then
-        log "CAP: $label will not fit under the configured Music limit."
+    if (( (music + remaining) * 100 > disk * MUSIC_PERCENT )); then
+        log "CAP: $label would take Music past $MUSIC_PERCENT% of the drive."
+        return 3
+    fi
+    if (( (used + remaining) * 100 > disk * DISK_LIMIT_PERCENT )); then
+        log "CAP: $label would fill the drive past $DISK_LIMIT_PERCENT%."
         return 3
     fi
     if (( free < remaining + 65536 )); then
@@ -115,9 +121,6 @@ transfer() {
 run_round() {
     local mode=$1 genre key artist title year id pick rights reason result
     local failures=0 new=0 already=0 exhausted=0
-    [[ -f "$BASE/music.conf" ]] || { die 'Install this script first.'; return 1; }
-    # This file is generated locally by install, containing only CAP_BYTES.
-    source "$BASE/music.conf" || return 1
     host_check || return 1
     mkdir -p -- "$BASE/state" "$MUSIC_ROOT/.pivault-incoming" || return 1
     exec 9>"$BASE/state/run.lock" || return 1
@@ -156,8 +159,7 @@ run_round() {
 }
 
 install_music() {
-    local cap=${1:-} service timer
-    [[ "$cap" =~ ^[1-9][0-9]{0,5}$ ]] || { die 'Usage: bash PiVault-Music.sh install CAP_IN_GiB'; return 1; }
+    local service timer
     host_check || return 1
     mkdir -p -- "$INSTALL_DIR/state" "$INSTALL_DIR/rights-evidence" "$MUSIC_ROOT" || return 1
     if [[ "$BASE/PiVault-Music.sh" != "$INSTALL_DIR/PiVault-Music.sh" ]]; then
@@ -165,7 +167,6 @@ install_music() {
         cp -- "$BASE/music-source.py" "$INSTALL_DIR/music-source.py" || return 1
         cp -a -- "$BASE/rights-evidence/." "$INSTALL_DIR/rights-evidence/" || return 1
     fi
-    printf 'CAP_BYTES=%s\n' "$((cap*1024*1024*1024))" > "$INSTALL_DIR/music.conf" || return 1
     chmod 700 "$INSTALL_DIR/PiVault-Music.sh" || return 1
     service=$(cat <<'UNIT'
 [Unit]
@@ -200,9 +201,9 @@ UNIT
     printf '%s\n' "$timer" | sudo tee /etc/systemd/system/pivault-music.timer >/dev/null || return 1
     sudo systemctl daemon-reload || return 1
     sudo systemctl disable --now pivault-music.timer || return 1
-    log "Installed with a $cap GiB Music cap. Starting the real first-round test (one recording per genre)."
+    log "Installed; Music stops at $MUSIC_PERCENT% of the drive and the drive at $DISK_LIMIT_PERCENT%. Starting the real first-round test (one recording per genre)."
     if ! bash "$INSTALL_DIR/PiVault-Music.sh" test; then
-        die 'First-round test is incomplete. Nightly scheduling remains disabled. Fix the reported problem, then rerun install with the same cap to resume.'
+        die 'First-round test is incomplete. Nightly scheduling remains disabled. Fix the reported problem, then rerun install to resume.'
         return 1
     fi
     sudo systemctl enable --now pivault-music.timer || return 1
@@ -216,36 +217,38 @@ UNIT
 queue() {
 cat <<'PIVAULT_QUEUE'
 classical	open-goldberg-variations-2012	Kimiko Ishizaka	The Open Goldberg Variations	2012	The_Open_Goldberg_Variations-11823	album	Performer's CC0 1.0 dedication: http://creativecommons.org/publicdomain/zero/1.0/	Bach's complete Goldberg Variations in a crowd-funded studio recording released to the public domain.
-classical	caprice-viennois-1910	Fritz Kreisler	Caprice Viennois	1910	78_caprice-viennois_fritz-kreisler-george-falkenstein-kreisler_gbia0458946a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Kreisler plays his own Viennese miniature on Victrola 74197.
-classical	humoresque-1919	Fritz Kreisler	Humoresque	1919	78_humoresque_fritz-kreisler-dvok-josef-pasternack_gbia0478156a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Dvorak's best-known piano piece recast as a violin showpiece on Victrola 74180.
-opera	vesti-la-giubba-1907	Enrico Caruso	Vesti la giubba	1907	78_pagliacci-vesti-la-giubba-on-with-the-play_enrico-caruso-ruggiero-leoncavallo_gbia7040707a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Caruso's signature aria from Pagliacci on Victrola 88061.
-opera	celeste-aida-1911	Enrico Caruso	Celeste Aida	1911	78_celeste-aida-heavenly-aida_enrico-caruso-giuseppi-verdi_gbia0105063a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Verdi's opening tenor aria from Aida on Victrola 88127.
-opera	una-furtiva-lagrima-1911	Enrico Caruso	Una furtiva lagrima	1911	78_elisir-damore-una-furtiva-lagrima_enrico-caruso-victor-orchestra-donizetti_gbia0105026a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Donizetti's L'elisir d'amore romanza with the Victor Orchestra on Victrola 88339.
-jazz	livery-stable-blues-1917	Original Dixieland Jass Band	Livery Stable Blues	1917	original-dixieland-jass-band-livery-stable-blues-victor-18255-b	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	A side of Victor 18255, the first commercially issued jazz record.
-jazz	mabels-dream-1923	King Oliver's Creole Jazz Band	Mabel's Dream	1923	78_mabels-dream_king-olivers-creole-jazz-band-ike-smith-joe-oliver-louis-armstrong-j_gbia0039203a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	New Orleans ensemble jazz with the young Louis Armstrong on second cornet; Paramount 20292.
-jazz	working-man-blues-1923	King Oliver's Creole Jazz Band	Working Man Blues	1923	78_working-man-blues_king-olivers-creole-jazz-band_gbia0366412b	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	A further 1923 Creole Jazz Band side from the band's landmark recording year.
-blues	crazy-blues-1920	Mamie Smith & Her Jazz Hounds	Crazy Blues	1920	MamieSmithHerJazzHounds	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	The 1920 hit that proved the market for blues records by Black artists; OKeh 4169.
-blues	you-cant-keep-a-good-man-down-1921	Mamie Smith's Jazz Hounds	You Can't Keep a Good Man Down	1921	78_you-cant-keep-a-good-man-down_mamie-smiths-jazz-hounds-perry-bradford_gbia0396025a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Perry Bradford's song from the first wave of recorded blues; OKeh 4305.
-blues	down-home-blues-1921	Mamie Smith and Her Jazz Band	Down Home Blues	1921	78_down-home-blues_mamie-smith-and-her-jazz-band-tom-delaney_gbia0295930a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Tom Delaney's blues standard as recorded in 1921; OKeh 4446.
-old-time	arkansaw-traveler-1922	Henry C. Gilliland & A. C. (Eck) Robertson	Arkansaw Traveler	1922	Gilliland_and_Robertson-Arkansaw_Traveler	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Twin fiddles from one of the earliest commercial country recordings; Victor 18956.
-old-time	keep-my-skillet-good-and-greasy-1924	Uncle Dave Macon	Keep My Skillet Good and Greasy	1924	78_keep-my-skillet-good-and-greasy_uncle-dave-macon-macon_gbia0237943a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Banjo and vaudeville showmanship from the first Grand Ole Opry star; Vocalion 14848.
-old-time	wreck-of-the-southern-old-97-1925	Vernon Dalhart	The Wreck of the Southern Old '97	1925	78_the-wreck-of-the-southern-old-97_vernon-dalhart_gbia0371194a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	The railroad ballad that became country music's first million-selling song; Herwin 75503.
-band	semper-fidelis	United States Marine Band	Semper Fidelis	-	SemperFidelisInaugurationMusic	track	U.S. federal government work (Marine Band); archive public-domain declaration: https://archive.org/details/SemperFidelisInaugurationMusic	Sousa's official march of the U.S. Marine Corps, played by the band he once led.
-band	stars-and-stripes-forever	United States Marine Band	The Stars and Stripes Forever	-	StarsAndStripesForever	track	U.S. federal government work (Marine Band); archive public-domain declaration: https://archive.org/details/StarsAndStripesForever	Sousa's 1896 march, the national march of the United States.
-band	king-cotton	United States Marine Band	King Cotton	-	KingCotton_450	track	U.S. federal government work (Marine Band); archive public-domain declaration: https://archive.org/details/KingCotton_450	Sousa's 1895 march written for the Cotton States and International Exposition.
+classical	musopen-eroica	Musopen Symphony Orchestra	Beethoven: Symphony No. 3 "Eroica"	-	SymphonyNo.3InEFlatMajorEroicaOp.55	album	Musopen recording commissioned for public-domain release: https://en.wikipedia.org/wiki/Musopen	Beethoven's Eroica, from Musopen's crowd-funded public-domain orchestral recordings.
+classical	musopen-beethoven-5-i	Musopen	Beethoven: Symphony No. 5, I. Allegro con brio	-	SymphonyNo.5	track	Musopen performance released to the public domain; archive Public Domain Mark: https://archive.org/details/SymphonyNo.5	The most recognized opening in Western orchestral music.
+band	semper-fidelis	United States Marine Band	Semper Fidelis	-	SemperFidelisInaugurationMusic	track	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/SemperFidelisInaugurationMusic	Sousa's official march of the U.S. Marine Corps, played by the band he once led.
+band	stars-and-stripes-forever	United States Marine Band	The Stars and Stripes Forever	-	StarsAndStripesForever	track	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/StarsAndStripesForever	Sousa's 1896 march, the national march of the United States.
+band	world-class-marches-2006	United States Navy Band	World Class Marches	2006	WorldClassMarches	album	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/WorldClassMarches	Concert marches from the United States, Mexico, Brazil and Europe.
+band	overtures-and-finales-2003	United States Navy Band	Overtures and Finales	2003	Overtures	album	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/Overtures	Orchestral overtures and finales transcribed for full concert band.
+band	king-cotton	United States Marine Band	King Cotton	-	KingCotton_450	track	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/KingCotton_450	Sousa's 1895 march for the Cotton States and International Exposition.
+band	the-army-goes-rolling-along	U.S. Army Band	The Army Goes Rolling Along	-	TheArmyGoesRollingAlong	album	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/TheArmyGoesRollingAlong	The official song of the U.S. Army, with band and chorus.
+band	turkey-in-the-straw	United States Air Force Band	Turkey in the Straw	-	TurkeyInTheStraw	track	U.S. federal government work (17 U.S.C. 105); archive public-domain declaration: https://archive.org/details/TurkeyInTheStraw	An early American fiddle tune arranged for band.
+band	america-the-beautiful-navy	United States Navy Band	America the Beautiful	-	AmericaTheBeautiful	track	U.S. federal government work (17 U.S.C. 105); archive public-domain declaration: https://archive.org/details/AmericaTheBeautiful	Samuel Ward and Katharine Lee Bates's anthem with band and voices.
+band	navy-band-honors	United States Navy Band	Honors	-	Honors	album	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/Honors	The ruffles, flourishes and honors music of official U.S. military ceremonies.
+band	navy-band-national-anthems-2020	United States Navy Band	National Anthems	2020	us-navy-band-national-anthems-public-domain	album	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/us-navy-band-national-anthems-public-domain	The national anthems of the world as played for state occasions.
+holiday	holiday-wishes-2007	United States Navy Band	Holiday Wishes	2007	HolidayWishes	album	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/HolidayWishes	Traditional carols and Bach for the holiday season.
+holiday	happy-holidays-2002	United States Navy Band	Happy Holidays	2002	HappyHolidays_495	album	U.S. federal government work (17 U.S.C. 105); archive Public Domain Mark: https://archive.org/details/HappyHolidays_495	Christmas and Hanukkah music from the Navy Band.
+historic	livery-stable-blues-1917	Original Dixieland Jass Band	Livery Stable Blues	1917	original-dixieland-jass-band-livery-stable-blues-victor-18255-b	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	A side of Victor 18255, the first commercially issued jazz record.
+historic	crazy-blues-1920	Mamie Smith & Her Jazz Hounds	Crazy Blues	1920	MamieSmithHerJazzHounds	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	The 1920 hit that proved the market for blues records by Black artists; OKeh 4169.
+historic	vesti-la-giubba-1907	Enrico Caruso	Vesti la giubba	1907	78_pagliacci-vesti-la-giubba-on-with-the-play_enrico-caruso-ruggiero-leoncavallo_gbia7040707a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Caruso's signature aria from Pagliacci on Victrola 88061.
+historic	arkansaw-traveler-1922	Henry C. Gilliland & A. C. (Eck) Robertson	Arkansaw Traveler	1922	Gilliland_and_Robertson-Arkansaw_Traveler	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	Twin fiddles from one of the earliest commercial country recordings; Victor 18956.
+historic	mabels-dream-1923	King Oliver's Creole Jazz Band	Mabel's Dream	1923	78_mabels-dream_king-olivers-creole-jazz-band-ike-smith-joe-oliver-louis-armstrong-j_gbia0039203a	track	U.S. sound recording published before 1926: https://www.copyright.gov/music-modernization/pre1972-soundrecordings/	New Orleans ensemble jazz with the young Louis Armstrong on second cornet; Paramount 20292.
 PIVAULT_QUEUE
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     case "${1:-}" in
-        install) install_music "${2:-}" ;;
+        install) install_music ;;
         run) run_round nightly ;;
         test) run_round test ;;
         catalogue|list) catalogue ;;
         *)
             printf '%s\n' 'Usage:' \
                 '  bash PiVault-Music.sh catalogue      # Read every selection and its rights basis.' \
-                '  bash PiVault-Music.sh install 46     # On pivault: install, test one per genre, then schedule.' \
+                '  bash PiVault-Music.sh install        # On pivault: install, test one per genre, then schedule.' \
                 '  bash ~/pi-services/music/PiVault-Music.sh test  # Resume an incomplete test.'
             ;;
     esac
