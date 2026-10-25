@@ -7,6 +7,7 @@ BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/home/snx/pi-services/cinema"
 VIDEO_DISK="/srv/disk1"
 VIDEO_ROOT="$VIDEO_DISK/videos"
+DISK_LIMIT_PERCENT=90
 NOTIFICATION_ROOT="/srv/pi-server/config/notifications"
 export TZ=America/New_York
 
@@ -138,7 +139,7 @@ transfer() {
     local key=$1 title=$2 year=$3 url=$4 size=$5 hash=$6 provider=$7 genre=$8 source_height=$9
     local part="$VIDEO_ROOT/.pivault-incoming/${key}.${provider}.part"
     local folder="$VIDEO_ROOT/$title ($year)" final="$VIDEO_ROOT/$title ($year)/$title ($year).mp4"
-    local have=0 used remaining free summary rights_bytes
+    local have=0 disk used remaining free summary rights_bytes
     local dossier="$BASE/state/$key.$provider.rights"
     if [[ -f "$final" ]]; then
         die "Existing target left untouched: $final"
@@ -157,13 +158,12 @@ transfer() {
         die "Partial file is larger than the published source: $part. It was left untouched."
         return 1
     fi
-    used=$(du -sb -- "$VIDEO_ROOT" | awk '{print $1}') || return 1
-    free=$(df -B1 --output=avail -- "$VIDEO_ROOT" | awk 'NR==2 {print $1}') || return 1
+    read -r disk used free < <(df -B1 --output=size,used,avail -- "$VIDEO_ROOT" | awk 'NR==2') || return 1
     remaining=$((size-have+rights_bytes+8192))
     summary=$(awk -v n="$size" -v m="$minutes" 'BEGIN {printf "%.2f GiB; reference runtime %s min; approx %.2f Mbps",n/1073741824,m,n*8/(m*60*1000000)}')
     log "Preflight $title ($year), $provider: $summary."
-    if (( used + remaining > CAP_BYTES )); then
-        log "CAP: $title ($year) will not fit under the configured Videos limit."
+    if (( (used + remaining) * 100 > disk * DISK_LIMIT_PERCENT )); then
+        log "CAP: $title ($year) would fill $(df --output=target -- "$VIDEO_ROOT" | awk 'NR==2') past $DISK_LIMIT_PERCENT%."
         return 3
     fi
     if (( free < remaining )); then
@@ -195,7 +195,7 @@ run_round() {
     local mode=$1 genre key title year url size hash loc reason rights minutes height result status
     local failures=0 new=0 already=0 exhausted=0 flags=0
     [[ -f "$BASE/cinema.conf" ]] || { die 'Install this script first.'; return 1; }
-    # This file is generated locally by install, containing only CAP_BYTES.
+    # This file is generated locally by install; it sets TOLERANCE_PERCENT.
     source "$BASE/cinema.conf" || return 1
     host_check || return 1
     mkdir -p -- "$BASE/state" "$VIDEO_ROOT/.pivault-incoming" || return 1
@@ -288,8 +288,7 @@ run_round() {
 }
 
 install_cinema() {
-    local cap=${1:-} service timer
-    [[ "$cap" =~ ^[1-9][0-9]{0,5}$ ]] || { die 'Usage: bash PiVault-Cinema.sh install CAP_IN_GiB'; return 1; }
+    local service timer
     host_check || return 1
     [[ -f "$BASE/cinema-rights.py" && -f "$BASE/rights-evidence/catalogue.json" ]] || { die 'Keep the rights helper and rights-evidence folder beside the installer.'; return 1; }
     mkdir -p -- "$INSTALL_DIR/state" "$INSTALL_DIR/rights-evidence" "$VIDEO_ROOT" || return 1
@@ -300,7 +299,7 @@ install_cinema() {
         cp -- "$BASE/cinema-resolve.py" "$INSTALL_DIR/cinema-resolve.py" || return 1
         cp -a -- "$BASE/rights-evidence/." "$INSTALL_DIR/rights-evidence/" || return 1
     fi
-    printf 'CAP_BYTES=%s\nTOLERANCE_PERCENT=75\n' "$((cap*1024*1024*1024))" > "$INSTALL_DIR/cinema.conf" || return 1
+    printf 'TOLERANCE_PERCENT=75\n' > "$INSTALL_DIR/cinema.conf" || return 1
     sudo install -d -o snx -g "$(id -gn)" -m 0750 "$NOTIFICATION_ROOT" "$NOTIFICATION_ROOT/inbox" "$NOTIFICATION_ROOT/decisions" || return 1
     chmod 700 "$INSTALL_DIR/PiVault-Cinema.sh" || return 1
     service=$(cat <<'UNIT'
@@ -337,9 +336,9 @@ UNIT
     sudo systemctl daemon-reload || return 1
     sudo systemctl disable --now pivault-cinema.timer || return 1
     preview
-    log "Installed with a $cap GiB Videos cap. Starting the real first-round test (up to 17 films)."
+    log "Installed; downloads stop at $DISK_LIMIT_PERCENT% of the video drive. Starting the real first-round test (one film per genre)."
     if ! bash "$INSTALL_DIR/PiVault-Cinema.sh" test; then
-        die 'First-round test is incomplete. Nightly scheduling remains disabled. Fix the reported problem, then rerun install with the same cap to resume.'
+        die 'First-round test is incomplete. Nightly scheduling remains disabled. Fix the reported problem, then rerun install to resume.'
         return 1
     fi
     sudo systemctl enable --now pivault-cinema.timer || return 1
@@ -408,7 +407,7 @@ PIVAULT_QUEUE
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     case "${1:-}" in
-        install) install_cinema "${2:-}" ;;
+        install) install_cinema ;;
         run) run_round nightly ;;
         test) run_round test ;;
         catalogue|list) catalogue ;;
@@ -417,7 +416,7 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
             printf '%s\n' 'Usage:' \
                 '  bash PiVault-Cinema.sh catalogue       # Read every selection and its reason.' \
                 '  bash PiVault-Cinema.sh preview         # Show the pinned first round, sizes and runtimes.' \
-                '  bash PiVault-Cinema.sh install 150     # On pivault: install, test one per genre, then schedule.' \
+                '  bash PiVault-Cinema.sh install         # On pivault: install, test one per genre, then schedule.' \
                 '  bash ~/pi-services/cinema/PiVault-Cinema.sh test  # Resume an incomplete test.'
             ;;
     esac
