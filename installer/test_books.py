@@ -60,6 +60,15 @@ exit $status
         self.assertTrue(done.split('\t')[1] == 'gutenberg')
         self.assertIn('Added: Sample Book (1900).', result.stdout)
 
+    def test_row_tags_override_default_tag(self):
+        log = 'echo "$*" >> "$(dirname "$0")/calls"\n'
+        tagged = ROW.replace('sample-pg1', 'tagged-pg3') + '\tPiVault Trades,Dairy'
+        result, _, root = self.round(log + ADD, rows=(ROW, tagged))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = [c for c in (root / 'bin/calls').read_text().splitlines() if c.startswith('add ')]
+        self.assertIn('--tags PiVault Americana ', calls[0])
+        self.assertIn('--tags PiVault Trades,Dairy ', calls[1])
+
     def test_other_calibre_failure_stays_queued(self):
         result, done, root = self.round('echo "database is locked" >&2\nexit 0\n')
         self.assertEqual(result.returncode, 0)

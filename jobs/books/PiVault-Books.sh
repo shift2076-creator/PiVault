@@ -25,9 +25,9 @@ host_check() {
 }
 
 catalogue() {
-    local key title author year source url size md5 fb_url fb_size fb_md5 rights total=0
+    local key title author year source url size md5 fb_url fb_size fb_md5 rights tags total=0
     printf 'PiVault Americana — %s public-domain books\n\n' "$(queue | wc -l)"
-    while IFS=$'\t' read -r key title author year source url size md5 fb_url fb_size fb_md5 rights; do
+    while IFS=$'\t' read -r key title author year source url size md5 fb_url fb_size fb_md5 rights tags; do
         printf '%-9s %s (%s) — %s\n' "$source" "$title" "${year/#-/undated}" "$author"
         [[ "$size" == - ]] || total=$((total+size))
     done < <(queue)
@@ -74,11 +74,11 @@ in_library() {
 }
 
 add_book() {
-    local file=$1 key=$2 title=$3 author=$4 year=$5 url=$6 rights=$7 output id
+    local file=$1 key=$2 title=$3 author=$4 year=$5 url=$6 rights=$7 tags=${8:-$TAG} output id
     local dated=()
     [[ "$year" == - ]] || dated=(--field "pubdate:$year-01-01")
     output=$(calibredb add --library-path "$LIBRARY" --title "$title" --authors "$author" \
-        --identifier "pivault:$key" --tags "$TAG" --languages eng -- "$file" 2>&1) || { die "$output"; return 1; }
+        --identifier "pivault:$key" --tags "$tags" --languages eng -- "$file" 2>&1) || { die "$output"; return 1; }
     id=$(printf '%s\n' "$output" | sed -n 's/^Added book ids: \([0-9]*\).*/\1/p')
     if [[ ! "$id" =~ ^[0-9]+$ && "$output" == *"already exist in the database"* ]]; then return 3; fi
     [[ "$id" =~ ^[0-9]+$ ]] || { die "Calibre did not add $title: $output"; return 1; }
@@ -114,7 +114,7 @@ note_failures() {
 }
 
 run_round() {
-    local mode=$1 key title author year source url size md5 fb_url fb_size fb_md5 rights
+    local mode=$1 key title author year source url size md5 fb_url fb_size fb_md5 rights tags
     local today=0 new=0 fetched=0 stopped=0 unreachable=0 remaining=0 parked=0 file day ext part used_url free name
     local -a failed=()
     [[ -f "$INSTALL_DIR/books.conf" ]] || { die 'Install this script first.'; return 1; }
@@ -130,7 +130,7 @@ run_round() {
         [[ "$day" != "$RUN_DAY" ]] || today=$((today+1))
     done
     log "Starting $mode: up to $DAILY_COUNT new books for $RUN_DAY ($today already added today)."
-    while IFS=$'\t' read -r key title author year source url size md5 fb_url fb_size fb_md5 rights; do
+    while IFS=$'\t' read -r key title author year source url size md5 fb_url fb_size fb_md5 rights tags; do
         [[ ! -f "$INSTALL_DIR/state/$key.done" && ! -f "$INSTALL_DIR/state/$key.parked" ]] || continue
         name=$title; [[ "$year" == - ]] || name="$title ($year)"
         if (( today >= DAILY_COUNT )); then remaining=$((remaining+1)); continue; fi
@@ -161,7 +161,7 @@ run_round() {
             failed+=("$key"); log "Incomplete: $title; a later round will retry it."; continue
         fi
         fetched=$((fetched+1))
-        add_book "$part" "$key" "$title" "$author" "$year" "$used_url" "$rights"
+        add_book "$part" "$key" "$title" "$author" "$year" "$used_url" "$rights" "$tags"
         case $? in
             0) ;;
             3)
@@ -229,7 +229,8 @@ c["books_enabled"] = True; p.write_text(json.dumps(c, indent=2) + "\n")' "$MAINT
 }
 
 # The fixed, reviewed title queue is appended below. No runtime book searches.
-# key	title	author	year	source	url	bytes	md5	fallback_url	fallback_bytes	fallback_md5	rights
+# key	title	author	year	source	url	bytes	md5	fallback_url	fallback_bytes	fallback_md5	rights	[tags]
+# The optional tags column is a comma-separated Calibre tag list; rows without it get $TAG.
 
 queue() {
 cat <<'PIVAULT_QUEUE'
