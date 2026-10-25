@@ -1,0 +1,130 @@
+import json
+from unittest.mock import patch
+from django.test import TestCase
+from portal import search
+from portal.models import User
+
+CONFIG = {
+    'jellyfin': {'origin': 'http://jellyfin:8096', 'api_key': 'jf-key'},
+    'navidrome': {'origin': 'http://navidrome:4533', 'admin_username': 'nd', 'admin_password': 'pw',
+                  'library_ids': [1]},
+    'search': {
+        'wiki': {'origin': 'http://kiwix:8080', 'link': 'http://192.168.4.90:8084'},
+        'videos': {'link': 'http://192.168.4.90:8096'},
+        'music': {'link': 'http://192.168.4.90:4533/music'},
+        'books': {'origin': 'http://calibre-web:8083', 'link': 'http://192.168.4.90:8083',
+                  'username': 'search', 'password': 'pw'},
+        'documents': {'origin': 'http://paperless:8000', 'link': 'http://192.168.4.90:8085', 'token': 't'},
+        'inventory': {'origin': 'http://homebox:7745', 'link': 'http://192.168.4.90:8087', 'api_key': 'k'},
+        'pantry': {'origin': 'http://grocy:80', 'link': 'http://192.168.4.90:9283', 'api_key': 'g'},
+    },
+}
+CATALOG = b'''<feed xmlns="http://www.w3.org/2005/Atom">
+<entry><name>wikipedia_en</name><language>eng</language></entry>
+<entry><name>wikivoyage_en</name><language>eng</language></entry>
+<entry><name>wikipedia_fr</name><language>fra</language></entry></feed>'''
+KIWIX = b'''<rss version="2.0"><channel><item><title>Apollo 11</title>
+<link>/content/wikipedia_en/A/Apollo_11</link><description>The <b>Apollo</b> mission...</description>
+<book><title>Wikipedia</title></book></item></channel></rss>'''
+OPDS = b'''<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Moon Book</title>
+<author><name>A. Writer</name></author><link rel="http://opds-spec.org/image" href="/opds/cover/42"/>
+</entry></feed>'''
+
+
+def responses(calls):
+    def fetch(connector, path, query=()):
+        calls.append((connector.key, path, dict(query)))
+        if path == '/catalog/v2/entries':
+            return CATALOG
+        if path == '/search':
+            return KIWIX
+        if path == '/opds/search':
+            return OPDS
+        body = {
+            '/Search/Hints': {'SearchHints': [{'Id': 'abc', 'Name': '<b>Apollo</b>', 'Type': 'Movie',
+                                               'ProductionYear': 1995}]},
+            '/rest/search3': {'subsonic-response': {'status': 'ok', 'searchResult3': {
+                'album': [{'id': 'al1', 'name': 'Moon', 'artist': 'Band'}],
+                'song': [{'id': 's1', 'title': 'Apollo', 'albumId': 'al1', 'artist': 'Band'}]}}},
+            '/api/documents/': {'results': [{'id': 7, 'title': 'Receipt',
+                                             '__search_hit__': {'highlights': 'a <span class="match">moon</span>'}}]},
+            '/api/v1/entities': {'items': [{'id': 'u-1', 'name': 'Telescope', 'parent': {'name': 'Garage'}}]},
+            '/api/objects/products': [{'id': 3, 'name': 'Moon pie'}],
+        }[path]
+        return json.dumps(body).encode()
+    return fetch
+
+
+class SearchTests(TestCase):
+    def setUp(self):
+        search.configure(CONFIG)
+        self.addCleanup(search.CONNECTORS.clear)
+        everything = {key: 'shared' for key in ('books', 'music', 'videos', 'documents', 'wiki',
+                                                'inventory', 'pantry', 'games', 'sync', 'passwords')}
+        self.user = User.objects.create_user(username='u', email='u@example.com', display_name='U',
+                                             role='user', service_access=everything)
+        self.calls = []
+        patcher = patch.object(search.Connector, 'fetch', responses(self.calls))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def get(self, url):
+        self.client.force_login(self.user)
+        return self.client.get(url, secure=True)
+
+    def test_signed_out_visitors_get_nothing(self):
+        self.assertEqual(self.client.get('/search/apps', secure=True).status_code, 401)
+        response = self.client.get('/search?q=apollo', secure=True)
+        self.assertRedirects(response, '/users/sign-in', fetch_redirect_response=False)
+        self.assertEqual(self.calls, [])
+
+    def test_apps_list_follows_service_access_and_isolated_inventory_is_excluded(self):
+        self.user.service_access = {'wiki': 'shared', 'inventory': 'isolated', 'music': 'none'}
+        self.user.save()
+        self.assertEqual(self.get('/search/apps').json(), {'apps': [{'key': 'wiki', 'label': 'Offline Wiki'}]})
+
+    def test_only_ticked_apps_are_called(self):
+        response = self.get('/search?q=apollo&app=wiki&app=videos&app=passwords')
+        self.assertEqual({key for key, _, _ in self.calls}, {'wiki', 'videos'})
+        self.assertContains(response, 'href="http://192.168.4.90:8084/content/wikipedia_en/A/Apollo_11"')
+        self.assertContains(response, 'href="http://192.168.4.90:8096/web/#/details?id=abc"')
+        self.assertContains(response, '&lt;b&gt;Apollo&lt;/b&gt;')  # Upstream text is escaped.
+        self.assertNotContains(response, 'Moon pie')
+
+    def test_wiki_searches_once_per_language(self):
+        self.get('/search?q=apollo&app=wiki')
+        books = [query['books.name'] for key, path, query in self.calls if path == '/search']
+        self.assertEqual(sorted(books), [['wikipedia_en', 'wikivoyage_en'], ['wikipedia_fr']])
+
+    def test_every_app_returns_links_into_itself(self):
+        response = self.get('/search?q=moon')
+        for link in ('http://192.168.4.90:4533/music/app/#/album/al1/show', 'http://192.168.4.90:8083/book/42',
+                     'http://192.168.4.90:8085/documents/7/details', 'http://192.168.4.90:8087/item/u-1',
+                     'http://192.168.4.90:9283/product/3'):
+            self.assertContains(response, 'href="' + link + '"')
+        music = next(query for key, _, query in self.calls if key == 'music')
+        self.assertEqual(music['musicFolderId'], [1])
+        self.assertNotIn('p', music)  # Token auth only; the password never travels.
+
+    def test_a_failing_app_is_reported_without_upstream_details(self):
+        def broken(connector, path, query=()):
+            raise search.SearchError(connector.key)
+        with patch.object(search.Connector, 'fetch', broken):
+            response = self.get('/search?q=apollo&app=documents')
+        self.assertContains(response, 'Documents could not be searched right now.')
+
+    def test_pantry_strips_characters_outside_grocys_filter_grammar(self):
+        self.get('/search?q=moon%27s+pie%26&app=pantry')
+        query = next(query for key, _, query in self.calls if key == 'pantry')
+        self.assertEqual(query['query[]'], 'name~moon s pie')
+
+    def test_wiki_rejects_links_to_other_hosts(self):
+        connector = search.CONNECTORS['wiki']
+        with self.assertRaises(search.SearchError):
+            connector.url('//evil.example/x')
+
+    def test_unknown_search_app_and_credentials_in_origins_are_rejected(self):
+        with self.assertRaises(ValueError):
+            search.configure({'search': {'passwords': {}}})
+        with self.assertRaises(ValueError):
+            search.configure({'search': {'wiki': {'origin': 'http://a:b@kiwix', 'link': 'http://x'}}})

@@ -36,6 +36,8 @@ def configure():
         ADAPTERS['inventory'] = HomeboxAdapter(inventory['origin'],
             allow_isolated=inventory.get('allow_isolated', False), shared_token=inventory.get('shared_token', ''),
             shared_group_id=inventory.get('shared_group_id', ''))
+    from .search import configure as configure_search
+    configure_search(config)
 
 
 def credential_plan(user):
