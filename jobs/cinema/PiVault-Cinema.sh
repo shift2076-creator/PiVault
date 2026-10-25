@@ -7,7 +7,7 @@ BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/home/snx/pi-services/cinema"
 VIDEO_DISK="/srv/disk1"
 VIDEO_ROOT="$VIDEO_DISK/videos"
-VIDEO_PERCENT=80        # videos may use at most this share of the drive
+VIDEO_PERCENT=80        # videos may use at most this share of the media drive
 DISK_LIMIT_PERCENT=90   # shared ceiling with the music job; the rest stays free
 NOTIFICATION_ROOT="/srv/pi-server/config/notifications"
 export TZ=America/New_York
@@ -169,11 +169,11 @@ transfer() {
     summary=$(awk -v n="$size" -v m="$minutes" 'BEGIN {printf "%.2f GiB; reference runtime %s min; approx %.2f Mbps",n/1073741824,m,n*8/(m*60*1000000)}')
     log "Preflight $title ($year), $provider: $summary."
     if (( (videos + remaining) * 100 > disk * VIDEO_PERCENT )); then
-        log "CAP: $title ($year) would take Videos past $VIDEO_PERCENT% of the drive."
+        log "CAP: $title ($year) would take Videos past $VIDEO_PERCENT% of the media drive."
         return 3
     fi
     if (( (used + remaining) * 100 > disk * DISK_LIMIT_PERCENT )); then
-        log "CAP: $title ($year) would fill $(df --output=target -- "$VIDEO_ROOT" | awk 'NR==2') past $DISK_LIMIT_PERCENT%."
+        log "CAP: $title ($year) would fill the media drive past $DISK_LIMIT_PERCENT%."
         return 3
     fi
     if (( free < remaining )); then
@@ -346,7 +346,7 @@ UNIT
     sudo systemctl daemon-reload || return 1
     sudo systemctl disable --now pivault-cinema.timer || return 1
     preview
-    log "Installed; Videos stop at $VIDEO_PERCENT% of the drive and the drive at $DISK_LIMIT_PERCENT%. Starting the real first-round test (one film per genre)."
+    log "Installed; Videos stop at $VIDEO_PERCENT% of the media drive and the whole media drive at $DISK_LIMIT_PERCENT%. Starting the real first-round test (one film per genre)."
     if ! bash "$INSTALL_DIR/PiVault-Cinema.sh" test; then
         die 'First-round test is incomplete. Nightly scheduling remains disabled. Fix the reported problem, then rerun install to resume.'
         return 1
