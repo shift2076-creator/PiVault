@@ -8,7 +8,7 @@ An offline services hub on a Raspberry Pi 5: media, knowledge, organization and 
 |---|---|---|
 | `app/` | The PiVault web app: sign-in, joining, invitations, password vault, notifications (Django) | Docker container `pivault-users` on pivault |
 | `stack/` | The container stack around the app: reference `docker-compose.yml`, Homepage add-on, PHP setting | Docker Compose on pivault |
-| `jobs/` | Scheduled scripts: `maintenance.py` (nightly 02:00) and `cinema/` (video downloads) | systemd on pivault |
+| `jobs/` | Scheduled scripts: `maintenance.py` (nightly 02:00), `cinema/` (video downloads) and `books/` (public-domain books into Calibre-Web) | systemd on pivault |
 | `installer/` | Builds the one-file installer and installs `app/` onto pivault | Built on Greenie, runs on pivault |
 | `tools/` | Read-only integration check and Bitwarden compatibility check | Greenie |
 
@@ -23,6 +23,7 @@ Inside `app/portal/`: views and logic at the top; `integrations/` (Vaultwarden, 
 - `installer/install.py`: what that installer runs on pivault.
 - `jobs/maintenance.py`: installed to `/srv/pi-server/users/maintenance.py`.
 - `jobs/cinema/PiVault-Cinema.sh`: installed to `/home/snx/pi-services/cinema/`.
+- `jobs/books/PiVault-Books.sh`: installed to `/home/snx/pi-services/books/`; run nightly by `maintenance.py` once its first round passes.
 
 ## Live paths on pivault
 
