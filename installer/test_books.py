@@ -69,6 +69,18 @@ exit $status
         self.assertIn('--tags PiVault Americana ', calls[0])
         self.assertIn('--tags PiVault Trades,Dairy ', calls[1])
 
+    def test_book_is_added_with_real_extension_not_part(self):
+        log = 'echo "$*" >> "$(dirname "$0")/calls"\n'
+        result, _, root = self.round(log + ADD)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        add = next(c for c in (root / 'bin/calls').read_text().splitlines() if c.startswith('add '))
+        self.assertTrue(add.endswith('/sample-pg1.gutenberg.epub'), add)
+
+    def test_failed_add_keeps_partial_for_retry(self):
+        result, _, root = self.round('echo "database is locked" >&2\nexit 1\n')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual([p.name for p in (root / 'incoming').iterdir()], ['sample-pg1.gutenberg.epub.part'])
+
     def test_other_calibre_failure_stays_queued(self):
         result, done, root = self.round('echo "database is locked" >&2\nexit 0\n')
         self.assertEqual(result.returncode, 0)

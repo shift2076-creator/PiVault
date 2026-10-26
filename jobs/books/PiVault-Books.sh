@@ -74,11 +74,15 @@ in_library() {
 }
 
 add_book() {
-    local file=$1 key=$2 title=$3 author=$4 year=$5 url=$6 rights=$7 tags=${8:-$TAG} output id
-    local dated=()
+    local file=$1 key=$2 title=$3 author=$4 year=$5 url=$6 rights=$7 tags=${8:-$TAG} output id status=0
+    local dated=() book=${1%.part}
     [[ "$year" == - ]] || dated=(--field "pubdate:$year-01-01")
+    # calibredb takes the format, metadata reader and cover from the file extension, so add it as .epub/.pdf, not .part.
+    mv -- "$file" "$book" || return 1
     output=$(calibredb add --library-path "$LIBRARY" --title "$title" --authors "$author" \
-        --identifier "pivault:$key" --tags "$tags" --languages eng -- "$file" 2>&1) || { die "$output"; return 1; }
+        --identifier "pivault:$key" --tags "$tags" --languages eng -- "$book" 2>&1) || status=1
+    mv -- "$book" "$file" || return 1
+    (( status == 0 )) || { die "$output"; return 1; }
     id=$(printf '%s\n' "$output" | sed -n 's/^Added book ids: \([0-9]*\).*/\1/p')
     if [[ ! "$id" =~ ^[0-9]+$ && "$output" == *"already exist in the database"* ]]; then return 3; fi
     [[ "$id" =~ ^[0-9]+$ ]] || { die "Calibre did not add $title: $output"; return 1; }
