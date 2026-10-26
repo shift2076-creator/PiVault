@@ -10,6 +10,10 @@ PDF keywords, video ids, URLs) are mapped onto SUBJECTS or TRADES by RULES, then
 EPUB files are also read for se:subject (Standard Ebooks) and dc:subject (LCSH) so books
 the job added with only a collection tag gain a subject.
 
+Books no rule can place are tagged from manual-tags.tsv (book id, exact title, tags),
+reviewed by hand; a book whose title no longer matches its id is skipped with a warning.
+Books still without a subject lose their non-vocabulary tags and are listed for review.
+
 Default is a dry run that changes nothing. --apply writes a backup of every book's
 current tags first; --restore BACKUP puts those tags back.
 """
@@ -27,6 +31,7 @@ from xml.etree import ElementTree
 
 LIBRARY = '/media/snx/C29C87F99C87E66F/Server/Books'
 BOOKS_LOCK = '/home/snx/pi-services/books/state/run.lock'
+MANUAL = Path(__file__).with_name('manual-tags.tsv')
 
 COLLECTIONS = ('PiVault Americana', 'PiVault Founding Documents', 'PiVault Trades')
 TRADES = (
@@ -159,20 +164,45 @@ def set_tags(library, book_id, tags):
     calibredb(library, 'set_metadata', '--field', 'tags:' + ','.join(tags), str(book_id))
 
 
-def plan(library_books):
+def load_manual(path=None):
+    """Return {book id: (title, tags)} from the hand-reviewed TSV; every tag must be in the vocabulary."""
+    manual, path = {}, path or MANUAL
+    if not Path(path).is_file():
+        return manual
+    for number, line in enumerate(Path(path).read_text(encoding='utf-8').splitlines(), 1):
+        if not line.strip() or line.startswith('#'):
+            continue
+        book_id, title, tag_list = line.split('\t')
+        chosen = [t.strip() for t in tag_list.split(',')]
+        unknown = [t for t in chosen if t.casefold() not in VOCABULARY]
+        if unknown:
+            raise SystemExit(f'{path}:{number}: not in the vocabulary: {", ".join(unknown)}')
+        manual[int(book_id)] = (title, chosen)
+    return manual
+
+
+def plan(library_books, manual=None):
     """Return (changes, untagged) where changes maps id -> (title, old, new)."""
+    manual = load_manual() if manual is None else manual
     changes, untagged = {}, []
     for book in library_books:
+        title = book.get('title', '')
         old = sorted(book.get('tags') or [], key=str.casefold)
         sources = list(old)
         for path in book.get('formats') or []:
             if str(path).lower().endswith('.epub'):
                 sources += epub_subjects(path)
+        if book['id'] in manual:
+            if manual[book['id']][0] == title:
+                sources += manual[book['id']][1]
+            else:
+                print(f'WARNING: manual-tags.tsv book {book["id"]} is "{manual[book["id"]][0]}" '
+                      f'but the library has "{title}"; skipped.', file=sys.stderr)
         new = normalise(sources)
-        if not new:
-            untagged.append((book['id'], book.get('title', '')))
-        elif new != old:
-            changes[book['id']] = (book.get('title', ''), old, new)
+        if not (set(new) - set(COLLECTIONS)):
+            untagged.append((book['id'], title))
+        if new != old:
+            changes[book['id']] = (title, old, new)
     return changes, untagged
 
 
@@ -189,7 +219,7 @@ def report(changes, untagged, library_books, out=sys.stdout):
     for tag, count in sorted(after.items(), key=lambda kv: kv[0].casefold()):
         print(f'  {count:5}  {tag}', file=out)
     if untagged:
-        print('\nUnchanged; no subject could be derived (tag these by hand):', file=out)
+        print('\nNo subject could be derived (add these to manual-tags.tsv):', file=out)
         for book_id, title in untagged:
             print(f'  {book_id:6}  {title}', file=out)
 

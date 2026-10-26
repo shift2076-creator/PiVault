@@ -1,0 +1,103 @@
+# Hand-reviewed tags for books no rule can place. Columns: Calibre book id, exact title, tags.
+# Tags must come from tags.py's vocabulary. A row is ignored if the title no longer matches the id.
+2	5-Powdered-Milk-Recipes	Dairy
+5	Making Cider Vinegar at Home	Food Preservation
+6	Sourdough Starter Best Practices_Food Smart Colorado handout	Milling and Baking
+8	Additive Manufacturing Essentials	Machining and Metalwork
+10	afh10-644	Hunting and Fishing
+15	Algebra 1	Nonfiction
+16	Algebra and Trigonometry 2e	Nonfiction
+17	American Government 4e	Nonfiction
+18	Anatomy and Physiology 2e	Medicine
+22	The Essentials Of Archery: How To Use And Make Bows And Arrows	Hunting and Fishing
+23	ARCHIVESolarPVforBuildersOct2009	Electrical
+32	Astronomy 2e	Nonfiction
+33	Biology 2e	Nonfiction
+34	Biology for AP® Courses	Nonfiction
+36	Bookletwind	Electrical
+37	BSF PI_Construction Manual_2012-08_en	Water and Sanitation
+38	Builder_3_and_2_vol_2_NAVEDTRA_14044_1994	Carpentry
+39	Calculus Volume 1	Nonfiction
+40	Calculus Volume 2	Nonfiction
+41	Calculus Volume 3	Nonfiction
+45	Chemistry 2e	Soap and Chemistry
+46	Chemistry: Atoms First 2e	Soap and Chemistry
+47	Civilization_Starter_Kit_-_v.0.01_-_PDF	Nonfiction
+48	Clinical Nursing Skills	Medicine
+50	College Algebra 2e	Nonfiction
+51	College Algebra with Corequisite Support 2e	Nonfiction
+52	College Physics 2e	Nonfiction
+53	College Physics for AP® Courses 2e	Nonfiction
+54	Concepts of Biology	Nonfiction
+55	constelect1	Electrical
+56	Contemporary Mathematics	Nonfiction
+63	ARTISAN DISTILLING	Soap and Chemistry
+77	Elementary Algebra 2e	Nonfiction
+82	Sourdough	Milling and Baking
+84	Foundations of Information Systems	Nonfiction
+87	Fundamentals of Nursing	Medicine
+98	Growing Organic Small Grains	Farming
+100	GUIDE01_HomeCan_rev0715	Food Preservation
+101	GUIDE02_HomeCan_rev0715	Food Preservation
+102	GUIDE03_HomeCan_rev0715	Food Preservation
+103	GUIDE04_HomeCan_rev0715	Food Preservation
+104	GUIDE05_HomeCan_rev0715	Food Preservation
+105	GUIDE06_HomeCan_rev0715	Food Preservation
+106	GUIDE07_HomeCan_rev0715	Food Preservation
+120	Statistics	Nonfiction
+125	Intermediate Algebra 2e	Nonfiction
+126	Introduction to Behavioral Neuroscience	Nonfiction
+127	Introduction to Sociology 3e	Nonfiction
+128	Introduction to Anthropology	Nonfiction
+129	Introduction to Computer Science	Nonfiction
+130	Introduction to Philosophy	Philosophy
+131	Introduction to Political Science	Nonfiction
+132	Introduction to Python Programming	Nonfiction
+133	Introductory Business Statistics 2e	Nonfiction
+134	Introductory Statistics 2e	Nonfiction
+135	INTRO_HomeCanrev0715	Food Preservation
+156	knitting_booklet.indd	Textiles
+164	Lifespan Development	Nonfiction
+173	Maternal Newborn Nursing	Medicine
+174	Medical-Surgical Nursing	Medicine
+175	MF33-778 Handloom Construction	Textiles
+176	Microbiology	Medicine
+178	navedtra-14043	Carpentry
+180	CM BASIC VOL 1	Engines
+181	NAVEDTRA-14044-Builder-3-2-Volume-2	Carpentry
+183	Cookbook	Nonfiction
+185	Northarvest_Bean_Cookbook_P2017pdf	Nonfiction
+186	Northeast Dry Bean Production Guide Final	Farming
+187	Nutrition for Nurses	Medicine
+190	Organic Chemistry	Soap and Chemistry
+195	PA_Veg_agrs115	Farming
+200	pg1184-images-3	Adventure,Fiction
+207	Pharmacology for Nurses	Medicine
+209	Physics	Nonfiction
+210	Population Health for Nurses	Medicine
+211	Soapmaking	Soap and Chemistry
+212	Prealgebra 2e	Nonfiction
+213	Precalculus 2e	Nonfiction
+214	Principles of Data Science	Nonfiction
+215	Psychiatric-Mental Health Nursing	Medicine
+216	Psychology 2e	Nonfiction
+225	seed_saving_guide	Farming
+226	recipe-book	Nonfiction
+227	Small-scale fuel alcohol production	Soap and Chemistry
+229	sourdough_bread_recipes_handout_final	Milling and Baking
+235	Trapper Education Manual	Hunting and Fishing
+237	UAlaskaRootCellarsHGA-00331-2	Food Preservation
+239	University Physics Volume 1	Nonfiction
+240	University Physics Volume 2	Nonfiction
+241	University Physics Volume 3	Nonfiction
+242	U.S. History	Nonfiction
+243	USMC-Summer-Survival-Course-Handbook	Hunting and Fishing
+244	USMC-Winter-Survival-Course-Handbook	Hunting and Fishing
+251	WHO MONOGRHAPS MEDICINE PLANTS.pdf	Herbal Pharmacy
+261	windrotord	Electrical
+262	Woodcraft	Hunting and Fishing
+263	World History Volume 1, to 1500	Nonfiction
+264	World History Volume 2, from 1400	Nonfiction
+265	Writing Guide with Handbook	Nonfiction
+266	Small-scale poultry production	Poultry and Bees
+311	Candide	Fiction,Satire

@@ -83,10 +83,38 @@ class EpubTests(unittest.TestCase):
             books = [{'id': 1, 'title': 'Dracula', 'tags': ['PiVault Americana'], 'formats': [book]},
                      {'id': 2, 'title': 'Clean', 'tags': ['Farming', 'PiVault Trades'], 'formats': []},
                      {'id': 3, 'title': 'Junk', 'tags': ['BAFOMXdOUFc'], 'formats': []}]
-            changes, untagged = tags.plan(books)
+            changes, untagged = tags.plan(books, manual={})
         self.assertEqual(changes, {1: ('Dracula', ['PiVault Americana'],
-                                       ['Fiction', 'Horror', 'PiVault Americana'])})
+                                       ['Fiction', 'Horror', 'PiVault Americana']),
+                                   3: ('Junk', ['BAFOMXdOUFc'], [])})
         self.assertEqual(untagged, [(3, 'Junk')])
+
+
+class ManualTests(unittest.TestCase):
+    books = [{'id': 311, 'title': 'Candide', 'tags': ['1694-1778. Candide', 'Voltaire'], 'formats': []},
+             {'id': 7, 'title': 'Renamed', 'tags': ['0'], 'formats': []},
+             {'id': 9, 'title': 'Only a collection', 'tags': ['PiVault Americana'], 'formats': []}]
+
+    def test_manual_rows_replace_junk_and_mismatched_titles_are_skipped(self):
+        manual = {311: ('Candide', ['Fiction', 'Satire']), 7: ('Old title', ['Farming'])}
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            changes, untagged = tags.plan(self.books, manual=manual)
+        self.assertEqual(changes[311][2], ['Fiction', 'Satire'])
+        self.assertEqual(changes[7][2], [])
+        self.assertIn('book 7', err.getvalue())
+        self.assertEqual(untagged, [(7, 'Renamed'), (9, 'Only a collection')])
+
+    def test_shipped_manual_file_uses_only_the_vocabulary(self):
+        manual = tags.load_manual()
+        self.assertGreater(len(manual), 90)
+        self.assertEqual(manual[311], ('Candide', ['Fiction', 'Satire']))
+
+    def test_unknown_manual_tag_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / 'm.tsv'
+            bad.write_text('1\tX\tCooking\n', encoding='utf-8')
+            with self.assertRaises(SystemExit):
+                tags.load_manual(bad)
 
 
 class ApplyRestoreTests(unittest.TestCase):
@@ -109,6 +137,7 @@ class ApplyRestoreTests(unittest.TestCase):
             lib.mkdir()
             out = io.StringIO()
             with patch.object(tags, 'calibredb', fake), patch.object(tags, 'BOOKS_LOCK', str(Path(tmp) / 'no/lock')), \
+                    patch.object(tags, 'MANUAL', Path(tmp) / 'none.tsv'), \
                     contextlib.redirect_stdout(out):
                 tags.main(['--library', str(lib)])
                 self.assertEqual(library[1], ['Adventure stories', 'Pirates--Fiction'])  # dry run
