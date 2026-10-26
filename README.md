@@ -10,7 +10,7 @@ An offline services hub on a Raspberry Pi 5: media, knowledge, organization and 
 | `stack/` | The container stack around the app: reference `docker-compose.yml`, Homepage add-on, PHP setting | Docker Compose on pivault |
 | `jobs/` | Scheduled scripts: `maintenance.py` (nightly 02:00) and `cinema/` (video downloads) | systemd on pivault |
 | `installer/` | Builds the one-file installer and installs `app/` onto pivault | Built on Greenie, runs on pivault |
-| `tools/` | Read-only integration check and Bitwarden compatibility check | Greenie |
+| `tools/` | Read-only integration check and Bitwarden compatibility check; `library/tags.py` normalises Calibre-Web tags | Greenie; `library/` on pivault |
 
 ## Entry points
 
@@ -45,4 +45,5 @@ From the repository root:
 ```sh
 python -m unittest discover -s installer -p 'test*.py'
 python -m unittest discover -s tools/check -p 'test*.py'
+python -m unittest discover -s tools/library -p 'test*.py'
 ```
