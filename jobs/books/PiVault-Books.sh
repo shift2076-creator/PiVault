@@ -194,6 +194,39 @@ run_round() {
     (( stopped == 0 && unreachable == 0 ))
 }
 
+# Books added before the .part fix are stored as format PART with no cover; give each its real EPUB/PDF format and cover.
+repair_formats() {
+    local id path ext tmp fixed=0 covers=0
+    host_check || return 1
+    command -v ebook-meta >/dev/null || { die 'ebook-meta is not installed on this host.'; return 1; }
+    mkdir -p -- "$INSTALL_DIR/state" || return 1
+    exec 9>"$INSTALL_DIR/state/run.lock" || return 1
+    flock -n 9 || { die 'A books round is running; repair again after it finishes.'; return 75; }
+    tmp=$(mktemp -d) || return 1
+    while IFS=$'\t' read -r id path; do
+        if [[ "$(head -c 5 -- "$path")" == %PDF- ]]; then ext=pdf
+        elif [[ "$(dd if="$path" bs=1 skip=30 count=28 status=none 2>/dev/null)" == mimetypeapplication/epub+zip ]]; then ext=epub
+        else log "SKIPPED: book $id is neither EPUB nor PDF: $path"; continue
+        fi
+        rm -f -- "$tmp"/*
+        cp -- "$path" "$tmp/book.$ext" &&
+            calibredb add_format --library-path "$LIBRARY" "$id" "$tmp/book.$ext" >/dev/null || { die "Could not add $ext to book $id."; continue; }
+        if ebook-meta "$tmp/book.$ext" --get-cover "$tmp/cover.jpg" >/dev/null 2>&1 && [[ -s "$tmp/cover.jpg" ]] &&
+            calibredb set_metadata --library-path "$LIBRARY" --field "cover:$tmp/cover.jpg" "$id" >/dev/null; then
+            covers=$((covers+1))
+        fi
+        calibredb remove_format --library-path "$LIBRARY" "$id" PART >/dev/null || { die "Book $id has $ext, but its PART copy was not removed."; continue; }
+        fixed=$((fixed+1))
+        log "Repaired book $id as ${ext^^}."
+    done < <(calibredb list --library-path "$LIBRARY" --search 'formats:"=PART"' --fields formats --for-machine |
+        python3 -c 'import json, sys
+for b in json.load(sys.stdin):
+    for p in b.get("formats") or []:
+        if p.lower().endswith(".part"): print(b["id"], p, sep="\t")')
+    rm -rf -- "$tmp"
+    log "Repair result: $fixed books given their real format; $covers covers set."
+}
+
 install_books() {
     local daily=${1:-10} service
     [[ "$daily" =~ ^[1-9][0-9]{0,2}$ ]] || { die 'Usage: bash PiVault-Books.sh install [BOOKS_PER_NIGHT]'; return 1; }
@@ -1817,12 +1850,14 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
         install) install_books "${2:-}" ;;
         run) run_round nightly ;;
         test) run_round test ;;
+        repair) repair_formats ;;
         catalogue|list) catalogue ;;
         *)
             printf '%s\n' 'Usage:' \
                 '  bash PiVault-Books.sh catalogue    # List every queued book and its source.' \
                 '  bash PiVault-Books.sh install 10   # On pivault: install, add the first 10, then schedule the rest nightly.' \
-                '  bash ~/pi-services/books/PiVault-Books.sh test  # Resume an incomplete first round.'
+                '  bash ~/pi-services/books/PiVault-Books.sh test  # Resume an incomplete first round.' \
+                '  bash ~/pi-services/books/PiVault-Books.sh repair  # Fix books stored as PART: real format and cover.'
             ;;
     esac
 fi

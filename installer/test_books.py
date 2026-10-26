@@ -81,6 +81,31 @@ exit $status
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual([p.name for p in (root / 'incoming').iterdir()], ['sample-pg1.gutenberg.epub.part'])
 
+    def test_repair_gives_part_books_real_format_and_cover(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        (root / 'bin').mkdir()
+        (root / 'library').mkdir()
+        part = root / 'library/Book.part'
+        part.write_bytes(b'PK\x03\x04' + b'\0' * 26 + b'mimetypeapplication/epub+zip')
+        (root / 'bin/calibredb').write_text(
+            '#!/usr/bin/env bash\necho "$*" >> "$(dirname "$0")/calls"\n'
+            f'[[ $1 == list ]] && printf \'[{{"id": 4, "formats": ["{part}"]}}]\'\nexit 0\n')
+        (root / 'bin/ebook-meta').write_text('#!/usr/bin/env bash\nprintf jpg > "$3"\n')
+        for tool in ('calibredb', 'ebook-meta'):
+            (root / 'bin' / tool).chmod(0o755)
+        harness = f'source "{SCRIPT}"; INSTALL_DIR="{root}/install"; LIBRARY="{root}/library"; host_check() {{ :; }}; repair_formats'
+        env = dict(os.environ, PATH=f'{root}/bin:' + os.environ['PATH'])
+        result = subprocess.run(['bash', '-c', harness], capture_output=True, text=True, env=env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        calls = (root / 'bin/calls').read_text().splitlines()
+        self.assertTrue(calls[1].startswith('add_format ') and ' 4 ' in calls[1])
+        self.assertTrue(calls[1].endswith('/book.epub'))
+        self.assertTrue(calls[2].startswith('set_metadata ') and '--field cover:' in calls[2])
+        self.assertTrue(calls[3].endswith(' 4 PART'))
+        self.assertIn('1 books given their real format; 1 covers set.', result.stdout)
+
     def test_other_calibre_failure_stays_queued(self):
         result, done, root = self.round('echo "database is locked" >&2\nexit 0\n')
         self.assertEqual(result.returncode, 0)
