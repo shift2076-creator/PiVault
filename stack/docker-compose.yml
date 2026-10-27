@@ -239,7 +239,10 @@ services:
       APP_ENV: production
       APP_DEBUG: 'false'
       APP_NAME: Lychee
-      APP_URL: https://192.168.4.90:8447
+      APP_URL: http://192.168.4.90:8076
+      UPDATE_CHECK_ENABLED: 'false'
+      VULNERABILITY_CHECK_ENABLED: 'false'
+      AI_VISION_ENABLED: 'false'
       DB_CONNECTION: mysql
       DB_HOST: lychee-db
       DB_PORT: '3306'
@@ -257,7 +260,7 @@ services:
     depends_on:
     - lychee-db
   lychee-db:
-    image: mariadb:11
+    image: mariadb:11.8.6
     container_name: lychee-db
     restart: unless-stopped
     env_file:
