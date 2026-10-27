@@ -1,0 +1,59 @@
+- Entertainment:
+  - Books:
+      icon: mdi-bookshelf
+      href: http://192.168.4.90:8083
+      description: Calibre-Web
+      id: pivault-books
+  - Games:
+      icon: mdi-controller-classic
+      href: http://192.168.4.90:8000
+      description: RetroAssembly
+      id: pivault-games
+  - Music:
+      icon: mdi-music
+      href: https://192.168.4.90:8443/music/
+      description: Navidrome
+      id: pivault-music
+  - Videos:
+      icon: mdi-movie-open
+      href: http://192.168.4.90:8096
+      description: Jellyfin
+      id: pivault-videos
+- Knowledge:
+  - Documents:
+      icon: mdi-file-document
+      href: http://192.168.4.90:8085
+      description: Paperless-ngx
+      id: pivault-documents
+  - Offline Wiki:
+      icon: mdi-wikipedia
+      href: http://192.168.4.90:8084
+      description: Kiwix
+      id: pivault-offline-wiki
+- Home Tools:
+  - Inventory:
+      icon: mdi-package-variant
+      href: http://192.168.4.90:8087
+      description: Homebox
+      id: pivault-inventory
+  - Pantry:
+      icon: mdi-food-apple
+      href: http://192.168.4.90:9283
+      description: Grocy
+      id: pivault-pantry
+  - Photos:
+      icon: mdi-image-multiple
+      href: http://192.168.4.90:8076
+      description: Lychee
+      id: pivault-photos
+- Tools:
+  - File Sync:
+      icon: mdi-sync
+      href: https://192.168.4.90:8443/syncthing/
+      description: Syncthing
+      id: pivault-file-sync
+  - Password Manager:
+      icon: mdi-lock
+      href: https://192.168.4.90
+      description: Vaultwarden
+      id: pivault-password-manager
