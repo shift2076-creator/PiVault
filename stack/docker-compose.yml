@@ -229,3 +229,41 @@ services:
     - /srv/pi-server/config/users/native.json:/native.json:ro
     labels:
       org.pivault.managed: users-installer
+  lychee:
+    image: ghcr.io/lycheeorg/lychee:v7.12.0
+    container_name: lychee
+    restart: unless-stopped
+    env_file:
+    - /srv/pi-server/config/lychee/lychee.env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: 'false'
+      APP_NAME: Lychee
+      APP_URL: http://192.168.4.90:8076
+      UPDATE_CHECK_ENABLED: 'false'
+      VULNERABILITY_CHECK_ENABLED: 'false'
+      AI_VISION_ENABLED: 'false'
+      DB_CONNECTION: mysql
+      DB_HOST: lychee-db
+      DB_PORT: '3306'
+      DB_DATABASE: lychee
+      DB_USERNAME: lychee
+      PUID: '1000'
+      PGID: '1000'
+    volumes:
+    - /media/snx/C29C87F99C87E66F/Server/Photos/lychee/uploads:/app/public/uploads
+    - /srv/photos/lychee/app:/app/storage/app
+    - /srv/photos/lychee/tmp:/app/storage/tmp
+    - /srv/photos/lychee/logs:/app/storage/logs
+    ports:
+    - 192.168.4.90:8076:8000
+    depends_on:
+    - lychee-db
+  lychee-db:
+    image: mariadb:11.8.9
+    container_name: lychee-db
+    restart: unless-stopped
+    env_file:
+    - /srv/pi-server/config/lychee/mariadb.env
+    volumes:
+    - /srv/photos/lychee/db:/var/lib/mysql

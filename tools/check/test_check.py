@@ -134,6 +134,10 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(result.returncode,255)
         self.assertIn('PASSWORD_PROMPTS=0',result.stdout)
 
+    def test_lychee_containers_are_expected(self):
+        self.assertIn('lychee',report.EXPECTED)
+        self.assertIn('lychee-db',report.EXPECTED)
+
 
 if __name__=='__main__':
     unittest.main(verbosity=2)
