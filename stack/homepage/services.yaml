@@ -31,11 +31,6 @@
       description: Kiwix
       id: pivault-offline-wiki
 - Home Tools:
-  - Photos: 
-      icon: mdi-image-multiple
-      href: http://192.168.4.90:8076
-      description: Lychee
-      id: pivault-photos
   - Inventory:
       icon: mdi-package-variant
       href: http://192.168.4.90:8087
@@ -46,6 +41,11 @@
       href: http://192.168.4.90:9283
       description: Grocy
       id: pivault-pantry
+  - Photos:
+      icon: mdi-image-multiple
+      href: http://192.168.4.90:8076
+      description: Lychee
+      id: pivault-photos
 - Tools:
   - File Sync:
       icon: mdi-sync
