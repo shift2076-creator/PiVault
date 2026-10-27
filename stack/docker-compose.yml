@@ -251,7 +251,7 @@ services:
       PUID: '1000'
       PGID: '1000'
     volumes:
-    - /srv/photos/lychee/uploads:/app/public/uploads
+    - /media/snx/C29C87F99C87E66F/Server/Photos/lychee/uploads:/app/public/uploads
     - /srv/photos/lychee/app:/app/storage/app
     - /srv/photos/lychee/tmp:/app/storage/tmp
     - /srv/photos/lychee/logs:/app/storage/logs
@@ -260,7 +260,7 @@ services:
     depends_on:
     - lychee-db
   lychee-db:
-    image: mariadb:11.8.6
+    image: mariadb:11.8.9
     container_name: lychee-db
     restart: unless-stopped
     env_file:
