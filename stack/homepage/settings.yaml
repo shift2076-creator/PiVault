@@ -1,0 +1,24 @@
+title: PiVault
+
+theme: dark
+fullWidth: true
+disableCollapse: true
+layout:
+  Entertainment:
+    style: row
+    columns: 1
+    initiallyCollapsed: false
+  Knowledge:
+    style: row
+    columns: 1
+    initiallyCollapsed: false
+  Organization:
+    style: row
+    columns: 1
+    initiallyCollapsed: false
+  Tools:
+    style: row
+    columns: 1
+    initiallyCollapsed: false
+
+iconStyle: gradient
