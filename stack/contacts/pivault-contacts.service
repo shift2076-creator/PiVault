@@ -1,0 +1,21 @@
+[Unit]
+Description=PiVault Contacts web editor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /srv/pi-server/contacts/server.py
+Environment=PIVAULT_CONTACTS_BIND=192.168.4.90
+Environment=PIVAULT_CONTACTS_PORT=8089
+Environment=PIVAULT_CONTACTS_RADICALE=http://192.168.4.90:5232
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
