@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 
 
 def atomic_json(path, value):
+    # Standalone cinema job: it cannot import portal code. The same atomic write lives in
+    # app/portal/notifications.py and jobs/maintenance.py; keep them in step.
     path.parent.mkdir(mode=0o750, parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(prefix='.pending-', dir=path.parent)
     try:

@@ -58,3 +58,9 @@ Run `python manage.py test portal` and `python manage.py check` using the existi
 `clients.update` events use the same Admin inbox, role checks, CSRF protection, unread receipts and resolution history. Approve update queues the exact release until nightly maintenance. Skip this version resolves it without a download. An approval stays open until the original package passes size, SHA-256 and archive checks and is atomically published. Failures retain the current local copy and notify Admins. The Add User page displays current/latest versions, last check time and review links.
 
 `pivault-maintenance.timer` runs at 2:00 AM America/New_York, without catch-up runs. Its coordinator applies previously approved client copies, checks for new releases, then starts the existing cinema service when video scheduling was already enabled. A client-check failure does not suppress the cinema step. Disabled cinema scheduling stays disabled. The existing cinema filesize approvals, quota and cap are unchanged. No automatic OS, container or device-app upgrades are included.
+
+## Maintained copies
+
+- The admin inbox bell is implemented twice: `app/portal/static/portal/notifications-bell.js` for portal pages and the bell section of `stack/homepage-addon.js` for the Homepage launcher. Each change must land in both.
+- Atomic JSON inbox writes are repeated in `app/portal/notifications.py`, `jobs/maintenance.py` and `jobs/cinema/cinema-notifications.py`. The jobs run standalone under systemd and cannot import portal code.
+- Event IDs are derived per producer. Maintenance events use `sha256("maintenance:" + key)`. The portal checks an event ID against its details only for `cinema.filesize` events (`app/portal/notifications.py`), so the other producers' IDs are accepted as written.

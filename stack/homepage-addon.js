@@ -134,6 +134,8 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   else mount();
 })();
 
+/* Keep this bell in sync with app/portal/static/portal/notifications-bell.js, which serves the portal pages.
+   The same admin inbox is implemented in both places, so each change must land in both. */
 /* PiVault's shared admin inbox. The server, not the browser, enforces Admin access. */
 (() => {
   if (window.piVaultNotificationsLoaded) return;

@@ -1,3 +1,5 @@
+/* Keep this bell in sync with stack/homepage-addon.js, which serves the Homepage launcher.
+   The same admin inbox is implemented in both places, so each change must land in both. */
 /* PiVault's shared admin inbox. The server, not the browser, enforces Admin access. */
 (() => {
   if (window.piVaultNotificationsLoaded) return;

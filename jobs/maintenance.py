@@ -12,6 +12,8 @@ CONFIG = Path('/srv/pi-server/config/users/maintenance.json')
 
 
 def publish_failure(step):
+    # Standalone systemd job: it cannot import portal code, so it repeats the atomic inbox write from
+    # jobs/cinema/cinema-notifications.py and app/portal/notifications.py. Keep the three in step.
     owner = pwd.getpwnam('snx')
     root = Path('/srv/pi-server/config/notifications/inbox')
     root.mkdir(mode=0o750, parents=True, exist_ok=True)
