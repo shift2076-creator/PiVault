@@ -62,6 +62,8 @@ class RelayTests(unittest.TestCase):
     def scenario(self,scenario):
         with tempfile.TemporaryDirectory() as tmp:
             tmp=Path(tmp)
+            composed=tmp/'relay_under_test.py'
+            composed.write_text((ROOT.parent/'greenie_relay_core.py').read_text()+(ROOT/'relay.py').read_text())
             fake=tmp/'ssh'
             fake.write_text('#!'+sys.executable+'\n'+textwrap.dedent('''
                 import os,sys
@@ -102,7 +104,7 @@ class RelayTests(unittest.TestCase):
                 raise SystemExit(status)
             '''))
             env=dict(os.environ,PATH=str(tmp)+os.pathsep+os.environ['PATH'],TEST_SCENARIO=scenario,
-                     RELAY_SOURCE=str(ROOT/'relay.py'))
+                     RELAY_SOURCE=str(composed))
             result=subprocess.run([sys.executable,str(driver)],env=env,capture_output=True,text=True,timeout=15)
         self.assertNotIn('TestPassword-59!',result.stdout+result.stderr)
         return result

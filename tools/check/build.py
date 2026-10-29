@@ -6,7 +6,7 @@ import sys
 root=Path(__file__).parent
 destination=Path(sys.argv[1])
 report=(root/'report.py').read_bytes()
-relay=(root/'relay.py').read_text().replace('__REPORT_B64__',base64.b64encode(report).decode())
+relay=((root.parent/'greenie_relay_core.py').read_text()+(root/'relay.py').read_text()).replace('__REPORT_B64__',base64.b64encode(report).decode())
 script='''#!/usr/bin/env bash
 # Read-only PiVault user-integration check. Run from Greenie.
 # One SSH connection; at most one local password prompt.

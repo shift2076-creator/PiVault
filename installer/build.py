@@ -73,7 +73,7 @@ def build(destination):
     command = 'sudo -S -p __PIVAULT_INSTALL_SUDO__ python3 -c ' + shlex.quote(code)
     if len(command.encode()) > 110000:
         raise ValueError('The SSH command exceeds the safe argument-size limit.')
-    relay = (ROOT / 'installer/relay.py').read_text()
+    relay = (ROOT / 'tools/greenie_relay_core.py').read_text() + (ROOT / 'installer/relay.py').read_text()
     relay = relay.replace("'__REMOTE_COMMAND__'", repr(command))
     relay = relay.replace("'__PAYLOAD_B64__'", repr(base64.b64encode(payload).decode()))
     content = '''#!/usr/bin/env bash
