@@ -88,6 +88,7 @@
 <!-- Inline account fields -->
 <main>
   <h1>PiVault</h1>
+  {% if mode != 'system' %}
   <form method="post" action="{% if mode == 'admin' %}/users/add{% elif mode == 'sign-in' %}/users/sign-in{% else %}/join{% endif %}">
     {% csrf_token %}
     <div class="layout">
@@ -169,19 +170,22 @@
       </section>
     </div>
   </form>
+  {% endif %}
   <div class="actions">
     {% if mode == 'join' and has_accounts %}<a href="/users/sign-in">Sign in</a>{% endif %}
-    {% if mode == 'admin' %}
+    {% if mode == 'admin' or mode == 'system' %}
       <a href="/">Home</a>
       <form action="/users/sign-out" method="post">{% csrf_token %}<button class="text-button">Sign out</button></form>
     {% endif %}
   </div>
-  {% if mode == 'admin' %}
+  {% if mode == 'system' %}
   <section class="client-updates" id="offline-mode"><h2>Offline mode</h2>
     {% if offline_mode %}<p><strong>On.</strong> <span class="secondary">Nightly jobs that need the internet are paused: release checks, approved app downloads and cinema downloads. Nothing reports internet errors.</span></p>
     {% else %}<p><strong>Off.</strong> <span class="secondary">Nightly jobs use the internet for release checks and downloads. Turn this on when the internet is gone for good.</span></p>{% endif %}
     <form action="/users/offline-mode" method="post">{% csrf_token %}<input type="hidden" name="offline" value="{% if offline_mode %}off{% else %}on{% endif %}"><button type="submit">{% if offline_mode %}Turn offline mode off{% else %}Turn offline mode on{% endif %}</button></form>
   </section>
+  {% endif %}
+  {% if mode == 'admin' %}
   <section class="client-updates"><h2>Local apps and extensions</h2>
     <p class="secondary">{% if offline_mode %}Paused by offline mode. Already approved local copies stay available.{% else %}Checked daily at 2:00 AM. Local downloads change only after an Admin approves the notification.{% endif %}</p>
     <div class="client-row secondary"><span>Client</span><span>Local</span><span>Available</span><span>Status</span></div>
@@ -192,7 +196,7 @@
   {% endif %}
 </main>
 {% if request.user.is_authenticated and request.user.role == 'admin' %}<script src="/notifications/bell.js" defer></script>{% endif %}
-{% if mode != 'admin' %}<script src="/users/account-form.js" defer></script>{% endif %}
+{% if mode != 'admin' and mode != 'system' %}<script src="/users/account-form.js" defer></script>{% endif %}
 {% if mode == 'join' %}<script src="/users/vault.js" defer></script>{% endif %}
 </body>
 </html>

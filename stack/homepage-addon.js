@@ -10,12 +10,12 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   return bar;
 });
 
-/* Settings menu: File Sync and Password Manager for everyone, plus Add User for Admins.
-   The server, not the browser, enforces Admin access on /users/add. */
+/* Settings menu: File Sync and Password Manager for everyone, plus Add User and System for Admins.
+   The server, not the browser, enforces Admin access on /users/add and /system. */
 (() => {
   if (window.piVaultUsersLoaded) return;
   window.piVaultUsersLoaded = true;
-  let root, button, panel, add, opened = false, admin = false;
+  let root, button, panel, add, sys, opened = false, admin = false;
   const ns = 'http://www.w3.org/2000/svg';
   // Gear, user-plus, refresh and lock outlines from Feather Icons (MIT License, compatible with this project).
   const GEAR = 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z';
@@ -69,6 +69,9 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     add = document.createElement('a'); add.href = '/users/add'; add.hidden = !admin;
     add.append(icon(USER_PLUS, 20), document.createTextNode('Add User'));
     panel.append(add);
+    sys = document.createElement('a'); sys.href = '/system'; sys.hidden = !admin;
+    sys.append(icon(GEAR, 20), document.createTextNode('System'));
+    panel.append(sys);
     root.append(style, button, panel);
     window.piVaultToolbar().append(root);
     button.addEventListener('click', () => {
@@ -97,6 +100,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     } catch { admin = false; }
     mount();
     if (add) add.hidden = !admin;
+    if (sys) sys.hidden = !admin;
   }
   document.addEventListener('click', event => { if (root && !root.contains(event.target)) close(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { close(); button?.focus(); } });

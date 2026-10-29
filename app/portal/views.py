@@ -37,7 +37,7 @@ def page(request, mode, **context):
     from .client_packages import client_rows
     return render(request, 'users.html', {'mode': mode, 'services': services,
                   'client_rows': client_rows() if mode == 'admin' else [],
-                  'offline_mode': SiteSettings.is_offline() if mode == 'admin' else False,
+                  'offline_mode': SiteSettings.is_offline() if mode in ('admin', 'system') else False,
                   'name': request.POST.get('name', ''),
                   'selected_role': request.POST.get('role', 'user'), **context}, status=status)
 
@@ -192,6 +192,15 @@ def add_user(request):
         return page(request, 'admin', error=error_text(error), status_code=400)
 
 
+@require_http_methods(['GET'])
+def system(request):
+    if not request.user.is_authenticated:
+        return redirect('/users/sign-in')
+    if request.user.role != 'admin':
+        return HttpResponseForbidden()
+    return page(request, 'system')
+
+
 @require_POST
 def offline_mode(request):
     if not request.user.is_authenticated:
@@ -199,7 +208,7 @@ def offline_mode(request):
     if request.user.role != 'admin':
         return HttpResponseForbidden()
     SiteSettings.set_offline(request.POST.get('offline') == 'on')
-    return redirect('/users/add')
+    return redirect('/system')
 
 
 @require_POST
