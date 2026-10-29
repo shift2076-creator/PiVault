@@ -61,7 +61,7 @@ services:
     environment:
       PUID: '1000'
       PGID: '1000'
-      STGUIADDRESS: 0.0.0.0:8384
+      STGUIADDRESS: 192.168.4.90:8384
     volumes:
     - /srv/pi-server/config/syncthing:/var/syncthing
     - /media/snx/C29C87F99C87E66F/Server/Sync:/var/syncthing/Sync
