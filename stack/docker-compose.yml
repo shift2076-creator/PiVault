@@ -53,19 +53,6 @@ services:
     command:
     - '*.zim'
     restart: unless-stopped
-  syncthing:
-    image: syncthing/syncthing:2.1.6
-    container_name: pivault-syncthing
-    hostname: pivault
-    network_mode: host
-    environment:
-      PUID: '1000'
-      PGID: '1000'
-      STGUIADDRESS: 192.168.4.90:8384
-    volumes:
-    - /srv/pi-server/config/syncthing:/var/syncthing
-    - /media/snx/C29C87F99C87E66F/Server/Sync:/var/syncthing/Sync
-    restart: unless-stopped
   paperless-db:
     image: postgres:18
     container_name: pivault-paperless-db

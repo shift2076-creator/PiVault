@@ -69,7 +69,6 @@ body:has(#pivault-books) #layout-groups::before {
 #layout-groups > .services-group:has(#pivault-books) { grid-area: entertainment !important; }
 #layout-groups > .services-group:has(#pivault-documents) { grid-area: knowledge !important; }
 #layout-groups > .services-group:has(#pivault-inventory) { grid-area: organization !important; }
-#layout-groups > .services-group:has(#pivault-file-sync) { grid-area: tools !important; }
 
 body:has(#pivault-books) #layout-groups > .services-group {
   position: relative !important;

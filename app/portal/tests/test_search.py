@@ -68,7 +68,7 @@ class SearchTests(TestCase):
         search.configure(CONFIG)
         self.addCleanup(search.CONNECTORS.clear)
         everything = {key: 'shared' for key in ('books', 'music', 'videos', 'documents', 'wiki',
-                                                'inventory', 'pantry', 'games', 'sync', 'passwords')}
+                                                'inventory', 'pantry', 'games', 'passwords')}
         self.user = User.objects.create_user(username='u', email='u@example.com', display_name='U',
                                              role='user', service_access=everything)
         self.calls = []

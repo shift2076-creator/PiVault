@@ -11,7 +11,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 EXPECTED = {
     'jellyfin', 'navidrome', 'calibre-web', 'pivault-arcade', 'pivault-kiwix',
     'lychee', 'lychee-db',
-    'pivault-syncthing', 'pivault-paperless', 'pivault-vaultwarden',
+    'pivault-paperless', 'pivault-vaultwarden',
     'pivault-homepage', 'pivault-homebox', 'pivault-grocy', 'pivault-https',
 }
 

@@ -10,7 +10,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   return bar;
 });
 
-/* Settings menu: File Sync and Password Manager for everyone, plus Add User and System for Admins.
+/* Settings menu: Password Manager for everyone, plus Add User and System for Admins.
    The server, not the browser, enforces Admin access on /users/add and /system. */
 (() => {
   if (window.piVaultUsersLoaded) return;
@@ -20,10 +20,9 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   // Gear, user-plus, refresh and lock outlines from Feather Icons (MIT License, compatible with this project).
   const GEAR = 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z';
   const USER_PLUS = 'M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M20 8v6M17 11h6M12 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0';
-  const SYNC = 'M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15';
   const LOCK = 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4';
   // These apps leave the launcher columns for this menu; their links come from their tiles.
-  const MOVED = [['#pivault-file-sync', 'File Sync', SYNC], ['li.service[data-name="Password Manager"]', 'Password Manager', LOCK]];
+  const MOVED = [['li.service[data-name="Password Manager"]', 'Password Manager', LOCK]];
   function icon(d, size) {
     const svg = document.createElementNS(ns, 'svg');
     for (const [name, value] of Object.entries({viewBox:'0 0 24 24', width:size, height:size, fill:'none',
@@ -121,7 +120,6 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   const style = document.createElement('style');
   style.id = 'pv-columns';
   style.textContent = `
-    ${L} > .services-group:has(#pivault-file-sync){display:none!important}
     @media (min-width:1280px){
       ${L}:has(#pivault-books){grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-areas:"title title title title" "entertainment entertainment knowledge organization"!important}
     }
