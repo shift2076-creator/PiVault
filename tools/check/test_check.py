@@ -54,8 +54,8 @@ class ReportTests(unittest.TestCase):
         self.assertNotIn('private@example.com',output)
 
     def test_urls_drop_credentials_queries_and_fragments(self):
-        self.assertEqual(report.safe_url('https://user:secret@pivault.home.arpa/music?token=secret#secret'),
-                         'https://pivault.home.arpa/music')
+        self.assertEqual(report.safe_url('https://user:secret@192.168.4.90/music?token=secret#secret'),
+                         'https://192.168.4.90/music')
 
 
 class RelayTests(unittest.TestCase):
