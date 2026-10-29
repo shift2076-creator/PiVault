@@ -14,13 +14,21 @@ class OfflineModeTests(TestCase):
     def test_default_is_off_and_admin_can_switch_it_both_ways(self):
         self.assertFalse(SiteSettings.is_offline())
         self.client.force_login(self.admin)
-        self.assertContains(self.client.get('/users/add', secure=True), 'Turn offline mode on')
+        self.assertContains(self.client.get('/system', secure=True), 'Turn offline mode on')
+        self.assertNotContains(self.client.get('/users/add', secure=True), 'Turn offline mode')
         response = self.client.post('/users/offline-mode', {'offline': 'on'}, secure=True)
-        self.assertRedirects(response, '/users/add', fetch_redirect_response=False)
+        self.assertRedirects(response, '/system', fetch_redirect_response=False)
         self.assertTrue(SiteSettings.is_offline())
-        self.assertContains(self.client.get('/users/add', secure=True), 'Turn offline mode off')
+        self.assertContains(self.client.get('/system', secure=True), 'Turn offline mode off')
         self.client.post('/users/offline-mode', {'offline': 'off'}, secure=True)
         self.assertFalse(SiteSettings.is_offline())
+
+    def test_system_page_is_admin_only(self):
+        self.assertEqual(self.client.get('/system', secure=True).status_code, 302)
+        person = User.objects.create_user(username='person', email='person@example.com',
+            display_name='Person', role='user')
+        self.client.force_login(person)
+        self.assertEqual(self.client.get('/system', secure=True).status_code, 403)
 
     def test_only_admins_can_switch_and_csrf_is_required(self):
         person = User.objects.create_user(username='person', email='person@example.com',
