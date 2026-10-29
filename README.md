@@ -29,6 +29,7 @@ Inside `app/portal/`: views and logic at the top; `integrations/` (Vaultwarden, 
 The repository is not deployed as a folder. The installer copies what it needs:
 
 - Portal image: built from `app/`, run as container `pivault-users`.
+- Contacts editor: `/srv/pi-server/contacts/` (copied from `app/contacts/`), run as the host service `pivault-contacts` from `stack/contacts/pivault-contacts.service`, on port 8089. It uses the signed-in user's Radicale address book on port 5232.
 - Compose file: `/home/snx/pi-services/docker-compose.yml`. The `stack/` copy is a reference snapshot.
 - Configuration and data: `/srv/pi-server/config/` (root-owned).
 
@@ -41,6 +42,10 @@ PIVAULT_SECRET_KEY=dev-only-test-key PIVAULT_DATA=/tmp/pv-data python manage.py 
 ```
 
 From the repository root:
+
+```sh
+cd app/contacts && python -m unittest test_contacts
+```
 
 ```sh
 python -m unittest discover -s installer -p 'test*.py'
