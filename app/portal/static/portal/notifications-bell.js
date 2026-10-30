@@ -23,13 +23,13 @@
     root = make('div'); root.id = 'pv-admin-notifications';
     const style = make('style');
     style.textContent = `
-      #pv-admin-notifications{position:fixed;top:clamp(20px,3vw,40px);right:var(--pv-gutter,24px);z-index:1000;color:var(--pv-text,#e8edf2);font:15px/1.45 Arial,Helvetica,sans-serif}
+      #pv-admin-notifications{position:fixed;top:clamp(20px,3vw,40px);right:var(--pv-gutter,24px);z-index:1000;color:var(--pv-text,#e7ecf2);font:14px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
       #pv-admin-notifications [hidden]{display:none!important}
-      #pv-admin-notifications .pv-bell{position:relative;display:grid;place-items:center;width:46px;height:46px;padding:9px;border:0;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer}
-      #pv-admin-notifications .pv-bell:hover{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
+      #pv-admin-notifications .pv-bell{position:relative;display:inline-flex;align-items:center;gap:8px;height:auto;padding:0;border:0;background:transparent;color:var(--pv-text,#e7ecf2);font:inherit;font-size:14px;cursor:pointer}
+      #pv-admin-notifications .pv-bell:hover{text-decoration:underline;text-underline-offset:4px}
       #pv-admin-notifications .pv-bell:focus-visible,#pv-admin-notifications a:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:4px}
-      #pv-admin-notifications .pv-count{position:absolute;top:0;right:0;min-width:19px;padding:1px 4px;border-radius:12px;background:#91acc3;color:#151c22;font-size:11px;font-weight:700;text-align:center}
-      #pv-admin-notifications .pv-panel{position:absolute;right:0;top:54px;width:min(440px,calc(100vw - 48px));max-height:min(620px,calc(100dvh - 100px));overflow:auto;padding:22px;border:1px solid var(--pv-divider,rgba(151,170,190,.48));border-radius:.5em;background:var(--pv-background,#151c22);box-shadow:0 10px 30px #0005}
+      #pv-admin-notifications .pv-count{min-width:20px;padding:1px 6px;border-radius:999px;background:var(--pv-accent,#6cc0e6);color:var(--pv-detail,#1c222b);font-size:12px;font-weight:600;text-align:center}
+      #pv-admin-notifications .pv-panel{position:absolute;right:0;top:34px;width:min(440px,calc(100vw - 48px));max-height:min(620px,calc(100dvh - 100px));overflow:auto;padding:22px;border:1px solid var(--pv-menu-border,#3a4553);border-radius:.5em;background:var(--pv-background,#151c22);box-shadow:0 10px 30px #0005}
       #pv-admin-notifications h2{font-size:17px;margin:0 0 4px;color:var(--pv-accent,#b4c0ce)}
       #pv-admin-notifications .pv-summary,#pv-admin-notifications time{color:var(--pv-secondary,#91acc3);font-size:12px}
       #pv-admin-notifications ol{list-style:none;margin:14px 0;padding:0}
@@ -41,13 +41,8 @@
     button = make('button', undefined, 'pv-bell');
     button.type = 'button'; button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-controls', 'pv-notification-panel');
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    for (const [name,value] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','aria-hidden':'true'})) svg.setAttribute(name,value);
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d','M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4');
-    svg.append(path); badge = make('span', '', 'pv-count'); badge.hidden = true;
-    button.append(svg,badge);
+    badge = make('span', '', 'pv-count'); badge.hidden = true;
+    button.append(make('span', 'Notices'), badge);
     panel = make('section', undefined, 'pv-panel'); panel.id = 'pv-notification-panel'; panel.hidden = true;
     panel.setAttribute('aria-label', 'Admin notifications');
     const heading = make('h2','Admin notifications');
