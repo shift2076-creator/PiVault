@@ -42,7 +42,7 @@ def native_config(portal=False):
     routes = [{'handle': [homepage]}]
     if portal:
         routes.insert(0, {'match': [{'path': ['/join', '/join/*', '/users', '/users/*',
-            '/notifications', '/notifications/*', '/search', '/search/*', '/internal', '/internal/*']}],
+            '/notifications', '/notifications/*', '/search', '/search/*', '/system', '/system/*', '/internal', '/internal/*']}],
             'handle': [{'handler': 'subroute', 'routes': [
                 {'match': [{'path': ['/internal', '/internal/*']}], 'handle': [
                     {'handler': 'static_response', 'status_code': 404}]},
@@ -131,8 +131,18 @@ class ConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'do not reach the portal'):
             config.verify_routes(native_config(), bad)
 
+    def test_system_must_reach_the_portal(self):
+        bad = native_config(True)
+        paths = bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['match'][0]['path']
+        paths.remove('/system')
+        with self.assertRaisesRegex(ValueError, 'do not reach the portal'):
+            config.verify_routes(native_config(), bad)
+
     def test_managed_route_includes_search(self):
         self.assertIn(' /search /search/* ', config.portal_caddyfile(CADDYFILE))
+
+    def test_managed_route_includes_system(self):
+        self.assertIn(' /system /system/* ', config.portal_caddyfile(CADDYFILE))
 
     def test_public_gate_is_rejected(self):
         bad = native_config(True)
