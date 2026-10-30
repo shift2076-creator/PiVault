@@ -23,7 +23,7 @@ CATALOG = b'''<feed xmlns="http://www.w3.org/2005/Atom">
 <entry><id>urn:uuid:aaaa</id><name>wikipedia_en</name><language>eng</language></entry>
 <entry><id>urn:uuid:bbbb</id><name>wikivoyage_en</name><language>eng</language></entry>
 <entry><id>urn:uuid:cccc</id><name>wikipedia_fr</name><language>fra</language></entry>
-<entry><id>urn:uuid:dddd</id><name>gutenberg_en</name><language>eng</language>
+<entry><id>urn:uuid:dddd</id><name>gutenberg_en</name><title>Project Gutenberg</title><language>eng</language>
 <link type="text/html" href="/content/gutenberg_en_all_2025-11"/>
 <tags>_category:gutenberg;_ftindex:no</tags></entry></feed>'''
 KIWIX = b'''<rss version="2.0"><channel><item><title>Apollo 11</title>
@@ -119,14 +119,14 @@ class SearchTests(TestCase):
     def test_wiki_suggests_titles_for_zims_without_a_full_text_index(self):
         results = search.CONNECTORS['wiki'].search('alice')
         suggest = [query for _, path, query in self.calls if path == '/suggest']
-        self.assertEqual(suggest, [{'content': 'gutenberg_en_all_2025-11', 'term': 'alice', 'count': 10}])
+        self.assertEqual(suggest, [{'content': 'gutenberg_en_all_2025-11', 'term': 'alice', 'count': search.LIMIT}])
         self.assertIn('http://192.168.4.90:8084/content/gutenberg_en_all_2025-11/Alice%20in%20Wonderland.11',
                       [result.url for result in results])
         self.assertFalse(any(path == '/search' and 'gutenberg' in str(query) for _, path, query in self.calls))
 
     def test_wiki_keeps_title_suggestions_when_full_text_fills_the_page(self):
         items = ''.join('<item><title>Hit %d</title><link>/content/wikipedia_en/A/Hit_%d</link></item>' % (i, i)
-                        for i in range(12))
+                        for i in range(30))
         feed = ('<rss version="2.0"><channel>' + items + '</channel></rss>').encode()
         base = responses(self.calls)
 
@@ -136,7 +136,9 @@ class SearchTests(TestCase):
         with patch.object(search.Connector, 'fetch', fetch):
             results = search.CONNECTORS['wiki'].search('alice')
         self.assertEqual(len(results), search.LIMIT)
-        self.assertTrue(any('gutenberg_en_all_2025-11' in result.url for result in results))
+        gutenberg = [result for result in results if 'gutenberg_en_all_2025-11' in result.url]
+        self.assertTrue(gutenberg)
+        self.assertEqual(gutenberg[0].detail, 'Project Gutenberg')
 
     def test_wiki_searches_once_per_language(self):
         self.get('/search?q=apollo&app=wiki')
