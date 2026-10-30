@@ -77,8 +77,8 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     sys = document.createElement('a'); sys.href = '/system'; sys.hidden = !admin;
     sys.append(icon(GEAR, 20), document.createTextNode('System'));
     panel.append(sys);
-    // Radicale serves the contacts and calendars on the same address as the launcher, on port 5232.
-    rad = document.createElement('a'); rad.href = `${location.protocol}//${location.hostname}:5232/`; rad.hidden = !admin;
+    // Radicale serves plain HTTP on port 5232 at the launcher's address; the launcher itself is HTTPS.
+    rad = document.createElement('a'); rad.href = `http://${location.hostname}:5232/`; rad.hidden = !admin;
     rad.append(icon(CALENDAR, 20), document.createTextNode('Radicale'));
     panel.append(rad);
     root.append(style, button, panel);
