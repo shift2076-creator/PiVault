@@ -293,9 +293,9 @@ def make_server(bind, port, radicale_url):
 
 
 def main():
-    bind = os.environ.get('PIVAULT_CONTACTS_BIND', '192.168.4.90')
+    bind = os.environ.get('PIVAULT_CONTACTS_BIND', '172.18.0.1')
     port = int(os.environ.get('PIVAULT_CONTACTS_PORT', '8089'))
-    radicale_url = os.environ.get('PIVAULT_CONTACTS_RADICALE', 'http://192.168.4.90:5232')
+    radicale_url = os.environ.get('PIVAULT_CONTACTS_RADICALE', 'http://172.18.0.1:5232')
     print(f'PiVault Contacts on http://{bind}:{port}/ using {radicale_url}', file=sys.stderr)
     make_server(bind, port, radicale_url).serve_forever()
 
