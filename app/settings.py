@@ -66,6 +66,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
 PIVAULT_NOTIFICATION_ROOT = os.environ.get('PIVAULT_NOTIFICATION_ROOT', '/srv/pi-server/config/notifications')
 PIVAULT_CLIENT_ROOT = os.environ.get('PIVAULT_CLIENT_ROOT', DATA_DIR / 'client-packages')
 PIVAULT_NATIVE_CONFIG = os.environ.get('PIVAULT_NATIVE_CONFIG', '')
+# Docker socket proxy on the private network; empty disables launcher status and controls.
+PIVAULT_DOCKER_PROXY = os.environ.get('PIVAULT_DOCKER_PROXY', '')
 
 # Structured setup stages go directly to docker logs, without request bodies.
 LOGGING = {

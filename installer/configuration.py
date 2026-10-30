@@ -12,10 +12,14 @@ PORTAL_HOST = '192.168.4.90'
 PORTAL_PORT = 8443
 PORTAL_SITE = f'https://{PORTAL_HOST}:{PORTAL_PORT}'
 SERVICE = 'pivault-users'
+# Docker socket proxy: the portal's only route to Docker. Pinned to the release checked on 2026-10-29.
+PROXY_SERVICE = 'pivault-docker-proxy'
+PROXY_IMAGE = 'tecnativa/docker-socket-proxy:v0.5.0'
+PROXY_URL = 'http://' + PROXY_SERVICE + ':2375'
 
 PORTAL = '''
     # BEGIN PIVAULT USERS INSTALLER
-    @pivault_users_installer path /join /join/* /users /users/* /notifications /notifications/* /search /search/* /system /system/* /internal /internal/*
+    @pivault_users_installer path /join /join/* /users /users/* /notifications /notifications/* /search /search/* /services /services/* /system /system/* /internal /internal/*
     handle @pivault_users_installer {
         @pivault_users_internal path /internal /internal/*
         respond @pivault_users_internal 404
@@ -127,7 +131,7 @@ def compose_configuration(original, *, image, uid, gid, network_names):
         'tmpfs': ['/tmp:rw,noexec,nosuid,size=64m'],
         'mem_limit': '384m',
         'env_file': ['/srv/pi-server/config/users/users.env'],
-        'environment': {'PIVAULT_NATIVE_CONFIG': '/native.json'},
+        'environment': {'PIVAULT_NATIVE_CONFIG': '/native.json', 'PIVAULT_DOCKER_PROXY': PROXY_URL},
         'volumes': [
             '/srv/pi-server/config/users/data:/data',
             '/srv/pi-server/config/notifications:/notifications',
@@ -138,6 +142,23 @@ def compose_configuration(original, *, image, uid, gid, network_names):
     if network_names:
         service['networks'] = list(network_names)
     services[SERVICE] = service
+    # Only container listing, inspection, start, stop and restart are allowed. Exec, images, volumes,
+    # networks and builds stay closed. The proxy has no published port; only the portal can reach it.
+    proxy_existing = services.get(PROXY_SERVICE)
+    if proxy_existing and proxy_existing.get('labels', {}).get('org.pivault.managed') != 'users-installer':
+        raise ValueError('An unmanaged pivault-docker-proxy Compose service already exists.')
+    proxy = {
+        'image': PROXY_IMAGE, 'container_name': PROXY_SERVICE, 'restart': 'unless-stopped',
+        'cap_drop': ['ALL'], 'security_opt': ['no-new-privileges:true'],
+        'environment': {'CONTAINERS': '1', 'POST': '1', 'ALLOW_START': '1', 'ALLOW_STOP': '1',
+                        'ALLOW_RESTARTS': '1'},
+        'volumes': ['/var/run/docker.sock:/var/run/docker.sock'],
+        'expose': ['2375'],
+        'labels': {'org.pivault.managed': 'users-installer'},
+    }
+    if network_names:
+        proxy['networks'] = list(network_names)
+    services[PROXY_SERVICE] = proxy
     return result
 
 
@@ -189,7 +210,7 @@ def terminal_handler(config, host, path, port=443):
 
 def verify_routes(before, after, vault_host=None):
     for path in ('/join', '/users/add', '/users/sign-in', '/users/session', '/notifications', '/notifications/api',
-                 '/search', '/search/apps', '/system'):
+                 '/search', '/search/apps', '/services/status', '/system'):
         value = terminal_handler(after, PORTAL_HOST, path, PORTAL_PORT)
         if not value or value.get('handler') != 'reverse_proxy' or value.get('upstreams') != [{'dial': 'pivault-users:8000'}]:
             raise ValueError('The candidate Caddy routes do not reach the portal before the existing handlers.')

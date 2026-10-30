@@ -1,6 +1,7 @@
 """Every portal route. Browser scripts are served from portal/static/portal/."""
 from django.urls import path
 from portal import notification_views as notifications
+from portal import service_views
 from portal import search_views, vault_views, views
 from portal.vault_repair import repair as repair_existing_vault
 
@@ -29,6 +30,9 @@ urlpatterns = [
     path('users/complete', vault_views.complete),
     path('users/clients/<str:client>', vault_views.download),
     path('users/repair-vault', repair_existing_vault),
+    # Launcher container status (signed-in users) and Start, Stop, Restart (Admin only).
+    path('services/status', service_views.status),
+    path('services/<str:key>/<str:verb>', service_views.action),
     # Unified launcher search (signed-in users; only apps they can use).
     path('search', search_views.results),
     path('search/apps', search_views.apps),

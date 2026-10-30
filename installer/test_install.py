@@ -42,7 +42,7 @@ def native_config(portal=False):
     routes = [{'handle': [homepage]}]
     if portal:
         routes.insert(0, {'match': [{'path': ['/join', '/join/*', '/users', '/users/*',
-            '/notifications', '/notifications/*', '/search', '/search/*', '/system', '/system/*', '/internal', '/internal/*']}],
+            '/notifications', '/notifications/*', '/search', '/search/*', '/services', '/services/*', '/system', '/system/*', '/internal', '/internal/*']}],
             'handle': [{'handler': 'subroute', 'routes': [
                 {'match': [{'path': ['/internal', '/internal/*']}], 'handle': [
                     {'handler': 'static_response', 'status_code': 404}]},
@@ -407,6 +407,8 @@ class InstallationTransactionTests(unittest.TestCase):
                     database.write_bytes(b'NEW_DATABASE_FORMAT')
                 if 'shell' in args:
                     return 'An Admin account already exists.\n'
+                if '{{.Architecture}}' in args:
+                    return 'arm64\n'
                 return ''
             output = io.StringIO()
             with contextlib.ExitStack() as stack:
@@ -484,6 +486,31 @@ class PackageTests(unittest.TestCase):
                          'stack/homepage-addon.js', 'jobs/maintenance.py'):
             self.assertIn(required, names)
         self.assertFalse([n for n in names if n.startswith(('jobs/cinema/', 'tools/', 'stack/docker-compose'))])
+
+
+class SocketProxyConfigurationTests(unittest.TestCase):
+    def document(self):
+        return config.compose_configuration({'services': {}}, image='pivault-users:test', uid=1000, gid=1000,
+                                            network_names=['private'])
+
+    def test_proxy_allows_only_inspection_and_start_stop_restart(self):
+        proxy = self.document()['services'][config.PROXY_SERVICE]
+        self.assertEqual(proxy['image'], 'tecnativa/docker-socket-proxy:v0.5.0')
+        self.assertEqual(proxy['environment'], {'CONTAINERS': '1', 'POST': '1', 'ALLOW_START': '1',
+                                                'ALLOW_STOP': '1', 'ALLOW_RESTARTS': '1'})
+        self.assertNotIn('ports', proxy)
+        self.assertEqual(proxy['expose'], ['2375'])
+        self.assertEqual(proxy['networks'], ['private'])
+
+    def test_portal_is_pointed_at_the_proxy_and_the_proxy_is_not_published(self):
+        document = self.document()
+        self.assertEqual(document['services'][config.SERVICE]['environment']['PIVAULT_DOCKER_PROXY'],
+                         'http://pivault-docker-proxy:2375')
+
+    def test_unmanaged_proxy_service_is_refused(self):
+        original = {'services': {config.PROXY_SERVICE: {'image': 'somebody-elses'}}}
+        with self.assertRaisesRegex(ValueError, 'unmanaged pivault-docker-proxy'):
+            config.compose_configuration(original, image='pivault-users:test', uid=1000, gid=1000, network_names=[])
 
 
 if __name__ == '__main__':

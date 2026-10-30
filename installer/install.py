@@ -24,7 +24,7 @@ try:
 except ImportError:
     raise SystemExit('The Pi needs its existing python3-yaml package. Nothing was installed.')
 
-from configuration import (PORTAL_SITE, SERVICE, compose_configuration, homepage_js,
+from configuration import (PORTAL_SITE, PROXY_IMAGE, SERVICE, compose_configuration, homepage_js,
                            portal_caddyfile, private_vault_admin, verify_routes)
 from native import vault_configuration, maintenance_units
 
@@ -268,6 +268,11 @@ def install_portal():
                       vault_host=vault_plan['host'] if vault_plan['protect_admin'] else None)
         say('Building and testing the portal image before changing the live configuration…')
         run(['docker', 'build', '--tag', image, str(app_source)], stream=True, timeout=1200)
+        # The Docker socket proxy image is pulled here, before the live Compose file changes.
+        say('Pulling the Docker socket proxy image…')
+        run(['docker', 'pull', PROXY_IMAGE], stream=True, timeout=600)
+        if run(['docker', 'image', 'inspect', '--format', '{{.Architecture}}', PROXY_IMAGE]).strip() != 'arm64':
+            raise InstallError('The Docker socket proxy image is not built for arm64.')
         test_command = ['docker', 'run', '--rm', '--network', 'none', '--read-only',
             '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
             '--user', f'{uid}:{gid}', '--tmpfs', '/tmp:rw,noexec,nosuid,size=128m',
