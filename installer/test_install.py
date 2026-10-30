@@ -144,6 +144,20 @@ class ConfigurationTests(unittest.TestCase):
     def test_managed_route_includes_system(self):
         self.assertIn(' /system /system/* ', config.portal_caddyfile(CADDYFILE))
 
+    def test_launcher_gate_skips_services_so_status_is_answered_by_the_portal(self):
+        output = config.portal_caddyfile(CADDYFILE)
+        self.assertEqual(output.count(config.LAUNCHER_BEGIN), 1)
+        self.assertIn('not path /join /join/* /users /users/* /notifications /notifications/* '
+                      '/services /services/* /internal /internal/* /music /music/*', output)
+
+    def test_launcher_gate_replaces_the_live_block_without_services(self):
+        live = config.portal_caddyfile(CADDYFILE).replace(
+            '/services /services/* /internal /internal/* /music', '/internal /internal/* /music')
+        output = config.portal_caddyfile(live)
+        self.assertEqual(output.count(config.LAUNCHER_BEGIN), 1)
+        self.assertIn('/notifications /notifications/* /services /services/* /internal', output)
+        self.assertEqual(output, config.portal_caddyfile(output))
+
     def test_public_gate_is_rejected(self):
         bad = native_config(True)
         bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'].pop(0)

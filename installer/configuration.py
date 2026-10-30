@@ -26,6 +26,27 @@ PORTAL = '''
     }
     # END PIVAULT USERS INSTALLER
 '''
+# Launcher sign-in gate. Portal routes (including /services) are excluded so the portal answers them itself.
+LAUNCHER_BEGIN = '# BEGIN PIVAULT LAUNCHER AUTH'
+LAUNCHER_END = '# END PIVAULT LAUNCHER AUTH'
+LAUNCHER_AUTH = '''
+    # BEGIN PIVAULT LAUNCHER AUTH
+    @pivault_launcher_auth {
+        not path /join /join/* /users /users/* /notifications /notifications/* /services /services/* /internal /internal/* /music /music/*
+    }
+    header @pivault_launcher_auth Cache-Control "no-store, private"
+    forward_auth @pivault_launcher_auth pivault-users:8000 {
+        uri /internal/gate
+        header_up Host 192.168.4.90:8443
+        header_up X-Forwarded-Proto https
+        header_up X-PiVault-Client-IP {remote_host}
+        @pivault_launcher_login status 401
+        handle_response @pivault_launcher_login {
+            redir * /users/sign-in 303
+        }
+    }
+    # END PIVAULT LAUNCHER AUTH
+'''
 
 
 def replace_managed(text, begin, end, replacement=''):
@@ -56,6 +77,7 @@ def tokens(text):
 
 def portal_caddyfile(text):
     clean = replace_managed(text, BEGIN, END)
+    clean = replace_managed(clean, LAUNCHER_BEGIN, LAUNCHER_END)
     if '@pivault_users_installer' in clean:
         raise ValueError('The portal matcher already exists outside its managed block.')
     depth = 0
@@ -81,7 +103,7 @@ def portal_caddyfile(text):
     if depth or len(matches) != 1:
         raise ValueError('Expected one explicit ' + PORTAL_SITE + ' site block in the active Caddyfile.')
     position = matches[0]
-    return clean[:position] + PORTAL + clean[position:]
+    return clean[:position] + PORTAL + LAUNCHER_AUTH + clean[position:]
 
 
 def private_vault_admin(text, host):
