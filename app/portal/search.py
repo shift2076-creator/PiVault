@@ -198,15 +198,22 @@ class BookSearch(Connector):
         super().__init__(origin, link, {'Authorization': 'Basic ' + raw})
 
     def search(self, term):
-        results = []
+        needle = term.casefold()
+        ranked = []
         for entry in self.xml('/opds/search', {'query': term}).iter(ATOM + 'entry'):
             book = next((m.group(1) for link in entry.iter(ATOM + 'link')
                          for m in [self.BOOK.search(link.get('href', ''))] if m), None)
             if not book:
                 continue
-            authors = ', '.join(a.findtext(ATOM + 'name') or '' for a in entry.findall(ATOM + 'author'))
-            results.append(Result(entry.findtext(ATOM + 'title') or '', self.link + '/book/' + book, authors))
-        return results[:LIMIT]
+            title = entry.findtext(ATOM + 'title') or ''
+            names = [a.findtext(ATOM + 'name') or '' for a in entry.findall(ATOM + 'author')]
+            # Calibre-Web matches any substring (even "poem" for "Poe") and returns title order,
+            # so author matches go first, then title matches; the sort is stable within each group.
+            rank = 0 if any(needle in name.casefold() for name in names) else (
+                1 if needle in title.casefold() else 2)
+            ranked.append((rank, Result(title, self.link + '/book/' + book, ', '.join(names))))
+        ranked.sort(key=lambda pair: pair[0])
+        return [result for _, result in ranked][:LIMIT]
 
 
 class DocumentSearch(Connector):

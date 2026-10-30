@@ -104,6 +104,16 @@ class SearchTests(TestCase):
         self.assertContains(response, '&lt;b&gt;Apollo&lt;/b&gt;')  # Upstream text is escaped.
         self.assertNotContains(response, 'Moon pie')
 
+    def test_books_rank_author_matches_before_title_matches(self):
+        feed = b'''<feed xmlns="http://www.w3.org/2005/Atom">
+<entry><title>Poetical Essays</title><author><name>Anna Writer</name></author><link href="/opds/cover/1"/></entry>
+<entry><title>Short Fiction</title><author><name>Edgar Allan Poe</name></author><link href="/opds/cover/2"/></entry>
+</feed>'''
+        with patch.object(search.Connector, 'fetch', lambda connector, path, query=(): feed):
+            results = search.CONNECTORS['books'].search('Poe')
+        self.assertEqual([r.title for r in results], ['Short Fiction', 'Poetical Essays'])
+        self.assertEqual(results[0].url, 'http://192.168.4.90:8083/book/2')
+
     def test_wiki_searches_once_per_language(self):
         self.get('/search?q=apollo&app=wiki')
         books = [query['books.id'] for key, path, query in self.calls if path == '/search']
