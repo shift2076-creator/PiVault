@@ -1,12 +1,16 @@
 """Read-only PiVault integration inventory. Never export credential values."""
 import hashlib
 import json
+import os
 import re
 import sqlite3
+import ssl
 import subprocess
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
-from urllib.request import ProxyHandler, Request, build_opener
+from urllib.request import HTTPSHandler, ProxyHandler, Request, build_opener
+
+CA_FILE = os.environ.get('PIVAULT_CA_FILE', '/srv/pi-server/config/caddy/data/caddy/pki/authorities/local/root.crt')
 
 EXPECTED = {
     'jellyfin', 'navidrome', 'calibre-web', 'pivault-arcade', 'pivault-kiwix',
@@ -168,8 +172,9 @@ def main():
                     'create','edit','delete','--username','--email','--user','--password-file','--password',
                 ) if value in out]
     try:
-        request = Request('http://192.168.4.90:8096/System/Info/Public')
-        with build_opener(ProxyHandler({})).open(request,timeout=5) as response:
+        context = ssl.create_default_context(cafile=CA_FILE)
+        request = Request('https://192.168.4.90:8096/System/Info/Public')
+        with build_opener(ProxyHandler({}), HTTPSHandler(context=context)).open(request,timeout=5) as response:
             info=json.load(response)
         report['jellyfin_public'] = {k:info.get(k) for k in ('Version','StartupWizardCompleted')}
     except Exception:

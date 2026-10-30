@@ -25,7 +25,7 @@ except ImportError:
     raise SystemExit('The Pi needs its existing python3-yaml package. Nothing was installed.')
 
 from configuration import (PORTAL_SITE, SERVICE, compose_configuration, homepage_js,
-                           portal_caddyfile, private_vault_admin, verify_routes)
+                           apps_caddyfile, portal_caddyfile, private_vault_admin, verify_routes)
 from native import vault_configuration, maintenance_units
 
 ROOT = Path('/srv/pi-server')
@@ -214,7 +214,7 @@ def install_portal():
     homepage_config = container_path(homepage, '/app/config')
     custom_js = homepage_config / 'custom.js'
     before = {p: snapshot(p) for p in (COMPOSE, caddyfile, custom_js)}
-    caddy_candidate = portal_caddyfile(caddyfile.read_text())
+    caddy_candidate = apps_caddyfile(portal_caddyfile(caddyfile.read_text()))
     js_candidate = homepage_js(custom_js.read_text() if custom_js.exists() else '',
                                (SOURCE / 'stack/homepage-addon.js').read_text())
     old_container = inspect(SERVICE, missing=True)

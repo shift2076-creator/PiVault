@@ -150,6 +150,21 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn('not path /join /join/* /users /users/* /notifications /notifications/* '
                       '/services /services/* /internal /internal/* /music /music/*', output)
 
+    def test_app_sites_replace_live_copies_and_stay_idempotent(self):
+        live = ('\nhttps://192.168.4.90:8083 {\n        tls internal\n'
+                '        reverse_proxy calibre-web:8083\n}\n')
+        output = config.apps_caddyfile(config.portal_caddyfile(CADDYFILE + live))
+        self.assertEqual(output.count(config.APPS_BEGIN), 1)
+        self.assertEqual(output.count('https://192.168.4.90:8083 {'), 1)
+        self.assertEqual(output, config.apps_caddyfile(output))
+
+    def test_lychee_proxy_header_and_upload_limit_stay_inside_its_site(self):
+        output = config.apps_caddyfile(config.portal_caddyfile(CADDYFILE))
+        site = output[output.index('https://192.168.4.90:8446 {'):output.index('https://192.168.4.90:8447 {')]
+        self.assertIn('        header_up X-Forwarded-Proto https\n', site)
+        self.assertIn('max_size 2048MB', site)
+        self.assertLess(site.index('reverse_proxy lychee:8000 {'), site.index('header_up'))
+
     def test_launcher_gate_replaces_the_live_block_without_services(self):
         live = config.portal_caddyfile(CADDYFILE).replace(
             '/services /services/* /internal /internal/* /music', '/internal /internal/* /music')

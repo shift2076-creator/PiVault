@@ -49,6 +49,26 @@ LAUNCHER_AUTH = '''
 '''
 
 
+# HTTPS sites for the apps that were plain HTTP on the LAN. Each keeps its port number.
+APPS_BEGIN = '# BEGIN PIVAULT APP HTTPS SITES'
+APPS_END = '# END PIVAULT APP HTTPS SITES'
+APP_SITES = [
+    (5232, '    reverse_proxy radicale:5232\n'),
+    (8000, '    reverse_proxy pivault-arcade:8000\n'),
+    (8083, '    reverse_proxy calibre-web:8083\n'),
+    (8084, '    reverse_proxy pivault-kiwix:8080\n'),
+    (8085, '    reverse_proxy pivault-paperless:8000\n'),
+    (8087, '    reverse_proxy pivault-homebox:7745\n'),
+    (8089, '    reverse_proxy 172.18.0.1:8089\n'),
+    (8096, '    reverse_proxy jellyfin:8096\n'),
+    (8446, '    request_body {\n        max_size 2048MB\n    }\n'
+           '    reverse_proxy lychee:8000 {\n        header_up X-Forwarded-Proto https\n    }\n'),
+    (8447, '    reverse_proxy lychee:8000\n'),
+    (9283, '    reverse_proxy pivault-grocy:80\n'),
+]
+APP_PORTS = {port for port, _ in APP_SITES}
+
+
 def replace_managed(text, begin, end, replacement=''):
     if begin not in text and end not in text:
         return text
@@ -104,6 +124,46 @@ def portal_caddyfile(text):
         raise ValueError('Expected one explicit ' + PORTAL_SITE + ' site block in the active Caddyfile.')
     position = matches[0]
     return clean[:position] + PORTAL + LAUNCHER_AUTH + clean[position:]
+
+
+def remove_site_blocks(text, ports):
+    targets = {f'https://{PORTAL_HOST}:{port}' for port in ports}
+    depth = 0
+    header = []
+    header_start = None
+    block_start = None
+    removals = []
+    for value, start, finish in tokens(text):
+        if value == '{':
+            if depth == 0:
+                names = [x.strip(',').strip('"`') for x in header]
+                block_start = header_start if any(name in targets for name in names) else None
+                header = []
+            depth += 1
+        elif value == '}':
+            depth -= 1
+            if depth == 0:
+                if block_start is not None:
+                    removals.append((block_start, finish))
+                    block_start = None
+                header = []
+        elif depth == 0:
+            if not header:
+                header_start = start
+            header.append(value)
+    for start, finish in reversed(removals):
+        text = text[:start] + text[finish:]
+    return text
+
+
+def apps_caddyfile(text):
+    clean = replace_managed(text, APPS_BEGIN, APPS_END)
+    clean = remove_site_blocks(clean, APP_PORTS)
+    sites = []
+    for port, body in APP_SITES:
+        sites.append('https://%s:%d {\n    tls internal\n    encode zstd gzip\n%s}\n' % (PORTAL_HOST, port, body))
+    block = APPS_BEGIN + '\n' + '\n'.join(sites) + APPS_END
+    return clean.rstrip('\n') + '\n\n' + block + '\n'
 
 
 def private_vault_admin(text, host):
