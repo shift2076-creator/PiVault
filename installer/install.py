@@ -47,7 +47,7 @@ def say(message):
 
 
 def run(args, *, cwd=None, data=None, stream=False, timeout=180):
-    if cwd is None and args[0] == 'docker-compose':
+    if cwd is None and args[:2] == ['docker', 'compose']:
         cwd = COMPOSE.parent
     try:
         value = subprocess.run(args, cwd=cwd, input=data, text=True,
@@ -193,7 +193,7 @@ def install_portal():
         raise InstallError('The target is not the expected Raspberry Pi 5. Nothing was installed.')
     owner = pwd.getpwnam('snx')
     uid, gid = owner.pw_uid, owner.pw_gid
-    for command in ('docker', 'docker-compose', 'curl', 'systemctl', 'systemd-analyze'):
+    for command in ('docker', 'curl', 'systemctl', 'systemd-analyze'):
         if not shutil.which(command):
             raise InstallError(command + ' is required on PiVault. Nothing was installed.')
     if not COMPOSE.is_file():
@@ -258,9 +258,9 @@ def install_portal():
         candidate_compose = work / 'candidate.yml'
         candidate_compose.write_text(yaml.safe_dump(candidate_document, sort_keys=False))
         # Existing relative Compose paths must resolve against the original folder.
-        cc = ['docker-compose', '--project-directory', str(COMPOSE.parent), '-p', project,
+        cc = ['docker', 'compose', '--project-directory', str(COMPOSE.parent), '-p', project,
               '-f', str(candidate_compose)]
-        live = ['docker-compose', '--project-directory', str(COMPOSE.parent), '-p', project,
+        live = ['docker', 'compose', '--project-directory', str(COMPOSE.parent), '-p', project,
                 '-f', str(COMPOSE)]
         original_json = json.loads(run(['docker', 'exec', CADDY, 'caddy', 'adapt',
             '--config', '/etc/caddy/Caddyfile', '--adapter', 'caddyfile']))
