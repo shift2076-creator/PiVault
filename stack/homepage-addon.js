@@ -10,19 +10,25 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   return bar;
 });
 
-/* Settings menu: Password Manager for everyone, plus Add User and System for Admins.
+/* Settings menu: Password Manager for everyone, plus Add User, System and Radicale for Admins.
    The server, not the browser, enforces Admin access on /users/add and /system. */
 (() => {
   if (window.piVaultUsersLoaded) return;
   window.piVaultUsersLoaded = true;
-  let root, button, panel, add, sys, opened = false, admin = false;
+  let root, button, panel, add, sys, rad, opened = false, admin = false;
   const ns = 'http://www.w3.org/2000/svg';
   // Gear, user-plus, refresh and lock outlines from Feather Icons (MIT License, compatible with this project).
   const GEAR = 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z';
   const USER_PLUS = 'M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M20 8v6M17 11h6M12 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0';
   const LOCK = 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4';
+  const CALENDAR = 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z';
   // These apps leave the launcher columns for this menu; their links come from their tiles.
   const MOVED = [['li.service[data-name="Password Manager"]', 'Password Manager', LOCK]];
+  // Hide the moved tiles from the launcher. Each tile stays in the page so its link can still be copied.
+  const hide = document.createElement('style');
+  hide.id = 'pv-moved';
+  hide.textContent = `${MOVED.map(([selector]) => selector).join(',')}{display:none!important}`;
+  document.head.append(hide);
   function icon(d, size) {
     const svg = document.createElementNS(ns, 'svg');
     for (const [name, value] of Object.entries({viewBox:'0 0 24 24', width:size, height:size, fill:'none',
@@ -71,6 +77,10 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     sys = document.createElement('a'); sys.href = '/system'; sys.hidden = !admin;
     sys.append(icon(GEAR, 20), document.createTextNode('System'));
     panel.append(sys);
+    // Radicale serves the contacts and calendars on the same address as the launcher, on port 5232.
+    rad = document.createElement('a'); rad.href = `${location.protocol}//${location.hostname}:5232/`; rad.hidden = !admin;
+    rad.append(icon(CALENDAR, 20), document.createTextNode('Radicale'));
+    panel.append(rad);
     root.append(style, button, panel);
     window.piVaultToolbar().append(root);
     button.addEventListener('click', () => {
@@ -100,6 +110,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     mount();
     if (add) add.hidden = !admin;
     if (sys) sys.hidden = !admin;
+    if (rad) rad.hidden = !admin;
   }
   document.addEventListener('click', event => { if (root && !root.contains(event.target)) close(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && opened) { close(); button?.focus(); } });
