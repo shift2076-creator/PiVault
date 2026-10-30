@@ -160,6 +160,19 @@ services:
     volumes:
     - /srv/pi-server/config/grocy:/config
     restart: unless-stopped
+  radicale:
+    image: tomsquest/docker-radicale
+    container_name: radicale
+    restart: unless-stopped
+    command:
+    - /venv/bin/radicale
+    - --config
+    - /config/config
+    ports:
+    - 172.18.0.1:5232:5232
+    volumes:
+    - /home/snx/radicale/data:/data
+    - /home/snx/radicale/config:/config:ro
   pivault-users:
     image: pivault-users:e2120183f2a319aa
     container_name: pivault-users
