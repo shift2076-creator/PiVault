@@ -134,12 +134,15 @@ class WikiSearch(Connector):
                     item.findtext('title') or link, self.url(link),
                     item.findtext('book/title') or '',
                     _text(''.join(description.itertext())) if description is not None else ''))
+        suggested = []
         for name in titles_only:
             for suggestion in self.json('/suggest', {'content': name, 'term': term, 'count': LIMIT}):
                 if suggestion.get('kind') == 'path' and isinstance(suggestion.get('path'), str):
-                    results.append(Result(suggestion.get('value', ''),
-                                          self.url('/content/' + name + '/' + quote(suggestion['path'])), ''))
-        return results[:LIMIT]
+                    suggested.append(Result(suggestion.get('value', ''),
+                                            self.url('/content/' + name + '/' + quote(suggestion['path'])), ''))
+        # Title suggestions get up to half the page, so full-text hits cannot push them out.
+        keep = LIMIT - min(len(suggested), LIMIT // 2)
+        return results[:keep] + suggested[:LIMIT - keep]
 
 
 class VideoSearch(Connector):
