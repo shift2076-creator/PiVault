@@ -288,4 +288,38 @@ body:has(li[data-name="Books"]) #layout-groups a:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   body:has(li[data-name="Books"]) #layout-groups * { transition: none !important; }
 }
+/* Launcher status: one LED per tile, and a menu on the LED for Admins. */
+body:has(li[data-name="Books"]) #layout-groups .service-card { position: relative; }
+body:has(li[data-name="Books"]) #layout-groups .pv-led {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 50%; background: none; cursor: pointer;
+}
+body:has(li[data-name="Books"]) #layout-groups .pv-led:focus-visible { outline: 2px solid var(--pv-accent); outline-offset: 2px; }
+body:has(li[data-name="Books"]) #layout-groups .pv-led:disabled { cursor: default; }
+body:has(li[data-name="Books"]) #layout-groups .pv-dot {
+  display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--pv-stop);
+}
+body:has(li[data-name="Books"]) #layout-groups .pv-dot[data-state="running"] {
+  background: var(--pv-ok); box-shadow: 0 0 0 4px var(--pv-ok-ring);
+}
+body:has(li[data-name="Books"]) #layout-groups .pv-dot[data-state="attention"] {
+  background: var(--pv-warn); box-shadow: 0 0 0 4px var(--pv-warn-ring);
+}
+body:has(li[data-name="Books"]) #layout-groups .pv-dot[data-state="unknown"] { opacity: .45; }
+body:has(li[data-name="Books"]) #layout-groups .pv-launch-menu {
+  position: absolute; top: 58px; right: 12px; z-index: 5; min-width: 150px; padding: 6px;
+  box-sizing: border-box; background: var(--pv-surface); border: 1px solid var(--pv-menu-border);
+  border-radius: 8px; box-shadow: 0 10px 24px rgba(0, 0, 0, .4);
+}
+body:has(li[data-name="Books"]) #layout-groups .pv-launch-menu[hidden] { display: none; }
+body:has(li[data-name="Books"]) #layout-groups .pv-launch-menu button {
+  display: block; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: none;
+  color: var(--pv-text); font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+body:has(li[data-name="Books"]) #layout-groups .pv-launch-menu button:hover,
+body:has(li[data-name="Books"]) #layout-groups .pv-launch-menu button:focus-visible { background: var(--pv-chip); }
+body:has(li[data-name="Books"]) #layout-groups .pv-launch-menu button:disabled { color: var(--pv-secondary); cursor: default; background: none; }
+body:has(li[data-name="Books"]) #layout-groups .pv-launch-menu p { margin: 4px 10px 2px; color: var(--pv-secondary); font-size: 12px; }
+body:has(li[data-name="Books"]) #layout-groups .pv-launch-menu p:empty { display: none; }
+
 /* END PIVAULT NIGHT (H3) */

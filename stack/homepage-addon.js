@@ -332,3 +332,156 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
   else start();
 })();
+
+/* Launcher status: each tile shows a status dot (running, needs attention, stopped, or unknown).
+   Admins also get a menu on the dot with Stop and Restart, or Start for a stopped service. The
+   server checks Admin access, the CSRF token and the list of containers each request may name. */
+(() => {
+  if (window.piVaultStatusLoaded) return;
+  window.piVaultStatusLoaded = true;
+  // Launcher tile name -> key the server accepts. Contacts is a host service and has no dot.
+  const KEYS = {'Books': 'books', 'Games': 'games', 'Music': 'music', 'Videos': 'videos',
+    'Documents': 'documents', 'Offline Wiki': 'offline-wiki', 'Inventory': 'inventory',
+    'Pantry': 'pantry', 'Photos': 'photos'};
+  const WORDS = {running: 'running', attention: 'needs attention', stopped: 'stopped', unknown: 'status unavailable'};
+  let services = {}, canControl = false, csrf = '', openLed = null;
+  const busy = new Set();
+  const make = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+  const label = (name, key) => `${name}: ${WORDS[(services[key] || 'unknown')]}`;
+
+  function tiles() {
+    return [...document.querySelectorAll('li.service[data-name]')].filter(li => KEYS[li.dataset.name]);
+  }
+
+  function menuFor(li, key, card) {
+    let menu = card.querySelector(':scope > .pv-launch-menu');
+    if (!menu) {
+      menu = make('div', {className: 'pv-launch-menu', hidden: true});
+      menu.setAttribute('role', 'menu');
+      menu.setAttribute('aria-label', li.dataset.name);
+      card.append(menu);
+    }
+    return menu;
+  }
+
+  function fillMenu(menu, li, key) {
+    const state = services[key] || 'unknown';
+    const items = state === 'stopped' ? ['start'] : (state === 'unknown' ? [] : ['stop', 'restart']);
+    const current = [...menu.querySelectorAll('button')].map(b => b.dataset.verb).join(',');
+    if (current !== items.join(',')) {
+      menu.replaceChildren(...items.map(verb => {
+        const item = make('button', {type: 'button', textContent: verb[0].toUpperCase() + verb.slice(1)});
+        item.dataset.verb = verb; item.setAttribute('role', 'menuitem');
+        item.disabled = busy.has(key);
+        item.addEventListener('click', () => { close(); act(li, key, verb); });
+        return item;
+      }));
+      menu.append(make('p'));
+    }
+    menu.querySelectorAll('button').forEach(b => { b.disabled = busy.has(key); });
+  }
+
+  function render() {
+    for (const li of tiles()) {
+      const key = KEYS[li.dataset.name];
+      const card = li.querySelector('.service-card');
+      const row = li.querySelector('.service-title');
+      if (!card || !row) continue;
+      let control = row.querySelector(':scope > .pv-led');
+      // The first render can run before the status reply arrives, so rebuild the control when the mode changes.
+      if (control && (control.tagName === 'BUTTON') !== canControl) {
+        close();
+        control.remove();
+        card.querySelector(':scope > .pv-launch-menu')?.remove();
+        control = null;
+      }
+      if (!control) {
+        control = canControl ? make('button', {type: 'button', className: 'pv-led'}) : make('span', {className: 'pv-led'});
+        if (canControl) {
+          control.setAttribute('aria-haspopup', 'menu');
+          control.setAttribute('aria-expanded', 'false');
+          control.addEventListener('click', () => toggle(li, key, control));
+        } else {
+          control.setAttribute('role', 'img');
+        }
+        const dot = make('span', {className: 'pv-dot'}); dot.setAttribute('aria-hidden', 'true');
+        control.append(dot);
+        row.append(control);
+      }
+      const state = services[key] || 'unknown';
+      const dot = control.querySelector('.pv-dot');
+      if (dot.dataset.state !== state) dot.dataset.state = state;
+      const text = label(li.dataset.name, key);
+      if (control.getAttribute('aria-label') !== text + (canControl ? '. Open menu' : '')) {
+        control.setAttribute('aria-label', text + (canControl ? '. Open menu' : ''));
+      }
+      if (canControl) {
+        control.disabled = busy.has(key) || state === 'unknown';
+        const menu = menuFor(li, key, card);
+        fillMenu(menu, li, key);
+      }
+    }
+  }
+
+  function close() {
+    if (!openLed) return;
+    const menu = openLed.closest('.service-card')?.querySelector(':scope > .pv-launch-menu');
+    if (menu) menu.hidden = true;
+    openLed.setAttribute('aria-expanded', 'false');
+    openLed = null;
+  }
+
+  function toggle(li, key, control) {
+    if (openLed === control) { close(); return; }
+    close();
+    const menu = li.querySelector('.service-card > .pv-launch-menu');
+    if (!menu) return;
+    menu.hidden = false;
+    control.setAttribute('aria-expanded', 'true');
+    openLed = control;
+    menu.querySelector('button')?.focus();
+  }
+
+  async function refresh() {
+    try {
+      const response = await fetch('/services/status', {credentials: 'same-origin', cache: 'no-store'});
+      if (!response.ok) { services = {}; canControl = false; render(); return; }
+      const data = await response.json();
+      services = data.services || {};
+      canControl = data.can_control === true;
+      csrf = data.csrf_token || csrf;
+    } catch { services = {}; }
+    render();
+  }
+
+  async function act(li, key, verb) {
+    busy.add(key); render();
+    const note = li.querySelector('.service-card > .pv-launch-menu > p');
+    try {
+      const response = await fetch(`/services/${key}/${verb}`, {method: 'POST', credentials: 'same-origin',
+        headers: {'X-CSRFToken': csrf}});
+      if (note) note.textContent = response.ok ? '' : `Could not ${verb} ${li.dataset.name}.`;
+    } catch {
+      if (note) note.textContent = `Could not ${verb} ${li.dataset.name}.`;
+    } finally {
+      busy.delete(key);
+    }
+    await refresh();
+  }
+
+  document.addEventListener('click', event => {
+    if (openLed && !openLed.closest('.service-card')?.contains(event.target)) close();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && openLed) { const control = openLed; close(); control.focus(); }
+  });
+
+  function start() {
+    refresh();
+    window.setInterval(refresh, 15000);
+    // Homepage can re-render the launcher; put the dots back when that happens.
+    new MutationObserver(() => render()).observe(document.body, {childList: true, subtree: true});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
+  else start();
+})();
