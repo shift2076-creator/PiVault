@@ -1,76 +1,96 @@
-/* BEGIN PIVAULT DESIGN 3 */
-body:has(#pivault-books) {
-  --pv-background: #151c22;
-  --pv-text: #e8edf2;
-  --pv-secondary: #91acc3;
-  --pv-accent: #b4c0ce;
-  --pv-divider: rgba(151, 170, 190, 0.48);
-  --pv-gutter: clamp(24px, 3.90625vw, 60px);
-  --pv-column-gap: clamp(32px, 4.166667vw, 64px);
-  --pv-icon-size: 44px;
-  --pv-item-height: 104px;
+/* BEGIN PIVAULT NIGHT (H3) */
+/* Colours and layout follow the approved H3 Night artboard. Every rule is gated on the
+   Books tile so the theme applies only to the homepage launcher. Icons are inline data URIs,
+   so nothing is fetched at runtime; system fonts only. */
+body:has(li[data-name="Books"]) {
+  --pv-background: #14181e;
+  --pv-surface: #1c222b;
+  --pv-border: #2c3542;
+  --pv-rule: #2e3848;
+  --pv-text: #e7ecf2;
+  --pv-secondary: #a3afbe;
+  --pv-accent: #6cc0e6;
+  --pv-chip: #252d39;
+  --pv-icon: #d5dee9;
+  --pv-detail: #1c222b;
+  --pv-ok: #5fcf8c;
+  --pv-ok-ring: #1f3a2c;
+  --pv-warn: #f0b04a;
+  --pv-warn-ring: #3d3019;
+  --pv-stop: #6e7988;
+  --pv-menu-border: #3a4553;
+  --pv-divider: #2c3542;
+  --pv-gutter: 48px;
   background: var(--pv-background) !important;
   color: var(--pv-text) !important;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
 }
 
-body:has(#pivault-books) #page_wrapper,
-body:has(#pivault-books) #inner_wrapper {
+body:has(li[data-name="Books"]) #page_wrapper,
+body:has(li[data-name="Books"]) #inner_wrapper {
   background: var(--pv-background) !important;
   background-image: none !important;
   min-height: 100vh !important;
 }
-
-body:has(#pivault-books) #page_wrapper {
-  background: radial-gradient(ellipse at 52% 45%, #1a222a 0%, #151c22 68%, #131a20 100%) !important;
-}
-body:has(#pivault-books) #inner_wrapper { background: transparent !important; }
-body:has(#pivault-books) #layout-groups .services-group div:has(> .services-list) {
+body:has(li[data-name="Books"]) #inner_wrapper { background: transparent !important; }
+body:has(li[data-name="Books"]) #layout-groups .services-group div:has(> .services-list) {
   overflow: visible !important;
 }
 
-body:has(#pivault-books) #information-widgets,
-body:has(#pivault-books) #footer,
-body:has(#pivault-books) #background,
-body:has(#pivault-books) #services:empty,
-body:has(#pivault-books) #bookmarks:empty {
+body:has(li[data-name="Books"]) #information-widgets,
+body:has(li[data-name="Books"]) #footer,
+body:has(li[data-name="Books"]) #background,
+body:has(li[data-name="Books"]) #services:empty,
+body:has(li[data-name="Books"]) #bookmarks:empty {
   display: none !important;
 }
 
-body:has(#pivault-books) #layout-groups {
+/* Header row (Notices, Settings) is fixed top-right; the launcher starts beneath it. */
+body:has(li[data-name="Books"]) #layout-groups {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: minmax(0, 1fr) !important;
   grid-template-areas:
-    "title title title title"
-    "entertainment knowledge organization tools" !important;
-  column-gap: var(--pv-column-gap) !important;
-  row-gap: 0 !important;
-  align-items: stretch !important;
-  width: calc(100% - var(--pv-gutter) * 2) !important;
-  max-width: none !important;
+    "title"
+    "search"
+    "entertainment"
+    "organization"
+    "knowledge" !important;
+  row-gap: 40px !important;
+  column-gap: 0 !important;
+  align-items: start !important;
+  width: 100% !important;
+  max-width: 1120px !important;
   margin: 0 auto !important;
-  padding: clamp(56px, 6.510417vw, 100px) 0 80px !important;
+  padding: 104px var(--pv-gutter) 64px !important;
   box-sizing: border-box !important;
 }
 
-body:has(#pivault-books) #layout-groups::before {
+/* Title row: the logo mark and "PiVault", centred above the search field. */
+body:has(li[data-name="Books"]) #layout-groups::before {
   content: "PiVault";
   grid-area: title;
+  justify-self: center;
   display: block;
-  margin: 0 0 72px;
-  color: var(--pv-accent);
-  font-size: 34px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -1.1px;
+  height: 26px;
+  margin: 0;
+  padding-left: 50px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 38 26' fill='none' stroke='%23d5dee9' stroke-width='1.5'%3E%3Crect x='1' y='1' width='36' height='24' rx='3'/%3E%3Crect x='4' y='4' width='30' height='18' rx='1.5' stroke-width='1' stroke-dasharray='1.2 2'/%3E%3Ccircle cx='19' cy='11' r='3'/%3E%3Cpath d='M17.2 13.5 L16 19 H22 L20.8 13.5'/%3E%3C/svg%3E") no-repeat left center / 38px 26px;
+  color: var(--pv-text);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 26px;
+  letter-spacing: -0.24px;
 }
 
+#layout-groups > .services-group:has(li[data-name="Books"]) { grid-area: entertainment !important; }
+#layout-groups > .services-group:has(li[data-name="Inventory"]) { grid-area: organization !important; }
+#layout-groups > .services-group:has(li[data-name="Documents"]) { grid-area: knowledge !important; }
+/* Only the three H3 sections render. Password Manager sits in Settings; its group is empty. */
+body:has(li[data-name="Books"]) #layout-groups > .services-group:not(:has(li[data-name="Books"], li[data-name="Inventory"], li[data-name="Documents"])) {
+  display: none !important;
+}
 
-
-#layout-groups > .services-group:has(#pivault-books) { grid-area: entertainment !important; }
-#layout-groups > .services-group:has(#pivault-documents) { grid-area: knowledge !important; }
-#layout-groups > .services-group:has(#pivault-inventory) { grid-area: organization !important; }
-
-body:has(#pivault-books) #layout-groups > .services-group {
+body:has(li[data-name="Books"]) #layout-groups > .services-group {
   position: relative !important;
   min-width: 0 !important;
   width: 100% !important;
@@ -81,61 +101,57 @@ body:has(#pivault-books) #layout-groups > .services-group {
   box-shadow: none !important;
 }
 
-/* #3 has a rule beneath every heading and one between adjacent columns. */
-body:has(#pivault-books) #layout-groups > .services-group::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 calc(var(--pv-column-gap) / -2);
-  width: 1px;
-  background: var(--pv-divider);
-  pointer-events: none;
-}
-body:has(#pivault-books) #layout-groups > .services-group:has(#pivault-books)::before {
-  display: none;
-}
-
-body:has(#pivault-books) #layout-groups .services-group > button {
+/* Each section: a rule above the heading, then its cards. */
+body:has(li[data-name="Books"]) #layout-groups .services-group > button {
   display: flex !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 0 0 16px !important;
+  padding: 14px 0 0 !important;
   border: 0 !important;
-  border-bottom: 1px solid var(--pv-divider) !important;
+  border-top: 1px solid var(--pv-rule) !important;
   border-radius: 0 !important;
   background: transparent !important;
   opacity: 1 !important;
   cursor: default !important;
 }
-
-body:has(#pivault-books) #layout-groups .service-group-name {
-  display: block !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  color: var(--pv-accent) !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  line-height: 1.4 !important;
-  letter-spacing: 1.8px !important;
-  text-align: left !important;
-  text-transform: uppercase !important;
-}
-
-body:has(#pivault-books) #layout-groups .services-group > button > svg,
-body:has(#pivault-books) #layout-groups .service-group-icon {
+body:has(li[data-name="Books"]) #layout-groups .services-group > button > svg,
+body:has(li[data-name="Books"]) #layout-groups .services-group > button > .service-group-icon {
   display: none !important;
 }
 
-body:has(#pivault-books) #layout-groups .services-list {
+body:has(li[data-name="Books"]) #layout-groups .service-group-name {
+  display: block !important;
+  margin: 0 0 14px !important;
+  padding: 0 !important;
+  color: var(--pv-text) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0 !important;
+  text-align: left !important;
+  text-transform: none !important;
+}
+
+/* The config names this group "Home Tools"; the approved heading is "Home tools". */
+body:has(li[data-name="Books"]) #layout-groups .services-group:has(li[data-name="Inventory"]) .service-group-name {
+  font-size: 0 !important;
+}
+body:has(li[data-name="Books"]) #layout-groups .services-group:has(li[data-name="Inventory"]) .service-group-name::before {
+  content: "Home tools";
+  font-size: 15px;
+  font-weight: 700;
+}
+
+body:has(li[data-name="Books"]) #layout-groups .services-list {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) !important;
-  gap: 0 !important;
-  margin: 20px 0 0 !important;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important;
+  gap: 12px !important;
+  margin: 0 !important;
   padding: 0 !important;
   list-style: none !important;
 }
 
-
-body:has(#pivault-books) #layout-groups .service {
+body:has(li[data-name="Books"]) #layout-groups .service {
   min-width: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -144,54 +160,58 @@ body:has(#pivault-books) #layout-groups .service {
   background: transparent !important;
 }
 
-
-body:has(#pivault-books) #layout-groups .service-card {
+/* One tile: an icon, the name with its engine, and the status dot. */
+body:has(li[data-name="Books"]) #layout-groups .service-card {
   min-width: 0 !important;
   height: auto !important;
   margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  padding: 16px 18px !important;
+  border: 1px solid var(--pv-border) !important;
+  border-radius: 8px !important;
+  background: var(--pv-surface) !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   overflow: visible !important;
+  color: var(--pv-text) !important;
 }
 
-body:has(#pivault-books) #layout-groups .service-title {
+body:has(li[data-name="Books"]) #layout-groups .service-title {
   display: flex !important;
   align-items: center !important;
-  gap: 16px !important;
-  min-height: var(--pv-item-height) !important;
+  gap: 12px !important;
+  min-height: 0 !important;
   margin: 0 !important;
-  padding: 0 4px !important;
+  padding: 0 !important;
   box-sizing: border-box !important;
 }
 
-body:has(#pivault-books) #layout-groups .service-icon {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 0 0 var(--pv-icon-size) !important;
-  width: var(--pv-icon-size) !important;
-  height: var(--pv-icon-size) !important;
+body:has(li[data-name="Books"]) #layout-groups .service-icon {
+  display: block !important;
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 36px !important;
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
-  background: transparent !important;
-  color: var(--pv-text) !important;
-  filter: none !important;
+  background-color: transparent !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  overflow: hidden !important;
 }
+/* The launcher icon is replaced by the approved H3 artwork for each tile. */
+body:has(li[data-name="Books"]) #layout-groups .service-icon > * { display: none !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Books"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='4' y='8' width='6' height='25' rx='1' fill='%23d5dee9'/%3E%3Crect x='11.5' y='6' width='6' height='27' rx='1' fill='%23d5dee9'/%3E%3Crect x='19' y='9' width='6' height='24' rx='1' fill='%23d5dee9'/%3E%3Cpath d='M28 10.5 L33.5 8.5 L38 29.5 L32.5 31.5 Z' fill='%23d5dee9'/%3E%3Crect x='2' y='33' width='36' height='3' rx='1' fill='%23d5dee9'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Games"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M10 13 H30 C35 13 38 17 38 22 C38 27 35 29 32 29 C30 29 29 27.5 27.5 26 H12.5 C11 27.5 10 29 8 29 C5 29 2 27 2 22 C2 17 5 13 10 13 Z' fill='%23d5dee9'/%3E%3Ccircle cx='11' cy='20' r='2' fill='%231c222b'/%3E%3Ccircle cx='29' cy='19' r='1.6' fill='%231c222b'/%3E%3Ccircle cx='31.5' cy='22.5' r='1.6' fill='%231c222b'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Music"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M14 8 L36 3 V28 H36 V30 A4 4 0 1 1 33 26.5 V11 L17 14.5 V32 A4 4 0 1 1 14 28.5 Z' fill='%23d5dee9'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Videos"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M3 9 L35 3 L37 11 L5 17 Z' fill='%23d5dee9'/%3E%3Crect x='4' y='16' width='32' height='20' rx='2' fill='%23d5dee9'/%3E%3Cpath d='M10 16 L16 16 L12 9 L8 9 Z M20 16 L26 16 L22 9 L18 9 Z' fill='%231c222b' opacity='0.35'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Inventory"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M20 3 L36 11 V29 L20 37 L4 29 V11 Z' fill='%23d5dee9'/%3E%3Cpath d='M4 11 L20 19 L36 11 M20 19 V37' stroke='%231c222b' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Pantry"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M20 12 C14 8 3 11 3 22 C3 31 9 38 14 38 C16 38 17 37 20 37 C23 37 24 38 26 38 C31 38 37 31 37 22 C37 11 26 8 20 12 Z' fill='%23d5dee9'/%3E%3Cpath d='M21 11 C22 5 25 3 29 3 C29 7 26 10 21 11 Z' fill='%23d5dee9'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Photos"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='10' y='3' width='28' height='22' rx='1' fill='%23d5dee9'/%3E%3Crect x='4' y='10' width='28' height='22' rx='1' fill='%23d5dee9'/%3E%3Cpath d='M8 27 L14 19 L19 25 L23 21 L29 28 Z' fill='%231c222b' opacity='0.7'/%3E%3Ccircle cx='13' cy='15' r='2.5' fill='%231c222b' opacity='0.7'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Contacts"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect x='8' y='4' width='24' height='32' rx='2' fill='%23d5dee9'/%3E%3Crect x='5' y='1' width='30' height='3' rx='1' fill='%23d5dee9'/%3E%3Crect x='5' y='36' width='30' height='3' rx='1' fill='%23d5dee9'/%3E%3Ccircle cx='20' cy='15' r='4.5' fill='%231c222b'/%3E%3Cpath d='M12.5 29 C14 22 26 22 27.5 29 Z' fill='%231c222b'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Documents"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath d='M9 3 H23 L32 12 V37 H9 Z' fill='%23d5dee9'/%3E%3Cpath d='M23 3 V12 H32' fill='%231c222b' opacity='0.5'/%3E%3Crect x='13' y='19' width='15' height='2' rx='1' fill='%231c222b'/%3E%3Crect x='13' y='24' width='15' height='2' rx='1' fill='%231c222b'/%3E%3Crect x='13' y='29' width='10' height='2' rx='1' fill='%231c222b'/%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Offline Wiki"] .service-icon { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ctext x='20' y='32' text-anchor='middle' font-family='Georgia, Times New Roman, serif' font-size='36' fill='%23d5dee9'%3EW%3C/text%3E%3C/svg%3E") center / 36px 36px no-repeat !important; }
 
-body:has(#pivault-books) #layout-groups .service-icon > * {
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-}
-
-body:has(#pivault-books) #layout-groups .service-title-text {
+body:has(li[data-name="Books"]) #layout-groups .service-title-text {
   display: flex !important;
   flex: 1 1 0 !important;
   align-items: center !important;
@@ -199,137 +219,73 @@ body:has(#pivault-books) #layout-groups .service-title-text {
   margin: 0 !important;
   padding: 0 !important;
   border: 0 !important;
-  border-radius: 0 !important;
   background: transparent !important;
   text-decoration: none !important;
   overflow: visible !important;
 }
 
-body:has(#pivault-books) #layout-groups .service-name {
+body:has(li[data-name="Books"]) #layout-groups .service-name {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
   min-width: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
   color: var(--pv-text) !important;
-  font-size: 20px !important;
-  font-weight: 500 !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
   line-height: 1.3 !important;
   text-align: left !important;
-  letter-spacing: -0.2px !important;
+  letter-spacing: 0 !important;
   white-space: nowrap !important;
-  overflow-wrap: normal !important;
-  overflow: visible !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
-body:has(#pivault-books) #layout-groups .service-description {
+/* The engine line comes from the tile's own text; the approved label is set per tile here. */
+body:has(li[data-name="Books"]) #layout-groups .service-description {
   display: block !important;
-  margin: 2px 0 0 !important;
+  margin: 0 !important;
   padding: 0 !important;
   color: var(--pv-secondary) !important;
-  font-size: 16px !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
   font-weight: 400 !important;
-  line-height: 1.35 !important;
-  letter-spacing: 0 !important;
-  white-space: normal !important;
-  overflow-wrap: break-word !important;
-  overflow: visible !important;
+  white-space: nowrap !important;
+}
+body:has(li[data-name="Books"]) #layout-groups .service-description::before {
+  font-size: 13px;
+  line-height: 1.4;
+}
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Books"] .service-description::before { content: "Calibre-Web"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Games"] .service-description::before { content: "RetroAssembly"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Music"] .service-description::before { content: "Navidrome"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Videos"] .service-description::before { content: "Jellyfin"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Inventory"] .service-description::before { content: "Homebox"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Pantry"] .service-description::before { content: "Grocy"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Photos"] .service-description::before { content: "Lychee"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Contacts"] .service-description::before { content: "Contacts"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Documents"] .service-description::before { content: "Paperless-ngx"; }
+body:has(li[data-name="Books"]) #layout-groups .service[data-name="Offline Wiki"] .service-description::before { content: "Kiwix"; }
+
+/* Homepage's own ping, monitor and stats badges are not part of this design. */
+body:has(li[data-name="Books"]) #layout-groups .service-tags {
+  display: none !important;
 }
 
-body:has(#pivault-books) #layout-groups .service-title-text:hover .service-name {
-  color: var(--pv-accent) !important;
-}
-
-body:has(#pivault-books) #layout-groups a:focus-visible {
+body:has(li[data-name="Books"]) #layout-groups a:focus-visible {
   outline: 2px solid var(--pv-accent) !important;
-  outline-offset: 6px !important;
-}
-
-
-@media (max-width: 1279px) {
-  body:has(#pivault-books) { --pv-column-gap: 40px; }
-  body:has(#pivault-books) #layout-groups {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-areas: "title title" "entertainment knowledge" "organization tools" !important;
-    row-gap: 48px !important;
-    padding-top: 48px !important;
-  }
-  body:has(#pivault-books) #layout-groups::before { margin-bottom: 0; }
-  body:has(#pivault-books) #layout-groups > .services-group:has(#pivault-inventory)::before {
-    display: none;
-  }
+  outline-offset: 2px !important;
 }
 
 @media (max-width: 767px) {
-  body:has(#pivault-books) #layout-groups {
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-areas: "title" "entertainment" "knowledge" "organization" "tools" !important;
-    row-gap: 36px !important;
-    padding-top: 32px !important;
-  }
-  body:has(#pivault-books) #layout-groups > .services-group::before {
-    display: none;
+  body:has(li[data-name="Books"]) { --pv-gutter: 24px; }
+  body:has(li[data-name="Books"]) #layout-groups {
+    padding-top: 88px !important;
+    row-gap: 32px !important;
   }
 }
-/* END PIVAULT DESIGN 3 */
-
-/* BEGIN PIVAULT LIFTED PANEL */
-body:has(#pivault-books) #layout-groups .service-title {
-  position: relative !important;
-  isolation: isolate;
-  border-radius: 0.5em !important;
-  font-size: 1rem;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-/* One stretched link covers the icon, text, and entire row. */
-body:has(#pivault-books) #layout-groups .service-title-text {
-  position: static !important;
-}
-body:has(#pivault-books) #layout-groups .service-title-text::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  border-radius: 0.5em;
-  cursor: pointer;
-}
-
-/* Softness is 50% / 80% of the maximum 1em shadow size. */
-body:has(#pivault-books) #layout-groups .service-title::before {
-  content: "";
-  position: absolute;
-  inset: 12px 0;
-  z-index: -1;
-  border-radius: 0.5em;
-  background: linear-gradient(145deg, #2b3643, #202a35);
-  /* Shadow paint ends at this row's boundaries, before the adjacent row. */
-  clip-path: inset(-12px -2em);
-  box-shadow: 0 0 0.5em 0em rgb(0 0 0 / 50%),
-              inset 0 1px 0 rgb(206 220 235 / 26%);
-  opacity: 0;
-  pointer-events: none;
-  transition: box-shadow 250ms ease, opacity 200ms ease;
-}
-
-body:has(#pivault-books) #layout-groups .service-title:is(:hover, :has(a:focus-visible)) {
-  transform: none !important;
-  box-shadow: none !important;
-}
-body:has(#pivault-books) #layout-groups .service-title:is(:hover, :has(a:focus-visible))::before {
-  box-shadow: 0 0 0.8em 1em rgb(0 0 0 / 20%),
-              inset 0 1px 0 rgb(206 220 235 / 26%);
-  opacity: 1;
-}
-
-/* Keep the accepted text color consistent across the whole panel. */
-body:has(#pivault-books) #layout-groups .service-title-text:hover .service-name {
-  color: var(--pv-text) !important;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  body:has(#pivault-books) #layout-groups .service-title,
-  body:has(#pivault-books) #layout-groups .service-title::before {
-    transition: none !important;
-  }
+  body:has(li[data-name="Books"]) #layout-groups * { transition: none !important; }
 }
-/* END PIVAULT LIFTED PANEL */
+/* END PIVAULT NIGHT (H3) */

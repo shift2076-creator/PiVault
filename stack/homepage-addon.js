@@ -5,7 +5,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   if (bar?.isConnected) return bar;
   bar = document.createElement('div');
   bar.id = 'pv-toolbar';
-  bar.style.cssText = 'position:fixed;top:clamp(20px,3vw,40px);right:var(--pv-gutter,24px);z-index:1000;display:flex;gap:6px;align-items:flex-start';
+  bar.style.cssText = 'position:fixed;top:clamp(20px,3vw,40px);right:max(var(--pv-gutter,24px),calc((100vw - 1120px) / 2 + var(--pv-gutter,24px)));z-index:1000;display:flex;gap:20px;align-items:center;font-size:14px';
   document.body.append(bar);
   return bar;
 });
@@ -48,20 +48,20 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     style.textContent = `
       #pv-settings{position:relative;order:2;color:var(--pv-text,#e8edf2);font:inherit;font-size:16px;line-height:1.45}
       #pv-settings [hidden]{display:none!important}
-      #pv-settings .pv-gear{display:grid;place-items:center;width:46px;height:46px;padding:0;border:0;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer}
-      #pv-settings .pv-gear:hover,#pv-settings .pv-gear[aria-expanded=true]{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
-      #pv-settings .pv-menu{position:absolute;right:0;top:54px;min-width:240px;padding:8px;border:1px solid var(--pv-divider,rgba(151,170,190,.48));border-radius:.5em;background:var(--pv-background,#151c22);box-shadow:0 10px 30px #0005}
+      #pv-settings .pv-gear{display:inline-flex;align-items:center;height:auto;padding:0;border:0;background:transparent;color:var(--pv-text,#e7ecf2);font:inherit;font-size:14px;cursor:pointer}
+      #pv-settings .pv-gear:hover,#pv-settings .pv-gear[aria-expanded=true]{text-decoration:underline;text-underline-offset:4px}
+      #pv-settings .pv-menu{position:absolute;right:0;top:34px;min-width:240px;padding:8px;border:1px solid var(--pv-menu-border,#3a4553);border-radius:.5em;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px #0005}
       #pv-settings h2{margin:6px 10px 8px;font-size:12px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--pv-secondary,#91acc3)}
       #pv-settings a{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 10px;border-radius:.4em;color:var(--pv-text,#e8edf2);text-decoration:none}
       #pv-settings a:hover{background:rgba(151,170,190,.1)}
-      #pv-settings a svg{color:#91acc3}
+      #pv-settings a svg{color:var(--pv-secondary,#a3afbe)}
       #pv-settings .pv-gear:focus-visible,#pv-settings a:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:3px}
     `;
     button = document.createElement('button');
     button.type = 'button'; button.className = 'pv-gear';
     button.setAttribute('aria-label', 'Settings'); button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-controls', 'pv-settings-menu');
-    button.append(icon(GEAR, 24));
+    button.textContent = 'Settings';
     panel = document.createElement('nav'); panel.id = 'pv-settings-menu'; panel.className = 'pv-menu';
     panel.setAttribute('aria-label', 'Settings'); panel.hidden = true;
     const heading = document.createElement('h2'); heading.textContent = 'Settings';
@@ -120,29 +120,6 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   else refresh();
 })();
 
-/* Launcher columns: Entertainment spans two columns of two tiles, and Tools (now in the
-   settings menu) leaves the launcher, so wide screens show four columns of two rows. The
-   launcher CSS places each group in a named grid area; this only redefines the row of areas.
-   The repeated ID outranks the launcher CSS's own rules. */
-(() => {
-  if (window.piVaultColumnsLoaded) return;
-  window.piVaultColumnsLoaded = true;
-  const L = '#layout-groups#layout-groups#layout-groups';
-  const style = document.createElement('style');
-  style.id = 'pv-columns';
-  style.textContent = `
-    @media (min-width:1280px){
-      ${L}:has(#pivault-books){grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-areas:"title title title title" "entertainment entertainment knowledge organization"!important}
-    }
-    @media (min-width:768px){
-      ${L} > .services-group:has(#pivault-books) .services-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;column-gap:var(--pv-column-gap,48px)!important}
-    }
-  `;
-  const mount = () => { if (!style.isConnected) document.head.append(style); };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, {once: true});
-  else mount();
-})();
-
 /* Keep this bell in sync with app/portal/static/portal/notifications-bell.js, which serves the portal pages.
    The same admin inbox is implemented in both places, so each change must land in both. */
 /* PiVault's shared admin inbox. The server, not the browser, enforces Admin access. */
@@ -168,13 +145,13 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     root = make('div'); root.id = 'pv-admin-notifications';
     const style = make('style');
     style.textContent = `
-      #pv-admin-notifications{position:relative;order:1;color:var(--pv-text,#e8edf2);font:15px/1.45 Arial,Helvetica,sans-serif}
+      #pv-admin-notifications{position:relative;order:1;color:var(--pv-text,#e7ecf2);font:14px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
       #pv-admin-notifications [hidden]{display:none!important}
-      #pv-admin-notifications .pv-bell{position:relative;display:grid;place-items:center;width:46px;height:46px;padding:9px;border:0;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer}
-      #pv-admin-notifications .pv-bell:hover{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
+      #pv-admin-notifications .pv-bell{position:relative;display:inline-flex;align-items:center;gap:8px;height:auto;padding:0;border:0;background:transparent;color:var(--pv-text,#e7ecf2);font:inherit;font-size:14px;cursor:pointer}
+      #pv-admin-notifications .pv-bell:hover{text-decoration:underline;text-underline-offset:4px}
       #pv-admin-notifications .pv-bell:focus-visible,#pv-admin-notifications a:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:4px}
-      #pv-admin-notifications .pv-count{position:absolute;top:0;right:0;min-width:19px;padding:1px 4px;border-radius:12px;background:#91acc3;color:#151c22;font-size:11px;font-weight:700;text-align:center}
-      #pv-admin-notifications .pv-panel{position:absolute;right:0;top:54px;width:min(440px,calc(100vw - 48px));max-height:min(620px,calc(100dvh - 100px));overflow:auto;padding:22px;border:1px solid var(--pv-divider,rgba(151,170,190,.48));border-radius:.5em;background:var(--pv-background,#151c22);box-shadow:0 10px 30px #0005}
+      #pv-admin-notifications .pv-count{min-width:20px;padding:1px 6px;border-radius:999px;background:var(--pv-accent,#6cc0e6);color:var(--pv-detail,#1c222b);font-size:12px;font-weight:600;text-align:center}
+      #pv-admin-notifications .pv-panel{position:absolute;right:0;top:34px;width:min(440px,calc(100vw - 48px));max-height:min(620px,calc(100dvh - 100px));overflow:auto;padding:22px;border:1px solid var(--pv-menu-border,#3a4553);border-radius:.5em;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px #0005}
       #pv-admin-notifications h2{font-size:17px;margin:0 0 4px;color:var(--pv-accent,#b4c0ce)}
       #pv-admin-notifications .pv-summary,#pv-admin-notifications time{color:var(--pv-secondary,#91acc3);font-size:12px}
       #pv-admin-notifications ol{list-style:none;margin:14px 0;padding:0}
@@ -186,13 +163,8 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     button = make('button', undefined, 'pv-bell');
     button.type = 'button'; button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-controls', 'pv-notification-panel');
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    for (const [name,value] of Object.entries({viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'1.7','aria-hidden':'true'})) svg.setAttribute(name,value);
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d','M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4');
-    svg.append(path); badge = make('span', '', 'pv-count'); badge.hidden = true;
-    button.append(svg,badge);
+    badge = make('span', '', 'pv-count'); badge.hidden = true;
+    button.append(make('span', 'Notices'), badge);
     panel = make('section', undefined, 'pv-panel'); panel.id = 'pv-notification-panel'; panel.hidden = true;
     panel.setAttribute('aria-label', 'Admin notifications');
     const heading = make('h2','Admin notifications');
@@ -251,49 +223,38 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   else start();
 })();
 
-/* Unified search: a field under the PiVault title with a row of tickboxes directly beneath it,
-   one per app this user may search. Unticked apps are never queried. The field sits in the
-   launcher's own "title" grid area, which every launcher layout keeps, so it follows the
-   launcher's gutters and breakpoints. App tiles are left untouched. */
+/* Unified search: the H3 field under the PiVault title, with a scope control beneath it.
+   "All" searches every app this user may search; each other segment searches one app. The form
+   sends the apps for the chosen scope as GET parameters, so results load without script. Segments
+   appear only for apps this user may search. "/" moves focus to the field. */
 (() => {
   if (window.piVaultSearchLoaded) return;
   window.piVaultSearchLoaded = true;
-  const STORE = 'pivault-search-unticked';
-  const CHECK = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23151c22' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")";
-  let apps = [], bar = null, hint = null;
-  const unticked = () => { try { return new Set(JSON.parse(localStorage.getItem(STORE) || '[]')); } catch { return new Set(); } };
-  const remember = set => { try { localStorage.setItem(STORE, JSON.stringify([...set])); } catch { /* Per-browser convenience only. */ } };
-  const make = (tag, props = {}) => Object.assign(document.createElement(tag), props);
-  const style = make('style', {id: 'pv-search-style'});
-  // The repeated ID outranks the launcher CSS (body:has(#pivault-books) #layout-groups ...).
+  try { localStorage.removeItem('pivault-search-unticked'); } catch { /* Old per-browser choice; nothing else to clear. */ }
+  const SCOPES = [['All', null], ['Books', 'books'], ['Music', 'music'], ['Offline Wiki', 'wiki']];
   const L = '#layout-groups#layout-groups#layout-groups';
+  const style = document.createElement('style');
+  style.id = 'pv-search-style';
+  // The repeated ID outranks the launcher CSS; the field and scope control sit in the "search" grid area.
   style.textContent = `
-    ${L} > #pv-search{grid-area:title;align-self:start;display:flex;flex-wrap:wrap;align-items:center;gap:12px;
-      margin:64px 0 56px;color:var(--pv-text,#e8edf2);font:inherit;font-size:16px;z-index:1}
-    @media (max-width:1279px){${L} > #pv-search{margin:60px 0 0}}
-    #pv-search .pv-field{flex:1 1 320px;display:flex;align-items:center;gap:12px;min-height:52px;padding:0 16px;
-      border:1px solid var(--pv-divider,rgba(151,170,190,.48));border-radius:.5em;background:rgba(151,170,190,.06);box-sizing:border-box}
-    #pv-search .pv-field:focus-within{border-color:var(--pv-secondary,#91acc3)}
-    #pv-search .pv-field svg{flex:none;width:20px;height:20px;color:var(--pv-secondary,#91acc3)}
-    #pv-search input[type=search]{flex:1;min-width:0;height:50px;padding:0;border:0;background:transparent;box-shadow:none;
-      color:var(--pv-text,#e8edf2);font:inherit;font-size:17px;outline:none}
-    #pv-search input[type=search]::placeholder{color:var(--pv-secondary,#91acc3);opacity:.8}
-    #pv-search .pv-go{min-height:52px;padding:0 26px;border:0;border-radius:.5em;cursor:pointer;color:var(--pv-text,#e8edf2);
-      font:inherit;font-size:16px;font-weight:500;background:linear-gradient(145deg,#2b3643,#202a35);box-shadow:inset 0 1px 0 rgb(206 220 235 / 26%)}
-    #pv-search .pv-go:hover{box-shadow:0 4px 6px -1px rgb(0 0 0 / 20%),inset 0 1px 0 rgb(206 220 235 / 26%)}
-    #pv-search fieldset{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0;padding:0;border:0;min-width:0}
-    #pv-search legend{float:left;margin-right:6px;padding:0;color:var(--pv-secondary,#91acc3);font-size:12px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase}
-    #pv-search .pv-chip{display:flex;align-items:center;gap:9px;min-height:36px;padding:0 14px;border:1px solid var(--pv-divider,rgba(151,170,190,.48));
-      border-radius:18px;font-size:15px;cursor:pointer;user-select:none;color:var(--pv-secondary,#91acc3)}
-    #pv-search .pv-chip:has(input:checked){color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
-    #pv-search .pv-chip input{appearance:none;-webkit-appearance:none;flex:none;width:16px;height:16px;margin:0;border:1.5px solid var(--pv-secondary,#91acc3);
-      border-radius:4px;background:transparent;cursor:pointer;color:transparent;box-shadow:none}
-    #pv-search .pv-chip input:checked{background:var(--pv-secondary,#91acc3) ${CHECK} center/12px no-repeat}
-    #pv-search .pv-all{padding:0 4px;border:0;background:none;color:var(--pv-accent,#b4c0ce);font:inherit;font-size:14px;text-decoration:underline;cursor:pointer}
-    #pv-search .pv-hint{flex:1 1 100%;color:var(--pv-secondary,#91acc3);font-size:14px}
-    #pv-search .pv-hint:empty{display:none}
-    #pv-search :focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:3px}
+    ${L} > #pv-search{grid-area:search;display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;margin:12px 0 0;
+      color:var(--pv-text,#e7ecf2);font:inherit;font-size:16px;z-index:1}
+    #pv-search .pv-field{display:flex;align-items:center;gap:12px;width:100%;max-width:720px;height:64px;box-sizing:border-box;
+      padding:0 14px 0 20px;border:1px solid var(--pv-border,#2c3542);border-radius:16px;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    #pv-search .pv-field:focus-within{border-color:var(--pv-secondary,#a3afbe)}
+    #pv-search .pv-field svg{flex:none;width:20px;height:20px;color:var(--pv-secondary,#a3afbe)}
+    #pv-search input[type=search]{flex:1;min-width:0;height:100%;padding:0;border:0;background:transparent;box-shadow:none;
+      color:var(--pv-text,#e7ecf2);font:inherit;font-size:18px;outline:none}
+    #pv-search input[type=search]::placeholder{color:var(--pv-secondary,#a3afbe);opacity:1}
+    #pv-search kbd{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;padding:3px 8px;border:1px solid var(--pv-border,#2c3542);
+      border-radius:6px;color:var(--pv-secondary,#a3afbe)}
+    #pv-search .pv-scopes{display:inline-flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:12px;background:var(--pv-chip,#252d39)}
+    #pv-search .pv-scope{padding:7px 16px;border:0;border-radius:9px;background:transparent;color:var(--pv-secondary,#a3afbe);font:inherit;font-size:14px;cursor:pointer}
+    #pv-search .pv-scope[aria-pressed=true]{background:var(--pv-surface,#1c222b);color:var(--pv-text,#e7ecf2);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.4)}
+    #pv-search :focus-visible{outline:2px solid var(--pv-accent,#6cc0e6);outline-offset:3px}
   `;
+  const make = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+  let apps = [], bar = null, scope = SCOPES[0];
   function mount() {
     const host = document.getElementById('layout-groups');
     if (!host || bar?.isConnected) return;
@@ -306,35 +267,38 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     const input = make('input', {type: 'search', name: 'q', required: true, minLength: 2, maxLength: 200,
       autocomplete: 'off', placeholder: 'Search PiVault'});
     input.setAttribute('aria-label', 'Search PiVault');
-    field.append(svg, input);
-    const picks = make('fieldset');
-    picks.append(make('legend', {textContent: 'Search in'}));
-    const off = unticked();
-    for (const app of apps) {
-      const chip = make('label', {className: 'pv-chip'});
-      const box = make('input', {type: 'checkbox', name: 'app', value: app.key, checked: !off.has(app.key)});
-      box.addEventListener('change', () => {
-        const set = unticked(); box.checked ? set.delete(app.key) : set.add(app.key); remember(set); hint.textContent = '';
-      });
-      chip.append(box, document.createTextNode(app.label));
-      picks.append(chip);
-    }
-    for (const [text, value] of [['All', true], ['None', false]]) {
-      const b = make('button', {type: 'button', className: 'pv-all', textContent: text});
+    const kbd = make('kbd', {textContent: '/'}); kbd.setAttribute('aria-hidden', 'true');
+    field.append(svg, input, kbd);
+    const group = make('div', {className: 'pv-scopes'});
+    group.setAttribute('role', 'group'); group.setAttribute('aria-label', 'Search in');
+    for (const [label, key] of SCOPES) {
+      if (key !== null && !apps.some(app => app.key === key)) continue;
+      const b = make('button', {type: 'button', className: 'pv-scope', textContent: label});
+      b.setAttribute('aria-pressed', String(scope[0] === label));
       b.addEventListener('click', () => {
-        remember(value ? new Set() : new Set(apps.map(a => a.key)));
-        picks.querySelectorAll('input').forEach(box => { box.checked = value; });
+        scope = [label, key];
+        group.querySelectorAll('.pv-scope').forEach(other => other.setAttribute('aria-pressed', String(other === b)));
       });
-      picks.append(b);
+      group.append(b);
     }
-    hint = make('div', {className: 'pv-hint'});
-    hint.setAttribute('aria-live', 'polite');
-    bar.append(field, make('button', {type: 'submit', className: 'pv-go', textContent: 'Search'}), picks, hint);
-    bar.addEventListener('submit', event => {
-      if (!picks.querySelector('input:checked')) { event.preventDefault(); hint.textContent = 'Tick at least one app to search.'; }
+    bar.append(field, group);
+    // The apps for the chosen scope travel as GET parameters; FormData reads them after this handler.
+    bar.addEventListener('submit', () => {
+      bar.querySelectorAll('input[name=app]').forEach(node => node.remove());
+      const keys = scope[1] === null ? apps.map(app => app.key) : [scope[1]];
+      for (const key of keys) bar.append(make('input', {type: 'hidden', name: 'app', value: key}));
     });
     host.prepend(bar);
   }
+  // "/" focuses the search field unless the user is already typing somewhere.
+  document.addEventListener('keydown', event => {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
+    const target = event.target;
+    if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+    const input = bar?.querySelector('input[name=q]');
+    if (!input) return;
+    event.preventDefault(); input.focus();
+  });
   async function start() {
     try {
       const response = await fetch('/search/apps', {credentials: 'same-origin', cache: 'no-store'});
@@ -349,39 +313,19 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   else start();
 })();
 
-/* Board Keyhole logo: the mark before the launcher's "PiVault" title (custom.css draws the
-   title as #layout-groups::before) and the tab icon. The title shares its grid area with the
-   search bar, so it is pinned to the top and centred rather than stretched over the search row.
-   Its 44px Manrope 200 in the mark's colour sets the cap height (0.72em) to the board outline's
-   height and the stem weight closest to the mark's stroke. Both are inline SVG data URIs, so nothing
-   is fetched; the wordmark keeps Homepage's bundled Manrope. Next.js can re-render <head>, so
-   any icon it re-adds is replaced again. */
+/* Tab icon: the keyhole board, as an inline SVG so nothing is fetched. The launcher's title mark
+   is drawn by custom.css. Next.js can re-render <head>, so the icon is re-applied when that happens. */
 (() => {
   if (window.piVaultLogoLoaded) return;
   window.piVaultLogoLoaded = true;
-  const L = '#layout-groups#layout-groups#layout-groups';
-  const pins = [27, 35, 43, 51, 59, 67, 75, 83, 91].map(x => `<rect x="${x}" y="28" width="5" height="5" rx="1"/>`).join('');
-  const holes = [[16, 30], [104, 30], [16, 90], [104, 90]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3"/>`).join('');
-  const mark = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">' +
-    '<rect x="8" y="22" width="104" height="76" rx="7" stroke="#91acc3" stroke-width="3"/>' +
-    `<g fill="#91acc3">${pins}</g><g stroke="#91acc3" stroke-width="2">${holes}</g>` +
-    '<path d="M54 61.9A10 10 0 1 1 66 61.9L70.5 84H49.5Z" stroke="#91acc3" stroke-width="3" stroke-linejoin="round"/></svg>';
   const icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#202a35"/>' +
     '<svg x="3" y="3" width="26" height="26" viewBox="0 0 120 120" fill="none">' +
     '<rect x="8" y="20" width="104" height="80" rx="10" stroke="#91acc3" stroke-width="11"/>' +
     '<path d="M53 60A13 13 0 1 1 67 60L72 86H48Z" stroke="#91acc3" stroke-width="11" stroke-linejoin="round"/></svg></svg>';
   const uri = svg => 'data:image/svg+xml,' + encodeURIComponent(svg);
-  const style = document.createElement('style');
-  style.id = 'pv-logo';
-  style.textContent = `
-    body:has(#pivault-books) ${L}::before{align-self:start;justify-self:center;height:48px;padding-left:60px;
-      font-size:44px;font-weight:200;line-height:48px;letter-spacing:-1.4px;color:#91acc3;
-      background:url("${uri(mark)}") no-repeat left 0 top 1px/48px 48px}
-  `;
   const tab = Object.assign(document.createElement('link'), {id: 'pv-icon', rel: 'icon', type: 'image/svg+xml', href: uri(icon)});
   const apply = () => {
     document.head.querySelectorAll('link[rel~="icon"]:not(#pv-icon),link[rel="apple-touch-icon"]').forEach(link => link.remove());
-    if (!style.isConnected) document.head.append(style);
     if (!tab.isConnected) document.head.append(tab);
   };
   const start = () => { apply(); new MutationObserver(apply).observe(document.head, {childList: true}); };
