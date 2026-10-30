@@ -5,7 +5,7 @@
 
 BASE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/home/snx/pi-services/cinema"
-VIDEO_DISK="/srv/disk1"
+VIDEO_DISK="/srv/disk3"
 VIDEO_ROOT="$VIDEO_DISK/videos"
 NOTIFICATION_ROOT="/srv/pi-server/config/notifications"
 export TZ=America/New_York
