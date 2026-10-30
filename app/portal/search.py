@@ -106,14 +106,23 @@ class WikiSearch(Connector):
 
     def search(self, term):
         languages = {}
+        titles_only = []
         for entry in self.xml('/catalog/v2/entries', {'count': -1}).iter(ATOM + 'entry'):
             # The catalog <name> is ZIM metadata, not the server's URL name, so
             # books.name rejects it ("No such book"); the UUID always matches.
             book = (entry.findtext(ATOM + 'id') or '').removeprefix('urn:uuid:')
-            # One unindexed ZIM makes kiwix reject its whole language batch (404).
             tags = (entry.findtext(ATOM + 'tags') or '').split(';')
-            if book and '_ftindex:no' not in tags:
-                languages.setdefault(entry.findtext(ATOM + 'language') or '', []).append(book)
+            if not book:
+                continue
+            if '_ftindex:no' in tags:
+                # No full-text index: kiwix answers title suggestions for it, not /search.
+                # One unindexed ZIM in a language batch would make kiwix reject the whole batch (404).
+                href = next((link.get('href', '') for link in entry.findall(ATOM + 'link')
+                             if link.get('href', '').startswith('/content/')), '')
+                if href:
+                    titles_only.append(href.removeprefix('/content/'))
+                continue
+            languages.setdefault(entry.findtext(ATOM + 'language') or '', []).append(book)
         results = []
         for books in languages.values():
             feed = self.xml('/search', {'pattern': term, 'books.id': books,
@@ -125,6 +134,11 @@ class WikiSearch(Connector):
                     item.findtext('title') or link, self.url(link),
                     item.findtext('book/title') or '',
                     _text(''.join(description.itertext())) if description is not None else ''))
+        for name in titles_only:
+            for suggestion in self.json('/suggest', {'content': name, 'term': term, 'count': LIMIT}):
+                if suggestion.get('kind') == 'path' and isinstance(suggestion.get('path'), str):
+                    results.append(Result(suggestion.get('value', ''),
+                                          self.url('/content/' + name + '/' + quote(suggestion['path'])), ''))
         return results[:LIMIT]
 
 

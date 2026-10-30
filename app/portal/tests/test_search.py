@@ -24,6 +24,7 @@ CATALOG = b'''<feed xmlns="http://www.w3.org/2005/Atom">
 <entry><id>urn:uuid:bbbb</id><name>wikivoyage_en</name><language>eng</language></entry>
 <entry><id>urn:uuid:cccc</id><name>wikipedia_fr</name><language>fra</language></entry>
 <entry><id>urn:uuid:dddd</id><name>gutenberg_en</name><language>eng</language>
+<link type="text/html" href="/content/gutenberg_en_all_2025-11"/>
 <tags>_category:gutenberg;_ftindex:no</tags></entry></feed>'''
 KIWIX = b'''<rss version="2.0"><channel><item><title>Apollo 11</title>
 <link>/content/wikipedia_en/A/Apollo_11</link><description>The <b>Apollo</b> mission...</description>
@@ -58,6 +59,7 @@ def responses(calls):
                                              '__search_hit__': {'highlights': 'a <span class="match">moon</span>'}}]},
             '/api/v1/entities': {'items': [{'id': 'u-1', 'name': 'Telescope', 'parent': {'name': 'Garage'}}]},
             '/api/objects/products': [{'id': 3, 'name': 'Moon pie'}],
+            '/suggest': [{'kind': 'path', 'value': 'Alice in Wonderland', 'label': 'Alice', 'path': 'Alice in Wonderland.11'}],
         }[path]
         return json.dumps(body).encode()
     return fetch
@@ -113,6 +115,14 @@ class SearchTests(TestCase):
             results = search.CONNECTORS['books'].search('Poe')
         self.assertEqual([r.title for r in results], ['Short Fiction', 'Poetical Essays'])
         self.assertEqual(results[0].url, 'http://192.168.4.90:8083/book/2')
+
+    def test_wiki_suggests_titles_for_zims_without_a_full_text_index(self):
+        results = search.CONNECTORS['wiki'].search('alice')
+        suggest = [query for _, path, query in self.calls if path == '/suggest']
+        self.assertEqual(suggest, [{'content': 'gutenberg_en_all_2025-11', 'term': 'alice', 'count': 10}])
+        self.assertIn('http://192.168.4.90:8084/content/gutenberg_en_all_2025-11/Alice%20in%20Wonderland.11',
+                      [result.url for result in results])
+        self.assertFalse(any(path == '/search' and 'gutenberg' in str(query) for _, path, query in self.calls))
 
     def test_wiki_searches_once_per_language(self):
         self.get('/search?q=apollo&app=wiki')
