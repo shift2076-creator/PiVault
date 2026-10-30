@@ -7,7 +7,7 @@ services:
     - 192.168.4.90:8096:8096
     volumes:
     - /srv/pi-server/config/jellyfin:/config
-    - /srv/disk1/videos:/media/videos:ro
+    - /srv/disk3/videos:/media/videos:ro
     restart: unless-stopped
   navidrome:
     image: pivault-music-pinned:82838e7fadf89382
@@ -17,7 +17,7 @@ services:
     - 192.168.4.90:4533:4533
     volumes:
     - /srv/pi-server/config/navidrome:/data
-    - /media/snx/C29C87F99C87E66F/Server/Music:/music:ro
+    - /srv/disk3/music:/music:ro
     restart: unless-stopped
     environment:
       ND_BASEURL: /music
@@ -33,7 +33,7 @@ services:
     - 192.168.4.90:8083:8083
     volumes:
     - /srv/pi-server/config/calibre-web:/config
-    - /media/snx/C29C87F99C87E66F/Server/Books:/books
+    - /srv/disk1/Server/Books:/books
     restart: unless-stopped
   arcade:
     image: arianrhodsandlot/retroassembly:v7.260906.1627
@@ -41,7 +41,7 @@ services:
     ports:
     - 192.168.4.90:8000:8000
     volumes:
-    - /media/snx/C29C87F99C87E66F/Server/Atari5200:/app/data
+    - /srv/disk1/Server/Atari5200:/app/data
     restart: unless-stopped
   kiwix:
     image: ghcr.io/kiwix/kiwix-serve:3.8.2
@@ -49,18 +49,15 @@ services:
     ports:
     - 192.168.4.90:8084:8080
     volumes:
-    - /media/snx/C29C87F99C87E66F/Server/Kiwix:/data:ro
+    - /srv/disk4/Server/Kiwix:/data:ro
     command:
-    - '*.zim'
-    restart: unless-stopped
+    - docs.python.org_en_all_2026-08a.zim
+    - gutenberg_en_all_2025-11.zim
+    - wikipedia_en_all_maxi_2026-08.zim
+    restart: on-failure:5
   paperless-db:
     image: postgres:18
     container_name: pivault-paperless-db
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER:-postgres}\""]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     env_file:
     - /srv/pi-server/config/paperless/paperless.env
     volumes:
@@ -69,11 +66,6 @@ services:
   paperless-broker:
     image: valkey/valkey:9-alpine
     container_name: pivault-paperless-broker
-    healthcheck:
-      test: ["CMD-SHELL", "valkey-cli ping | grep -q PONG"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     volumes:
     - /srv/pi-server/config/paperless/broker:/data
     restart: unless-stopped
@@ -81,10 +73,8 @@ services:
     image: ghcr.io/paperless-ngx/paperless-ngx:3.3.3
     container_name: pivault-paperless
     depends_on:
-      paperless-db:
-        condition: service_healthy
-      paperless-broker:
-        condition: service_healthy
+    - paperless-db
+    - paperless-broker
     ports:
     - 192.168.4.90:8085:8000
     env_file:
@@ -100,9 +90,9 @@ services:
       USERMAP_GID: '1000'
     volumes:
     - /srv/pi-server/config/paperless/data:/usr/src/paperless/data
-    - /media/snx/C29C87F99C87E66F/Server/Documents/Paperless/Archive:/usr/src/paperless/media
-    - /media/snx/C29C87F99C87E66F/Server/Documents/Paperless/Inbox:/usr/src/paperless/consume
-    - /media/snx/C29C87F99C87E66F/Server/Documents/Paperless/Export:/usr/src/paperless/export
+    - /srv/disk1/Server/Documents/Paperless/Archive:/usr/src/paperless/media
+    - /srv/disk1/Server/Documents/Paperless/Inbox:/usr/src/paperless/consume
+    - /srv/disk1/Server/Documents/Paperless/Export:/usr/src/paperless/export
     restart: unless-stopped
   vaultwarden:
     image: vaultwarden/server:1.37.4
@@ -140,6 +130,14 @@ services:
     volumes:
     - /srv/pi-server/config/homepage:/app/config
     restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget --no-verbose --tries=1 --spider -Y off http://127.0.0.1:$$PORT/api/healthcheck || exit 1
+      interval: 10s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
   homebox:
     image: ghcr.io/sysadminsmedia/homebox:0.27.0
     container_name: pivault-homebox
@@ -164,45 +162,6 @@ services:
       TZ: America/New_York
     volumes:
     - /srv/pi-server/config/grocy:/config
-    restart: unless-stopped
-  calendar-db:
-    image: postgres:17-alpine
-    container_name: pivault-calendar-db
-    env_file:
-    - /srv/pi-server/config/calendar/calendar.env
-    volumes:
-    - /srv/pi-server/config/calendar/postgres:/var/lib/postgresql/data
-    restart: unless-stopped
-  calendar:
-    image: nextcloud:34.0.5-apache
-    container_name: pivault-calendar
-    depends_on:
-    - calendar-db
-    env_file:
-    - /srv/pi-server/config/calendar/calendar.env
-    environment:
-      POSTGRES_HOST: calendar-db
-      NEXTCLOUD_TRUSTED_DOMAINS: 192.168.4.90
-      TZ: America/New_York
-    ports:
-    - 192.168.4.90:8088:80
-    volumes:
-    - ./calendar-no-jit.ini:/usr/local/etc/php/conf.d/zz-calendar-no-jit.ini:ro
-    - /srv/pi-server/config/calendar/html:/var/www/html
-    restart: unless-stopped
-  calendar-cron:
-    image: nextcloud:34.0.5-apache
-    container_name: pivault-calendar-cron
-    entrypoint: /cron.sh
-    depends_on:
-    - calendar
-    env_file:
-    - /srv/pi-server/config/calendar/calendar.env
-    environment:
-      POSTGRES_HOST: calendar-db
-      TZ: America/New_York
-    volumes:
-    - /srv/pi-server/config/calendar/html:/var/www/html
     restart: unless-stopped
   pivault-users:
     image: pivault-users:e2120183f2a319aa
@@ -249,7 +208,7 @@ services:
       PUID: '1000'
       PGID: '1000'
     volumes:
-    - /media/snx/C29C87F99C87E66F/Server/Photos/lychee/uploads:/app/public/uploads
+    - /srv/disk1/Server/Photos/lychee/uploads:/app/public/uploads
     - /srv/photos/lychee/app:/app/storage/app
     - /srv/photos/lychee/tmp:/app/storage/tmp
     - /srv/photos/lychee/logs:/app/storage/logs
