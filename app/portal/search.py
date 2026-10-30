@@ -20,7 +20,7 @@ from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
 from .integrations.native_http import NoRedirect
 
-LIMIT = 10
+LIMIT = 25
 TIMEOUT = 6
 MAX_BYTES = 2 * 1024 * 1024
 CONNECTORS = {}
@@ -120,7 +120,7 @@ class WikiSearch(Connector):
                 href = next((link.get('href', '') for link in entry.findall(ATOM + 'link')
                              if link.get('href', '').startswith('/content/')), '')
                 if href:
-                    titles_only.append(href.removeprefix('/content/'))
+                    titles_only.append((href.removeprefix('/content/'), entry.findtext(ATOM + 'title') or ''))
                 continue
             languages.setdefault(entry.findtext(ATOM + 'language') or '', []).append(book)
         results = []
@@ -135,11 +135,12 @@ class WikiSearch(Connector):
                     item.findtext('book/title') or '',
                     _text(''.join(description.itertext())) if description is not None else ''))
         suggested = []
-        for name in titles_only:
+        for name, source in titles_only:
             for suggestion in self.json('/suggest', {'content': name, 'term': term, 'count': LIMIT}):
                 if suggestion.get('kind') == 'path' and isinstance(suggestion.get('path'), str):
                     suggested.append(Result(suggestion.get('value', ''),
-                                            self.url('/content/' + name + '/' + quote(suggestion['path'])), ''))
+                                            self.url('/content/' + name + '/' + quote(suggestion['path'])),
+                                            source))
         # Title suggestions get up to half the page, so full-text hits cannot push them out.
         keep = LIMIT - min(len(suggested), LIMIT // 2)
         return results[:keep] + suggested[:LIMIT - keep]
