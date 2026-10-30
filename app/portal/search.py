@@ -21,6 +21,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 from .integrations.native_http import NoRedirect
 
 LIMIT = 25
+RRF_K = 60  # Reciprocal rank fusion constant (Cormack, Clarke and Büttcher, SIGIR 2009).
 TIMEOUT = 6
 MAX_BYTES = 2 * 1024 * 1024
 CONNECTORS = {}
@@ -123,26 +124,29 @@ class WikiSearch(Connector):
                     titles_only.append((href.removeprefix('/content/'), entry.findtext(ATOM + 'title') or ''))
                 continue
             languages.setdefault(entry.findtext(ATOM + 'language') or '', []).append(book)
-        results = []
+        lists = []  # Each list is one ranked result set, in the order its source ranked it.
         for books in languages.values():
             feed = self.xml('/search', {'pattern': term, 'books.id': books,
                                         'format': 'xml', 'pageLength': LIMIT})
+            ranked = []
             for item in feed.iter('item'):
                 link = item.findtext('link') or ''
                 description = item.find('description')
-                results.append(Result(
+                ranked.append(Result(
                     item.findtext('title') or link, self.url(link),
                     item.findtext('book/title') or '',
                     _text(''.join(description.itertext())) if description is not None else ''))
-        suggested = []
+            lists.append(ranked)
         for name, source in titles_only:
+            ranked = []
             for suggestion in self.json('/suggest', {'content': name, 'term': term, 'count': LIMIT}):
                 if suggestion.get('kind') == 'path' and isinstance(suggestion.get('path'), str):
-                    suggested.append(Result(suggestion.get('value', ''),
-                                            self.url('/content/' + name + '/' + quote(suggestion['path'])),
-                                            source))
-        # Rank by how the title matches the term, as Books does: exact, then prefix, then
-        # contained, then body-only hits. The sort is stable, so Kiwix's order holds within a tier.
+                    ranked.append(Result(suggestion.get('value', ''),
+                                         self.url('/content/' + name + '/' + quote(suggestion['path'])),
+                                         source))
+            lists.append(ranked)
+        # Fuse the lists by rank, not score: Xapian BM25 scores and suggestion order are not comparable.
+        # The title-match list (exact, prefix, contained, then body-only) makes title hits rank high.
         needle = term.casefold()
 
         def tier(result):
@@ -153,7 +157,14 @@ class WikiSearch(Connector):
                 return 1
             return 2 if needle in title else 3
 
-        return sorted(results + suggested, key=tier)[:LIMIT]
+        lists.append(sorted((result for ranked in lists for result in ranked), key=tier))
+        scores, first = {}, {}
+        for ranked in lists:
+            for rank, result in enumerate(ranked, start=1):
+                scores[result.url] = scores.get(result.url, 0) + 1 / (RRF_K + rank)
+                first.setdefault(result.url, result)
+        order = sorted(scores, key=lambda url: (-scores[url], tier(first[url])))
+        return [first[url] for url in order][:LIMIT]
 
 
 class VideoSearch(Connector):

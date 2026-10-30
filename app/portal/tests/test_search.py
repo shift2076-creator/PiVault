@@ -129,9 +129,12 @@ class SearchTests(TestCase):
                         for i in range(30))
         feed = ('<rss version="2.0"><channel>' + items + '</channel></rss>').encode()
         base = responses(self.calls)
+        empty = b'<rss version="2.0"><channel></channel></rss>'
 
         def fetch(connector, path, query=()):
-            return feed if path == '/search' else base(connector, path, query)
+            if path != '/search':
+                return base(connector, path, query)
+            return feed if 'aaaa' in query['books.id'] else empty
 
         with patch.object(search.Connector, 'fetch', fetch):
             results = search.CONNECTORS['wiki'].search('alice')
