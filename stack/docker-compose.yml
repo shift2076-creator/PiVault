@@ -50,6 +50,8 @@ services:
     - 192.168.4.90:8084:8080
     volumes:
     - /srv/disk4/Server/Kiwix:/data:ro
+    - /srv/disk1/Server/Kiwix/wikipedia_en_all_maxi_2026-08.zim:/data/wikipedia_en_all_maxi_2026-08.zim:ro
+    - /srv/disk1/Server/Kiwix/docs.python.org_en_all_2026-08a.zim:/data/docs.python.org_en_all_2026-08a.zim:ro
     command:
     - docs.python.org_en_all_2026-08a.zim
     - gutenberg_en_all_2025-11.zim
