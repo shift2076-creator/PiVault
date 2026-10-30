@@ -124,7 +124,7 @@ class SearchTests(TestCase):
                       [result.url for result in results])
         self.assertFalse(any(path == '/search' and 'gutenberg' in str(query) for _, path, query in self.calls))
 
-    def test_wiki_keeps_title_suggestions_when_full_text_fills_the_page(self):
+    def test_wiki_ranks_title_matches_above_full_text_hits(self):
         items = ''.join('<item><title>Hit %d</title><link>/content/wikipedia_en/A/Hit_%d</link></item>' % (i, i)
                         for i in range(30))
         feed = ('<rss version="2.0"><channel>' + items + '</channel></rss>').encode()
@@ -136,9 +136,8 @@ class SearchTests(TestCase):
         with patch.object(search.Connector, 'fetch', fetch):
             results = search.CONNECTORS['wiki'].search('alice')
         self.assertEqual(len(results), search.LIMIT)
-        gutenberg = [result for result in results if 'gutenberg_en_all_2025-11' in result.url]
-        self.assertTrue(gutenberg)
-        self.assertEqual(gutenberg[0].detail, 'Project Gutenberg')
+        self.assertEqual(results[0].title, 'Alice in Wonderland')
+        self.assertEqual(results[0].detail, 'Project Gutenberg')
 
     def test_wiki_searches_once_per_language(self):
         self.get('/search?q=apollo&app=wiki')

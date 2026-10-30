@@ -141,9 +141,19 @@ class WikiSearch(Connector):
                     suggested.append(Result(suggestion.get('value', ''),
                                             self.url('/content/' + name + '/' + quote(suggestion['path'])),
                                             source))
-        # Title suggestions get up to half the page, so full-text hits cannot push them out.
-        keep = LIMIT - min(len(suggested), LIMIT // 2)
-        return results[:keep] + suggested[:LIMIT - keep]
+        # Rank by how the title matches the term, as Books does: exact, then prefix, then
+        # contained, then body-only hits. The sort is stable, so Kiwix's order holds within a tier.
+        needle = term.casefold()
+
+        def tier(result):
+            title = result.title.casefold().strip()
+            if title == needle:
+                return 0
+            if title.startswith(needle):
+                return 1
+            return 2 if needle in title else 3
+
+        return sorted(results + suggested, key=tier)[:LIMIT]
 
 
 class VideoSearch(Connector):
