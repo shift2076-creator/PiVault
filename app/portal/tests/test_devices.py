@@ -128,6 +128,14 @@ class AdminPageTests(DeviceTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Android devices')
 
+    def test_overview_lists_each_app_with_its_description_and_sync_column(self):
+        self.identify()
+        self.client.force_login(self.admin)
+        response = self.client.get('/devices')
+        self.assertContains(response, 'Password manager for your Vaultwarden server')
+        self.assertContains(response, 'Sync to phone')
+        self.assertContains(response, 'Organic Maps')
+
     def test_rename_and_set_app_state(self):
         device_id = self.identify().json()['id']
         self.client.force_login(self.admin)

@@ -5,81 +5,86 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Android devices · PiVault</title>
   <style>
-    :root{color-scheme:dark;--pv-background:#151c22;--pv-surface:#1c222b;--pv-text:#e8edf2;--pv-secondary:#91acc3;--pv-accent:#b4c0ce;--pv-divider:rgba(151,170,190,.48);--pv-gutter:clamp(24px,3.90625vw,60px)}
+    :root{color-scheme:dark;--pv-background:#1b1f26;--pv-card:#22272f;--pv-text:#e8edf2;--pv-secondary:#9aa6b4;--pv-accent:#b4c0ce;--pv-divider:#2e3540;--pv-green:#3fb950;--pv-orange:#e3a24a;--pv-gutter:clamp(24px,3.90625vw,60px)}
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;color:var(--pv-text);background:radial-gradient(ellipse at 52% 45%,#1a222a 0%,#151c22 68%,#131a20 100%);font:16px/1.5 Arial,Helvetica,sans-serif}
-    main{width:calc(100% - var(--pv-gutter)*2);max-width:1000px;margin:auto;padding:clamp(32px,6.51vw,100px) 0 64px}
-    h1{font-size:34px;letter-spacing:-1.1px;color:var(--pv-accent);margin:24px 0 40px}
-    h2{font-size:18px;margin:0 0 8px;color:var(--pv-text)}
-    a{color:var(--pv-secondary);text-decoration:none}a:hover{color:var(--pv-text)}
-    a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--pv-accent);outline-offset:4px}
-    p{overflow-wrap:anywhere;margin:0 0 12px}
-    .secondary{color:var(--pv-secondary);font-size:15px}
-    code{font-size:14px;color:var(--pv-accent)}
-    section{background:var(--pv-surface);border:1px solid var(--pv-divider);border-radius:.5em;padding:22px;margin:0 0 20px}
-    .back{display:inline-block;margin-bottom:8px}
-    .helper-links{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px}
-    .button-link,button{font:inherit;min-height:46px;padding:10px 18px;border:0;border-radius:.5em;cursor:pointer;background:#52667e;color:var(--pv-text);display:inline-flex;align-items:center;text-decoration:none}
-    button:hover,.button-link:hover{background:#60758e;color:var(--pv-text)}
-    .button-link.quiet{background:transparent;border:1px solid var(--pv-divider)}
-    .button-link.quiet:hover{background:rgba(151,170,190,.1)}
-    .rename{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;margin:0 0 16px}
-    .rename label{display:flex;flex-direction:column;gap:6px;color:var(--pv-secondary);font-size:14px}
-    input[type=text],input:not([type]){background:var(--pv-background);color:var(--pv-text);border:1px solid var(--pv-divider);border-radius:.4em;padding:10px 12px;font:inherit;min-width:220px;min-height:46px}
+    body{margin:0;min-height:100vh;color:var(--pv-text);background:var(--pv-background);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+    main{width:calc(100% - var(--pv-gutter)*2);max-width:900px;margin:auto;padding:32px 0 64px;display:flex;flex-direction:column;gap:20px}
+    h1{font-size:28px;font-weight:600;margin:8px 0 0}
+    h2{font-size:20px;font-weight:600;margin:0 0 4px}
+    h3{font-size:18px;font-weight:600;margin:0 0 6px}
+    a{color:var(--pv-accent);text-decoration:none}a:hover{color:var(--pv-text);text-decoration:underline}
+    a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--pv-accent);outline-offset:3px}
+    p{margin:0;overflow-wrap:anywhere}
+    .secondary{color:var(--pv-secondary);font-size:14px}
+    code{font-size:13px;color:var(--pv-accent)}
+    .card{background:var(--pv-card);border:1px solid var(--pv-divider);border-radius:14px;padding:20px}
+    .back{font-size:14px;color:var(--pv-secondary)}
+    .helper-links{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}
+    .btn{font:inherit;font-size:15px;min-height:42px;padding:9px 16px;border-radius:10px;border:1px solid #3a4250;background:transparent;color:#c9d0da;cursor:pointer;display:inline-flex;align-items:center;text-decoration:none;white-space:nowrap}
+    .btn:hover{background:rgba(151,170,190,.1);color:var(--pv-text);text-decoration:none}
+    .btn.primary{background:#e8ebf0;border-color:#e8ebf0;color:#13161b;font-weight:600}
+    .btn.primary:hover{background:#ffffff;color:#13161b}
+    .device-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:16px}
+    .rename{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:0}
+    .rename label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--pv-secondary)}
+    .rename input{background:var(--pv-background);color:var(--pv-text);border:1px solid #3a4250;border-radius:8px;padding:9px 12px;font:inherit;font-size:15px;min-width:200px;min-height:42px}
+    .rename .btn{background:#2a303a;border-color:#2a303a;color:var(--pv-text)}
     .table-wrap{overflow-x:auto}
     table{border-collapse:collapse;width:100%;min-width:520px}
-    th{text-align:left;font-size:13px;letter-spacing:1.3px;text-transform:uppercase;color:var(--pv-secondary);padding:12px 10px;border-bottom:1px solid var(--pv-divider)}
-    td{padding:14px 10px;border-bottom:1px solid rgba(151,170,190,.2);vertical-align:middle}
-    td form{margin:0}
+    th,td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--pv-divider);vertical-align:middle}
+    thead th{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--pv-secondary);font-weight:600;padding-top:6px}
+    tbody th{font-weight:500;white-space:nowrap;width:1%}
+    tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}
+    .sync{text-align:right;width:1%;white-space:nowrap}
+    .pill{display:inline-block;font-size:14px;padding:7px 14px;border-radius:10px;border:1px solid #2e6b3a;color:var(--pv-green);white-space:nowrap}
+    .retry{border-color:#7a5a2a;color:var(--pv-orange)}
+    .warn{color:var(--pv-orange);font-size:13px}
     .empty{color:var(--pv-secondary)}
-    @media(max-width:520px){h1{font-size:30px}}
+    @media(max-width:620px){h1{font-size:24px}.device-head{align-items:stretch}.rename input{min-width:0;flex:1}}
   </style>
 </head>
 <body data-mode="devices">
 <main>
-  <a class="back" href="/system">← Back to System</a>
+  <a class="back" href="/system">‹ Back to System</a>
   <h1>Android devices</h1>
-  <section>
-    <h2>Sync helper</h2>
+  <section class="card" aria-labelledby="helper-h">
+    <h2 id="helper-h">Sync helper</h2>
     <p class="secondary">Run the helper on the computer the phone is plugged into. That computer needs adb (Android platform-tools) on its PATH. The download carries a sign-in token that expires after two hours.</p>
     <div class="helper-links">
-      <a class="button-link" href="/devices/sync.py" download>Download pivault-android-sync.py</a>
-      <a class="button-link quiet" href="/devices/ca.crt" download>Download PiVault root certificate</a>
+      <a class="btn primary" href="/devices/sync.py" download>Download sync helper</a>
+      <a class="btn" href="/devices/ca.crt" download>Download root certificate</a>
     </div>
-    <p class="secondary" style="margin-top:16px">Run the helper with <code>--cafile pivault-root.crt</code>.</p>
+    <p class="secondary" style="margin-top:14px">Run the helper with <code>--cafile pivault-root.crt</code>.</p>
   </section>
   {% for row in rows %}
-  <section>
-    <form class="rename" method="post" action="/devices/{{ row.device.id }}/rename">{% csrf_token %}
-      <label>Name
-        <input type="text" name="name" value="{{ row.device.name }}" maxlength="80" required>
-      </label>
-      <button type="submit">Rename</button>
-    </form>
-    <h2>{{ row.device.name }}</h2>
-    <p class="secondary">{{ row.device.model|default:"Model unknown" }} · Android {{ row.device.android_release|default:"unknown" }} · Last seen {{ row.device.last_seen|default:"never" }}</p>
+  <section class="card" aria-labelledby="device-{{ row.device.id }}">
+    <div class="device-head">
+      <div>
+        <h2 id="device-{{ row.device.id }}">{{ row.device.name }}</h2>
+        <p class="secondary">Android {{ row.device.android_release|default:"unknown" }} · Last seen {{ row.device.last_seen|default:"never" }}</p>
+      </div>
+      <form class="rename" method="post" action="/devices/{{ row.device.id }}/rename">{% csrf_token %}
+        <label>Name
+          <input type="text" name="name" value="{{ row.device.name }}" maxlength="80" required>
+        </label>
+        <button class="btn" type="submit">Rename</button>
+      </form>
+    </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
             <th scope="col">App</th>
-            <th scope="col">On phone</th>
-            <th scope="col">Wanted</th>
-            <th scope="col"><span style="position:absolute;width:1px;height:1px;overflow:hidden">Action</span></th>
+            <th scope="col">Description</th>
+            <th scope="col" class="sync">Sync to phone</th>
           </tr>
         </thead>
         <tbody>
           {% for entry in row.apps %}
           <tr>
-            <td>{{ entry.label }}</td>
-            <td>{% if entry.app %}{{ entry.app.observed_state }}{% if entry.app.observed_version %} {{ entry.app.observed_version }}{% endif %}{% else %}unknown{% endif %}</td>
-            <td class="secondary">{% if entry.enabled %}enabled{% else %}disabled{% endif %}</td>
-            <td style="text-align:right">
-              <form method="post" action="/devices/{{ row.device.id }}/apps/{{ entry.client }}">{% csrf_token %}
-                <input type="hidden" name="enabled" value="{% if entry.enabled %}off{% else %}on{% endif %}">
-                <button type="submit">{% if entry.enabled %}Disable{% else %}Enable{% endif %}</button>
-              </form>
-            </td>
+            <th scope="row">{{ entry.name }}</th>
+            <td class="secondary">{{ entry.description }}{% if entry.app.observed_state == "error" %}<br><span class="warn">Install failed</span>{% endif %}</td>
+            <td class="sync">{% if entry.app.observed_state == "enabled" %}<span class="pill">✓ Synced</span>{% elif entry.app.observed_state == "error" %}<button class="btn retry" type="button">Retry sync</button>{% else %}<button class="btn" type="button">Sync to phone</button>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>

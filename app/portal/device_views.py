@@ -27,6 +27,15 @@ from .models import ClientPackage, Device, DeviceApp, User
 # Vibrdrome is left out until its package id is verified on a device; the list is the only gate.
 DEVICE_PACKAGES = {'android': 'com.x8bit.bitwarden', 'fdroid': 'org.fdroid.fdroid', 'adaway': 'org.adaway',
                    'davx5': 'at.bitfire.davdroid', 'jellyfin': 'org.jellyfin.mobile', 'organicmaps': 'app.organicmaps'}
+# Names and one-line descriptions shown on the device page, keyed like DEVICE_PACKAGES.
+DEVICE_DESCRIPTIONS = {
+    'android': ('Bitwarden', 'Password manager for your Vaultwarden server'),
+    'fdroid': ('F-Droid', 'Open-source app store for the local repo'),
+    'adaway': ('AdAway', 'Blocks ads and trackers system-wide'),
+    'davx5': ('DAVx⁵', 'Syncs contacts and calendars with your server'),
+    'jellyfin': ('Jellyfin', 'Client for your Jellyfin media server'),
+    'organicmaps': ('Organic Maps', 'Offline maps and navigation'),
+}
 TOKEN_SALT = 'pivault.devices.helper'
 TOKEN_SECONDS = 2 * 60 * 60
 HELPER = Path(__file__).resolve().parent / 'device_sync' / 'pivault_android_sync.py'
@@ -171,7 +180,8 @@ def overview(request):
     for device in Device.objects.prefetch_related('apps').order_by('name', 'first_seen'):
         apps = {app.client: app for app in device.apps.all()}
         rows.append({'device': device, 'apps': [
-            {'client': client, 'label': CLIENTS[client][0], 'app': apps.get(client),
+            {'client': client, 'label': CLIENTS[client][0], 'name': DEVICE_DESCRIPTIONS[client][0],
+             'description': DEVICE_DESCRIPTIONS[client][1], 'app': apps.get(client),
              'enabled': apps[client].enabled if client in apps else True}
             for client in DEVICE_PACKAGES]})
     return render(request, 'devices.html', {'rows': rows})
