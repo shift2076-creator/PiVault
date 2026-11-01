@@ -106,7 +106,6 @@ class SyncApiTests(DeviceTestCase):
         apps = self.client.get('/devices/api/manifest', **self.bearer(self.admin)).json()['apps']
         self.assertEqual(set(apps), {'davx5'})
         self.assertEqual(apps['davx5']['sha256'], hashlib.sha256(b'approved-apk').hexdigest())
-        self.assertNotIn('vibrdrome', device_views.DEVICE_PACKAGES)
         self.assertNotIn('firefox', device_views.DEVICE_PACKAGES)
 
     def test_apk_serves_only_the_approved_copy_to_a_token_holder(self):
@@ -145,7 +144,7 @@ class AdminPageTests(DeviceTestCase):
         self.client.post('/devices/%s/apps/davx5' % device_id, {'enabled': 'off'})
         self.assertFalse(DeviceApp.objects.get(device_id=device_id, client='davx5').enabled)
         self.assertEqual(self.client.post('/devices/%s/apps/firefox' % device_id, {'enabled': 'on'}).status_code, 404)
-        self.assertEqual(self.client.post('/devices/%s/apps/vibrdrome' % device_id, {'enabled': 'on'}).status_code, 404)
+        self.assertEqual(self.client.post('/devices/%s/apps/vibrdrome' % device_id, {'enabled': 'on'}).status_code, 302)
 
     def test_helper_download_embeds_a_working_token_and_the_origin(self):
         self.client.force_login(self.user)

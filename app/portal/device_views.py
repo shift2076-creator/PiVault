@@ -24,9 +24,10 @@ from .client_packages import CLIENTS, download_filename, release_path
 from .models import ClientPackage, Device, DeviceApp, User
 
 # Android package ids for the apps a phone can receive. Firefox is a browser add-on, not an Android app.
-# Vibrdrome is left out until its package id is verified on a device; the list is the only gate.
+# The list is the only gate: an app missing from it cannot be synced or toggled from the portal.
 DEVICE_PACKAGES = {'android': 'com.x8bit.bitwarden', 'fdroid': 'org.fdroid.fdroid', 'adaway': 'org.adaway',
-                   'davx5': 'at.bitfire.davdroid', 'jellyfin': 'org.jellyfin.mobile', 'organicmaps': 'app.organicmaps'}
+                   'davx5': 'at.bitfire.davdroid', 'jellyfin': 'org.jellyfin.mobile', 'organicmaps': 'app.organicmaps',
+                   'vibrdrome': 'com.vibrdrome.app'}
 # Names and one-line descriptions shown on the device page, keyed like DEVICE_PACKAGES.
 DEVICE_DESCRIPTIONS = {
     'android': ('Bitwarden', 'Password manager for your Vaultwarden server'),
@@ -35,6 +36,7 @@ DEVICE_DESCRIPTIONS = {
     'davx5': ('DAVx⁵', 'Syncs contacts and calendars with your server'),
     'jellyfin': ('Jellyfin', 'Client for your Jellyfin media server'),
     'organicmaps': ('Organic Maps', 'Offline maps and navigation'),
+    'vibrdrome': ('Vibrdrome', 'Client for your Navidrome music server'),
 }
 # The device page may call only the sync service on the sync computer (device_sync/pivault_android_sync.py serve).
 DEVICE_PAGE_CSP = ("default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
