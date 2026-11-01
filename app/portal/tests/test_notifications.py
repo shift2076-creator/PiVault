@@ -97,8 +97,10 @@ class NotificationTests(TestCase):
         payload = self.movie_event()
         ingest()
         self.client.force_login(self.admin)
-        with patch('portal.notifications.os.replace', side_effect=OSError('Disk unavailable')):
+        with patch('portal.notifications.os.replace', side_effect=OSError('Disk unavailable')), \
+                self.assertLogs('portal.notifications', level='WARNING') as logs:
             response = self.resolve(payload['id'], 'approve')
+        self.assertIn('awaiting delivery', logs.output[0])
         self.assertEqual(response.status_code, 202)
         value = Notification.objects.get()
         self.assertEqual((value.status, value.resolution), ('open', 'approve'))
@@ -134,7 +136,9 @@ class NotificationTests(TestCase):
         payload['id'] = hashlib.sha256(json.dumps(payload['details'], sort_keys=True).encode()).hexdigest()
         for path in (self.root / 'inbox').iterdir(): path.unlink()
         (self.root / 'inbox' / (payload['id'] + '.json')).write_text(json.dumps(payload))
-        ingest()
+        with self.assertLogs('portal.notifications', level='WARNING') as logs:
+            ingest()
+        self.assertIn('Could not import notification file', logs.output[0])
         self.assertFalse(Notification.objects.exists())
 
     def test_review_template_escapes_notification_content(self):

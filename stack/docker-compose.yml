@@ -185,7 +185,7 @@ services:
     - no-new-privileges:true
     tmpfs:
     - /tmp:rw,noexec,nosuid,size=64m
-    mem_limit: 384m
+    mem_limit: 512m
     env_file:
     - /srv/pi-server/config/users/users.env
     environment:
