@@ -239,6 +239,20 @@ class ComposeLabelTests(unittest.TestCase):
                 install.compose_service(self.DOCUMENT, self.caddy(files, folder))
 
 
+class PublishRootCertificateTests(unittest.TestCase):
+    def test_copies_only_the_public_root_certificate_into_the_data_directory(self):
+        with tempfile.TemporaryDirectory() as caddy_data, tempfile.TemporaryDirectory() as users_data:
+            Path(caddy_data, 'caddy/pki/authorities/local').mkdir(parents=True)
+            Path(caddy_data, 'caddy/pki/authorities/local/root.crt').write_text('public root')
+            Path(caddy_data, 'caddy/pki/authorities/local/root.key').write_text('private key')
+            caddy = {'Mounts': [{'Destination': '/data', 'Source': caddy_data}]}
+            with patch.object(install, 'inspect', return_value=caddy):
+                install.publish_root_certificate(Path(users_data), os.getuid(), os.getgid())
+            self.assertEqual(sorted(p.name for p in Path(users_data).iterdir()), ['caddy-root.crt'])
+            self.assertEqual(Path(users_data, 'caddy-root.crt').read_text(), 'public root')
+            self.assertEqual(Path(users_data, 'caddy-root.crt').stat().st_mode & 0o777, 0o600)
+
+
 class ProbeTests(unittest.TestCase):
     def probe(self, body, gate='404'):
         calls = []
@@ -456,6 +470,7 @@ class InstallationTransactionTests(unittest.TestCase):
                 stack.enter_context(patch.object(install, 'wait_healthy'))
                 stack.enter_context(patch.object(install, 'unit_flag', side_effect=lambda flag, name:
                     cinema_enabled and name == 'pivault-cinema.timer'))
+                stack.enter_context(patch.object(install, 'publish_root_certificate'))
                 stack.enter_context(patch.object(install, 'portal_probe',
                     side_effect=install.InstallError('simulated TLS validation failure') if fail_probe else None))
                 stack.enter_context(contextlib.redirect_stdout(output))

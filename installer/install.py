@@ -163,8 +163,8 @@ def unit_flag(flag, name):
     return subprocess.run(['systemctl', flag, '--quiet', name], capture_output=True).returncode == 0
 
 
-def portal_probe():
-    # Resolve the actual mounted Caddy CA. Verify TLS; never use -k or replace CA.
+def caddy_root_certificate():
+    # The public root certificate only. The CA private key stays in Caddy's data directory.
     ca = None
     caddy = inspect(CADDY)
     for mount in caddy.get('Mounts', []):
@@ -174,6 +174,20 @@ def portal_probe():
                 ca = candidate
     if ca is None:
         raise InstallError('Cannot verify the existing Caddy local CA certificate.')
+    return ca
+
+
+def publish_root_certificate(data_dir, uid, gid):
+    # The portal serves this copy to Admins for the Android sync helper (/devices/ca.crt).
+    target = data_dir / 'caddy-root.crt'
+    target.write_bytes(caddy_root_certificate().read_bytes())
+    os.chmod(target, 0o600)
+    os.chown(target, uid, gid)
+
+
+def portal_probe():
+    # Resolve the actual mounted Caddy CA. Verify TLS; never use -k or replace CA.
+    ca = caddy_root_certificate()
     base = ['curl', '--silent', '--show-error', '--fail', '--max-time', '15',
             '--cacert', str(ca), '--noproxy', '*']
     body = run(base + [PORTAL_SITE + '/users/sign-in'])
@@ -366,6 +380,7 @@ def install_portal():
             run(['docker', 'exec', CADDY, 'caddy', 'reload', '--config',
                  '/etc/caddy/Caddyfile', '--adapter', 'caddyfile'])
             portal_probe()
+            publish_root_certificate(data_dir, uid, gid)
             write_file(custom_js, js_candidate, mode=0o644)
             runtime_path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
             write_file(runtime_path, (SOURCE / 'jobs/maintenance.py').read_text(), mode=0o700)
