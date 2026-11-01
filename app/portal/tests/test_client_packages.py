@@ -90,6 +90,16 @@ class ClientPackageTests(TestCase):
             self.assertFalse(apply_release(release))
         request.assert_not_called()
 
+    def test_latest_release_downloads_automatically_but_is_not_installed_until_approved(self):
+        release, data = self.release()
+        with patch('portal.client_packages.discover', side_effect=OSError), \
+                patch('portal.client_packages.http_open', return_value=io.BytesIO(data)):
+            maintain()
+        self.assertEqual(release_path(release).read_bytes(), data)
+        self.assertIsNone(ClientPackage.objects.get(client='firefox').current)
+        release.notification.refresh_from_db()
+        self.assertEqual(release.notification.status, 'open')
+
     def test_approved_exact_copy_is_published_and_notification_resolves(self):
         release, data = self.release(); self.approve(release); release.refresh_from_db()
         with patch('portal.client_packages.http_open', return_value=io.BytesIO(data)):

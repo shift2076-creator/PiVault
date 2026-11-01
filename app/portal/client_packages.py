@@ -189,7 +189,7 @@ def record_release(client, data):
         release, _ = ClientRelease.objects.get_or_create(id=identity, defaults={'client': client, **data})
         if package.current_id != release.id and release.notification_id is None:
             item = notify('clients', identity, CLIENTS[client][0] + ' update available',
-                'Review this release before PiVault replaces its locally hosted download.',
+                'The download is already stored locally. Approve it to install it on devices and offer it to users.',
                 kind='clients.update', level='info', details={'release_id': identity, 'client': client,
                     'version': data['version'], 'current_version': package.current.version if package.current else '',
                     'sha256': data['sha256'], 'size': data['size'], 'release_url': data['release_url']})
@@ -246,19 +246,17 @@ def verify_package(path, release):
         ARCHIVE_CHECKS[release.client](archive, release)
 
 
-def apply_release(release):
-    # Never called by a web view: only the scheduled management command uses it.
-    item = release.notification
-    if not item or item.kind != 'clients.update' or item.resolution != 'approve' or item.status != 'open':
-        return False
-    package = ClientPackage.objects.filter(client=release.client).select_related('current').first()
-    if package and package.current and Version(package.current.version) > Version(release.version):
-        item.status = 'resolved'; item.resolved_at = timezone.now()
-        item.save(update_fields=['status', 'resolved_at'])
-        return False
+def fetch(release):
+    # Download and verify a discovered release into the local cache. Installing it stays a separate, Admin-approved step.
+    destination = release_path(release)
+    if destination.is_file() and not destination.is_symlink():
+        try:
+            verify_package(destination, release)
+            return destination
+        except ValidationError:
+            destination.unlink(missing_ok=True)
     data = {key: getattr(release, key) for key in ('version', 'sha256', 'size', 'url', 'release_url')}
     validate_release(release.client, data)
-    destination = release_path(release)
     cache_root().mkdir(mode=0o750, parents=True, exist_ok=True)
     if shutil.disk_usage(cache_root()).free < release.size * 2 + 32 * 1024 * 1024:
         raise ValidationError('Insufficient space for a verified client download.')
@@ -275,24 +273,42 @@ def apply_release(release):
         verify_package(Path(temporary), release)
         os.chmod(temporary, 0o444)
         os.replace(temporary, destination)
-        with transaction.atomic():
-            item = Notification.objects.select_for_update().get(pk=item.pk)
-            if item.resolution != 'approve' or item.status != 'open':
-                return False
-            package, _ = ClientPackage.objects.get_or_create(client=release.client)
-            package.previous = package.current; package.current = release
-            package.save(update_fields=['previous', 'current'])
-            item.status = 'resolved'; item.resolved_at = timezone.now()
-            item.save(update_fields=['status', 'resolved_at'])
-        # Keep the active and previous approved copy; remove only this cache's old blobs.
-        keep = {str(release_path(value)) for p in ClientPackage.objects.select_related('current', 'previous')
-                for value in (p.current, p.previous) if value}
-        for path in cache_root().iterdir():
-            if _is_cache_blob(path.name) and str(path) not in keep:
-                path.unlink(missing_ok=True)
-        return True
     finally:
         Path(temporary).unlink(missing_ok=True)
+    return destination
+
+
+def prune_cache():
+    # Keep the approved copies and the newest discovered copy; remove only this cache's other blobs.
+    keep = {str(release_path(value)) for p in ClientPackage.objects.select_related('current', 'previous', 'latest')
+            for value in (p.current, p.previous, p.latest) if value}
+    for path in cache_root().iterdir():
+        if _is_cache_blob(path.name) and str(path) not in keep:
+            path.unlink(missing_ok=True)
+
+
+def apply_release(release):
+    # Never called by a web view: only the scheduled management command uses it.
+    item = release.notification
+    if not item or item.kind != 'clients.update' or item.resolution != 'approve' or item.status != 'open':
+        return False
+    package = ClientPackage.objects.filter(client=release.client).select_related('current').first()
+    if package and package.current and Version(package.current.version) > Version(release.version):
+        item.status = 'resolved'; item.resolved_at = timezone.now()
+        item.save(update_fields=['status', 'resolved_at'])
+        return False
+    fetch(release)
+    with transaction.atomic():
+        item = Notification.objects.select_for_update().get(pk=item.pk)
+        if item.resolution != 'approve' or item.status != 'open':
+            return False
+        package, _ = ClientPackage.objects.get_or_create(client=release.client)
+        package.previous = package.current; package.current = release
+        package.save(update_fields=['previous', 'current'])
+        item.status = 'resolved'; item.resolved_at = timezone.now()
+        item.save(update_fields=['status', 'resolved_at'])
+    prune_cache()
+    return True
 
 
 def maintain(check_only=False):
@@ -324,6 +340,18 @@ def maintain(check_only=False):
                 package.save(update_fields=['last_error'])
                 notify('clients', 'check-' + client + '-' + timezone.now().date().isoformat(),
                     CLIENTS[client][0] + ' release check failed', package.last_error, level='warning')
+        if not check_only:
+            # Downloads are automatic and verified; only installing a release waits for Admin approval.
+            for package in ClientPackage.objects.select_related('latest').filter(latest__isnull=False):
+                try:
+                    fetch(package.latest)
+                except Exception:
+                    errors.append(package.client)
+                    notify('clients', 'fetch-' + package.client + '-' + timezone.now().date().isoformat(),
+                        CLIENTS[package.client][0] + ' download failed',
+                        'The latest release could not be downloaded or verified. Nothing is installed from it.',
+                        level='warning')
+            prune_cache()
         return sorted(set(errors))
 
 
