@@ -187,3 +187,13 @@ class CaCertificateTests(DeviceTestCase):
             response = self.client.get('/devices/ca.crt')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(b''.join(response.streaming_content), b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
+
+
+class SystemPageTests(DeviceTestCase):
+    def test_system_page_no_longer_links_to_devices(self):
+        # The device sync entry lives in the Settings menu (stack/homepage-addon.js), not on the System page.
+        self.client.force_login(self.admin)
+        response = self.client.get('/system')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="android-devices"')
+        self.assertNotContains(response, 'Manage phones and approved app sync')

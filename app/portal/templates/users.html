@@ -179,9 +179,6 @@
     {% endif %}
   </div>
   {% if mode == 'system' %}
-  <section class="client-updates" id="android-devices"><h2>Android devices</h2>
-    <p><a href="/devices">Manage phones and approved app sync</a></p>
-  </section>
   <section class="client-updates" id="offline-mode"><h2>Offline mode</h2>
     {% if offline_mode %}<p><strong>On.</strong> <span class="secondary">Nightly jobs that need the internet are paused: release checks, approved app downloads and cinema downloads. Nothing reports internet errors.</span></p>
     {% else %}<p><strong>Off.</strong> <span class="secondary">Nightly jobs use the internet for release checks and downloads. Turn this on when the internet is gone for good.</span></p>{% endif %}
