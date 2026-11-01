@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from django.core.exceptions import ValidationError
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
-from portal.client_packages import (FIREFOX_ID, apply_release, client_rows, discover, maintain,
+from portal.client_packages import (CLIENTS, FIREFOX_ID, apply_release, client_rows, discover, maintain,
                              record_release, release_path, safe_url, validate_release, verify_package)
 from portal.models import ClientPackage, ClientRelease, Notification, User
 
@@ -141,7 +141,7 @@ class ClientPackageTests(TestCase):
         with patch('portal.client_packages.http_open', return_value=io.BytesIO(data)):
             apply_release(release)
         with patch('portal.client_packages.discover', side_effect=OSError):
-            self.assertEqual(maintain(), ['android', 'firefox'])
+            self.assertEqual(maintain(), sorted(CLIENTS))
         self.assertEqual(ClientPackage.objects.get(client='firefox').current_id, release.id)
         self.assertTrue(Notification.objects.filter(source='clients', level='warning').exists())
 
@@ -307,3 +307,15 @@ class FDroidSourceTests(SimpleTestCase):
 
     def test_every_client_has_a_download_name(self):
         self.assertEqual(set(self.cp.DOWNLOAD_NAMES), set(self.cp.CLIENTS))
+
+
+class FdroidClientTests(SimpleTestCase):
+    def test_discovers_the_f_droid_build_and_names_the_download(self):
+        from portal import client_packages as cp
+        cp._INDEX_CACHE.clear()
+        self.addCleanup(cp._INDEX_CACHE.clear)
+        with patch('portal.client_packages.read_json', return_value=fdroid_fixture('org.fdroid.fdroid')):
+            data = cp.discover('fdroid')
+        self.assertEqual(data['url'], 'https://f-droid.org/repo/org.fdroid.fdroid_60104.apk')
+        self.assertEqual(data['version'], '6.1.4')
+        self.assertEqual(cp.download_filename('fdroid', '6.1.4'), 'F-Droid-6.1.4.apk')

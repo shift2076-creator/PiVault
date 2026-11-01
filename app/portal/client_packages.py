@@ -1,5 +1,6 @@
 """Discover official releases; publish a local copy only after explicit approval."""
 import fcntl
+import functools
 import hashlib
 import json
 import os
@@ -19,9 +20,10 @@ from .models import ClientPackage, ClientRelease, Notification, SiteSettings
 from .notifications import notify
 
 CLIENTS = {'android': ('Android app', '.apk', 'application/vnd.android.package-archive'),
-           'firefox': ('Firefox extension', '.xpi', 'application/x-xpinstall')}
+           'firefox': ('Firefox extension', '.xpi', 'application/x-xpinstall'),
+           'fdroid': ('F-Droid app', '.apk', 'application/vnd.android.package-archive')}
 # Prefix for the file name a vault user downloads, e.g. Bitwarden-2026.10.0.apk.
-DOWNLOAD_NAMES = {'android': 'Bitwarden', 'firefox': 'Bitwarden'}
+DOWNLOAD_NAMES = {'android': 'Bitwarden', 'firefox': 'Bitwarden', 'fdroid': 'F-Droid'}
 FIREFOX_ID = '{446900e4-71c2-419f-a6a7-df9c091e268b}'
 MAX_SIZE = 256 * 1024 * 1024
 
@@ -83,7 +85,7 @@ def _fdroid_artifact_rule(package_id, url):
         raise ValidationError('Unexpected F-Droid release artifact.')
 
 
-ARTIFACT_RULES = {'android': _bitwarden_artifact_rule, 'firefox': _firefox_artifact_rule}
+ARTIFACT_RULES = {'android': _bitwarden_artifact_rule, 'firefox': _firefox_artifact_rule, 'fdroid': functools.partial(_fdroid_artifact_rule, 'org.fdroid.fdroid')}
 
 
 def validate_release(client, data):
@@ -160,7 +162,7 @@ def _discover_fdroid(package_id):
     raise ValidationError('The F-Droid index has no stable release of ' + package_id + '.')
 
 
-DISCOVERERS = {'android': _discover_bitwarden_android, 'firefox': _discover_firefox}
+DISCOVERERS = {'android': _discover_bitwarden_android, 'firefox': _discover_firefox, 'fdroid': functools.partial(_discover_fdroid, 'org.fdroid.fdroid')}
 
 
 def discover(client):
@@ -220,7 +222,7 @@ def _check_android_archive(archive, release):
         raise ValidationError('The Android package is not an APK.')
 
 
-ARCHIVE_CHECKS = {'android': _check_android_archive, 'firefox': _check_firefox_archive}
+ARCHIVE_CHECKS = {'android': _check_android_archive, 'firefox': _check_firefox_archive, 'fdroid': _check_android_archive}
 
 
 def verify_package(path, release):
