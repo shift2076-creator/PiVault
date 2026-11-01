@@ -112,7 +112,8 @@ def sync_app(binary, serial, base, token, context, client, app, approved, direct
         installed = installed_version(binary, serial, package)
         if entry and installed != entry['version']:
             apk = download_verified(base, token, context, entry, directory, client)
-            code, output = adb(binary, serial, 'install', '-r', str(apk), timeout=900)
+            # -d lets the install go to an older approved version, which is how an app is reverted.
+            code, output = adb(binary, serial, 'install', '-r', '-d', str(apk), timeout=900)
             if 'Success' not in output:
                 print('  %s: install failed: %s' % (client, output.strip()))
                 return {'state': 'error', 'version': installed or ''}
