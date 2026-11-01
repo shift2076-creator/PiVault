@@ -47,7 +47,7 @@ class EnrollmentTests(TestCase):
     def test_replayed_code_cannot_create_second_account(self):
         _,code = issue('Alex','user',{},self.admin)
         self.enroll(code)
-        with self.assertLogs(level='WARNING'):
+        with self.assertLogs('portal.setup', level='WARNING'):
             self.enroll(code,email='second@example.com')
         self.assertFalse(User.objects.filter(email='second@example.com').exists())
 
@@ -55,13 +55,13 @@ class EnrollmentTests(TestCase):
         invitation,code = issue('Alex','user',{},self.admin)
         invitation.expires_at=timezone.now()-timedelta(seconds=1)
         invitation.save()
-        with self.assertLogs(level='WARNING'):
+        with self.assertLogs('portal.setup', level='WARNING'):
             self.assertContains(self.enroll(code),'Invalid or expired invitation code.',status_code=400)
         self.assertEqual(User.objects.count(),1)
 
     def test_bad_password_does_not_consume_code(self):
         invitation,code = issue('Alex','user',{},self.admin)
-        with self.assertLogs(level='WARNING'):
+        with self.assertLogs('portal.setup', level='WARNING'):
             self.enroll(code,password='123')
         invitation.refresh_from_db()
         self.assertIsNone(invitation.used_at)
@@ -69,7 +69,7 @@ class EnrollmentTests(TestCase):
 
     def test_email_case_does_not_create_duplicate_user(self):
         invitation,code=issue('Alex','user',{},self.admin)
-        with self.assertLogs(level='WARNING'):
+        with self.assertLogs('portal.setup', level='WARNING'):
             self.enroll(code,email='ADMIN@EXAMPLE.COM')
         self.assertEqual(User.objects.count(),1)
         invitation.refresh_from_db()
@@ -77,7 +77,7 @@ class EnrollmentTests(TestCase):
 
     def test_unconfigured_isolation_is_rejected_server_side(self):
         self.client.force_login(self.admin)
-        with self.assertLogs(level='WARNING'):
+        with self.assertLogs('portal.setup', level='WARNING'):
             response=self.client.post('/users/add',{'name':'Alex','role':'user','service_wiki':'isolated'},secure=True)
         self.assertContains(response,'integration is not configured',status_code=400)
         self.assertFalse(Invitation.objects.exists())
@@ -104,7 +104,7 @@ class EnrollmentTests(TestCase):
     def test_service_failure_rolls_back_user_and_leaves_code_unused(self):
         invitation,code=issue('Alex','user',{},self.admin)
         with patch('portal.views.provision', side_effect=ValidationError('Service unavailable.')):
-            with self.assertLogs(level='WARNING'):
+            with self.assertLogs('portal.setup', level='WARNING'):
                 response=self.enroll(code)
         self.assertContains(response,'Service unavailable.',status_code=400)
         self.assertEqual(User.objects.count(),1)
@@ -136,7 +136,7 @@ class EnrollmentTests(TestCase):
         self.assertNotEqual(invitation.digest,code)
 
     def test_rate_limit_survives_new_client_session(self):
-        with self.assertLogs(level='WARNING'):
+        with self.assertLogs('portal.setup', level='WARNING'):
             for _ in range(12):
                 self.enroll('!!!!')
             other=Client()
@@ -228,7 +228,7 @@ class EnrollmentTests(TestCase):
 
 class BootstrapTests(TestCase):
     def test_first_admin_is_local_command_not_public_race(self):
-        with self.assertLogs(level='WARNING'):
+        with self.assertLogs('portal.setup', level='WARNING'):
             response=self.client.post('/join',{'code':'AAAA','email':'owner@example.com','password':'First-good-passphrase-938!','password_confirm':'First-good-passphrase-938!'},secure=True)
         self.assertEqual(User.objects.count(),0)
         output=StringIO()

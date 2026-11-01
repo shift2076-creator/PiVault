@@ -90,7 +90,7 @@ class CompensationTests(SimpleTestCase):
         second=SimpleNamespace(modes=('shared',),provision=Mock(side_effect=ValidationError('Unavailable.')))
         user=SimpleNamespace(service_access={'videos':'shared','music':'shared'})
         with patch.dict(ADAPTERS,{'videos':first,'music':second}):
-            with self.assertRaises(ValidationError), self.assertLogs(level='ERROR'):provision(user,'pw')
+            with self.assertRaises(ValidationError), self.assertLogs('portal.setup', level='ERROR'):provision(user,'pw')
         rollback.assert_called_once()
 
 
@@ -106,7 +106,7 @@ class EnrollmentCleanupTests(TestCase):
             return_value=CreatedAccount('videos','new-1',rollback)))
         with patch.dict(ADAPTERS,{'videos':adapter}):
             invitation,code=issue('Alex','user',{'videos':'shared'},admin)
-            with patch.object(User,'save',side_effect=IntegrityError('database write failed')), self.assertLogs(level='ERROR'):
+            with patch.object(User,'save',side_effect=IntegrityError('database write failed')), self.assertLogs('portal.setup', level='ERROR'):
                 response=self.client.post('/join',{'code':code,'email':'alex@example.com',
                     'password':'Do-not-store-this-password-123!','password_confirm':'Do-not-store-this-password-123!'},secure=True)
         self.assertContains(response,'Account setup is temporarily unavailable',status_code=503)
@@ -123,7 +123,7 @@ class EnrollmentCleanupTests(TestCase):
         rollback=Mock(side_effect=NativeError('Music',503))
         first=SimpleNamespace(modes=('shared',),provision=Mock(return_value=CreatedAccount('music','new-1',rollback)))
         second=SimpleNamespace(modes=('shared',),provision=Mock(side_effect=ValidationError('Videos unavailable.')))
-        with patch.dict(ADAPTERS,{'music':first,'videos':second}), self.assertLogs(level='ERROR'):
+        with patch.dict(ADAPTERS,{'music':first,'videos':second}), self.assertLogs('portal.setup', level='ERROR'):
             invitation,code=issue('Alex','user',{'videos':'shared','music':'shared'},admin)
             response=self.client.post('/join',{'code':code,'email':'alex@example.com',
                 'password':'Do-not-store-this-password-123!','password_confirm':'Do-not-store-this-password-123!'},secure=True)
