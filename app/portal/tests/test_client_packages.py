@@ -367,3 +367,15 @@ class OrganicmapsClientTests(SimpleTestCase):
         self.assertEqual(data['url'], 'https://f-droid.org/repo/app.organicmaps_60104.apk')
         self.assertEqual(data['version'], '6.1.4')
         self.assertEqual(cp.download_filename('organicmaps', '6.1.4'), 'OrganicMaps-6.1.4.apk')
+
+
+class GitHubSourceTests(SimpleTestCase):
+    def test_github_discovery_refuses_more_than_one_matching_apk(self):
+        from portal import client_packages as cp
+        import re as _re
+        release = {'draft': False, 'prerelease': False, 'tag_name': 'v1.0.0', 'html_url': 'https://github.com/o/r/releases/tag/v1.0.0',
+            'assets': [{'name': 'app-arm64.apk', 'size': 1, 'digest': 'sha256:' + 'd' * 64, 'browser_download_url': 'https://github.com/o/r/releases/download/v1.0.0/app-arm64.apk'},
+                       {'name': 'app-x86.apk', 'size': 1, 'digest': 'sha256:' + 'e' * 64, 'browser_download_url': 'https://github.com/o/r/releases/download/v1.0.0/app-x86.apk'}]}
+        with patch('portal.client_packages.read_json', return_value=[release]):
+            with self.assertRaisesMessage(ValidationError, 'exactly one matching APK'):
+                cp._discover_github('o/r', '', _re.compile(r'.+\.apk'))

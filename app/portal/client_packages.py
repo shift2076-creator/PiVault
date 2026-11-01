@@ -69,9 +69,9 @@ def read_json(url, limit=2 * 1024 * 1024):
         return json.loads(data)
 
 
-def _bitwarden_artifact_rule(url):
+def _github_artifact_rule(repo, asset, url):
     p = urlsplit(url)
-    if p.hostname != 'github.com' or not p.path.startswith('/bitwarden/android/releases/download/') or not p.path.endswith('/com.x8bit.bitwarden.apk'):
+    if p.hostname != 'github.com' or not p.path.startswith('/%s/releases/download/' % repo) or not asset.fullmatch(p.path.rsplit('/', 1)[-1]):
         raise ValidationError('Unexpected Android release artifact.')
 
 
@@ -89,7 +89,7 @@ def _fdroid_artifact_rule(package_id, url):
         raise ValidationError('Unexpected F-Droid release artifact.')
 
 
-ARTIFACT_RULES = {'android': _bitwarden_artifact_rule, 'firefox': _firefox_artifact_rule, 'fdroid': functools.partial(_fdroid_artifact_rule, 'org.fdroid.fdroid'), 'adaway': functools.partial(_fdroid_artifact_rule, 'org.adaway'), 'davx5': functools.partial(_fdroid_artifact_rule, 'at.bitfire.davdroid'), 'jellyfin': functools.partial(_fdroid_artifact_rule, 'org.jellyfin.mobile'), 'organicmaps': functools.partial(_fdroid_artifact_rule, 'app.organicmaps')}
+ARTIFACT_RULES = {'android': functools.partial(_github_artifact_rule, 'bitwarden/android', re.compile(r'com\.x8bit\.bitwarden\.apk')), 'firefox': _firefox_artifact_rule, 'fdroid': functools.partial(_fdroid_artifact_rule, 'org.fdroid.fdroid'), 'adaway': functools.partial(_fdroid_artifact_rule, 'org.adaway'), 'davx5': functools.partial(_fdroid_artifact_rule, 'at.bitfire.davdroid'), 'jellyfin': functools.partial(_fdroid_artifact_rule, 'org.jellyfin.mobile'), 'organicmaps': functools.partial(_fdroid_artifact_rule, 'app.organicmaps')}
 
 
 def validate_release(client, data):
@@ -122,15 +122,18 @@ def _discover_firefox():
         'release_url': 'https://addons.mozilla.org/en-US/firefox/addon/bitwarden-password-manager/'}
 
 
-def _discover_bitwarden_android():
-    releases = read_json('https://api.github.com/repos/bitwarden/android/releases?per_page=20')
-    release = next(r for r in releases if not r.get('draft') and not r.get('prerelease') and r['tag_name'].endswith('-bwpm'))
-    asset = next(a for a in release['assets'] if a['name'] == 'com.x8bit.bitwarden.apk')
-    digest = asset.get('digest', '')
+def _discover_github(repo, tag_suffix, asset):
+    releases = read_json('https://api.github.com/repos/%s/releases?per_page=20' % repo)
+    release = next(r for r in releases if not r.get('draft') and not r.get('prerelease') and r['tag_name'].endswith(tag_suffix))
+    matches = [a for a in release['assets'] if asset.fullmatch(a['name'])]
+    if len(matches) != 1:
+        raise ValidationError('The Android release must have exactly one matching APK.')
+    found = matches[0]
+    digest = found.get('digest', '')
     if not digest.startswith('sha256:'):
         raise ValidationError('The Android release has no upstream SHA-256 digest.')
-    return {'version': release['tag_name'].removeprefix('v').removesuffix('-bwpm'),
-        'sha256': digest[7:], 'size': asset['size'], 'url': asset['browser_download_url'],
+    return {'version': release['tag_name'].removeprefix('v').removesuffix(tag_suffix),
+        'sha256': digest[7:], 'size': found['size'], 'url': found['browser_download_url'],
         'release_url': release['html_url']}
 
 
@@ -166,7 +169,7 @@ def _discover_fdroid(package_id):
     raise ValidationError('The F-Droid index has no stable release of ' + package_id + '.')
 
 
-DISCOVERERS = {'android': _discover_bitwarden_android, 'firefox': _discover_firefox, 'fdroid': functools.partial(_discover_fdroid, 'org.fdroid.fdroid'), 'adaway': functools.partial(_discover_fdroid, 'org.adaway'), 'davx5': functools.partial(_discover_fdroid, 'at.bitfire.davdroid'), 'jellyfin': functools.partial(_discover_fdroid, 'org.jellyfin.mobile'), 'organicmaps': functools.partial(_discover_fdroid, 'app.organicmaps')}
+DISCOVERERS = {'android': functools.partial(_discover_github, 'bitwarden/android', '-bwpm', re.compile(r'com\.x8bit\.bitwarden\.apk')), 'firefox': _discover_firefox, 'fdroid': functools.partial(_discover_fdroid, 'org.fdroid.fdroid'), 'adaway': functools.partial(_discover_fdroid, 'org.adaway'), 'davx5': functools.partial(_discover_fdroid, 'at.bitfire.davdroid'), 'jellyfin': functools.partial(_discover_fdroid, 'org.jellyfin.mobile'), 'organicmaps': functools.partial(_discover_fdroid, 'app.organicmaps')}
 
 
 def discover(client):
