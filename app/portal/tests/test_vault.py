@@ -88,7 +88,7 @@ class NativeVaultTests(TestCase):
         self.admin_api.request.side_effect = [NativeError('Password Manager', status=404), {'id': 'new-vault'}, {}]
         self.auth.request.side_effect = [{'id': 'new-vault', 'email': EMAIL}, {'id': 'folder'},
                                         NativeError('Password Manager', status=500)]
-        with self.assertRaises(NativeError):
+        with self.assertRaises(NativeError), self.assertLogs(level='ERROR'):
             self.call()
         self.assertEqual(self.admin_api.request.call_args.args, ('POST', '/admin/users/new-vault/delete', {}))
 
@@ -96,7 +96,7 @@ class NativeVaultTests(TestCase):
         self.admin_api.request.side_effect = [NativeError('Password Manager', status=404), {'id': 'new-vault'},
                                              NativeError('Password Manager', status=500)]
         self.auth.request.side_effect = NativeError('Password Manager')
-        with self.assertRaises(VaultCleanupRequired) as error:
+        with self.assertRaises(VaultCleanupRequired) as error, self.assertLogs(level='ERROR'):
             self.call()
         self.assertEqual(error.exception.cleanup_failures, [{'service': 'passwords', 'native_id': 'new-vault'}])
         self.assertNotIn(PASSWORD, str(error.exception))
@@ -150,20 +150,23 @@ class VaultEnrollmentTests(TestCase):
 
     def test_signed_manifest_cannot_be_reused_for_different_identity(self):
         token = self.plan(email='other@example.com').json()['token']
-        response = self.join({'token': token, 'bundle': fixture()})
+        with self.assertLogs(level='WARNING'):
+            response = self.join({'token': token, 'bundle': fixture()})
         self.assertContains(response, 'Could not validate', status_code=400)
         self.adapter.provision.assert_not_called()
         self.assertFalse(User.objects.filter(email=EMAIL).exists())
 
     def test_missing_bundle_does_not_consume_invitation(self):
-        response = self.join({})
+        with self.assertLogs(level='WARNING'):
+            response = self.join({})
         self.assertContains(response, 'Could not validate', status_code=400)
         self.invitation.refresh_from_db(); self.assertIsNone(self.invitation.used_at)
         self.adapter.provision.assert_not_called()
 
     def test_failed_native_setup_keeps_invite_and_reports_cleanup_failure(self):
         self.adapter.provision.side_effect = VaultCleanupRequired('new-vault')
-        response = self.join()
+        with self.assertLogs(level='ERROR'):
+            response = self.join()
         self.assertContains(response, 'admin must review', status_code=503)
         self.assertFalse(User.objects.filter(email=EMAIL).exists())
         self.invitation.refresh_from_db(); self.assertIsNone(self.invitation.used_at)
