@@ -355,3 +355,15 @@ class JellyfinClientTests(SimpleTestCase):
         self.assertEqual(data['url'], 'https://f-droid.org/repo/org.jellyfin.mobile_60104.apk')
         self.assertEqual(data['version'], '6.1.4')
         self.assertEqual(cp.download_filename('jellyfin', '6.1.4'), 'Jellyfin-6.1.4.apk')
+
+
+class OrganicmapsClientTests(SimpleTestCase):
+    def test_discovers_the_f_droid_build_and_names_the_download(self):
+        from portal import client_packages as cp
+        cp._INDEX_CACHE.clear()
+        self.addCleanup(cp._INDEX_CACHE.clear)
+        with patch('portal.client_packages.read_json', return_value=fdroid_fixture('app.organicmaps')):
+            data = cp.discover('organicmaps')
+        self.assertEqual(data['url'], 'https://f-droid.org/repo/app.organicmaps_60104.apk')
+        self.assertEqual(data['version'], '6.1.4')
+        self.assertEqual(cp.download_filename('organicmaps', '6.1.4'), 'OrganicMaps-6.1.4.apk')
