@@ -5,10 +5,12 @@ from pathlib import Path
 import tempfile
 from unittest.mock import patch
 import zipfile
-from django.test import Client, TestCase, override_settings
+from types import SimpleNamespace
+from django.core.exceptions import ValidationError
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
-from portal.client_packages import (FIREFOX_ID, apply_release, client_rows, maintain,
-                             record_release, release_path, safe_url)
+from portal.client_packages import (FIREFOX_ID, apply_release, client_rows, discover, maintain,
+                             record_release, release_path, safe_url, validate_release, verify_package)
 from portal.models import ClientPackage, ClientRelease, Notification, User
 
 
@@ -155,3 +157,76 @@ class ClientPackageTests(TestCase):
         self.assertContains(response, '2026.10.0')
         self.assertContains(response, 'Approval needed')
         self.assertContains(response, 'Review update')
+
+
+BITWARDEN_URL = 'https://github.com/bitwarden/android/releases/download/v2026.10.0-bwpm/com.x8bit.bitwarden.apk'
+BITWARDEN_RELEASE_URL = 'https://github.com/bitwarden/android/releases/tag/v2026.10.0-bwpm'
+
+
+def android_metadata(**overrides):
+    data = {'version': '2026.10.0', 'sha256': 'a' * 64, 'size': 1024,
+        'url': BITWARDEN_URL, 'release_url': BITWARDEN_RELEASE_URL}
+    data.update(overrides)
+    return data
+
+
+class ClientRegistryTests(SimpleTestCase):
+    """Pins the Bitwarden (android) rules that the registry must preserve."""
+
+    def test_android_discovery_selects_the_stable_bitwarden_release(self):
+        releases = [
+            {'draft': False, 'prerelease': True, 'tag_name': 'v2026.11.0-bwpm', 'html_url': BITWARDEN_RELEASE_URL,
+             'assets': []},
+            {'draft': False, 'prerelease': False, 'tag_name': 'v2026.10.0-bwpm', 'html_url': BITWARDEN_RELEASE_URL,
+             'assets': [{'name': 'com.x8bit.bitwarden.apk', 'size': 1024, 'digest': 'sha256:' + 'b' * 64,
+                         'browser_download_url': BITWARDEN_URL}]},
+        ]
+        with patch('portal.client_packages.read_json', return_value=releases):
+            data = discover('android')
+        self.assertEqual(data, {'version': '2026.10.0', 'sha256': 'b' * 64, 'size': 1024,
+            'url': BITWARDEN_URL, 'release_url': BITWARDEN_RELEASE_URL})
+
+    def test_android_discovery_refuses_a_release_without_an_upstream_digest(self):
+        releases = [{'draft': False, 'prerelease': False, 'tag_name': 'v2026.10.0-bwpm',
+            'html_url': BITWARDEN_RELEASE_URL,
+            'assets': [{'name': 'com.x8bit.bitwarden.apk', 'size': 1024, 'digest': '',
+                        'browser_download_url': BITWARDEN_URL}]}]
+        with patch('portal.client_packages.read_json', return_value=releases):
+            with self.assertRaisesMessage(ValidationError, 'no upstream SHA-256 digest'):
+                discover('android')
+
+    def test_android_accepts_only_the_bitwarden_apk_path(self):
+        self.assertEqual(validate_release('android', android_metadata())['version'], '2026.10.0')
+        for url in ('https://github.com/evil/app/releases/download/v1/com.x8bit.bitwarden.apk',
+                    'https://github.com/bitwarden/android/releases/download/v1/other.apk',
+                    'https://github.com/bitwarden/android/releases/download/v1/com.x8bit.bitwarden.apk.zip'):
+            with self.subTest(url=url):
+                with self.assertRaisesMessage(ValidationError, 'Unexpected Android release artifact'):
+                    validate_release('android', android_metadata(url=url))
+
+    def test_firefox_accepts_only_mozilla_xpi_artifacts(self):
+        firefox = {'version': '2026.10.0', 'sha256': 'c' * 64, 'size': 1024,
+            'url': 'https://addons.mozilla.org/firefox/downloads/file/1/bitwarden.xpi',
+            'release_url': 'https://addons.mozilla.org/en-US/firefox/addon/bitwarden-password-manager/'}
+        validate_release('firefox', firefox)
+        with self.assertRaisesMessage(ValidationError, 'Unexpected Firefox release artifact'):
+            validate_release('firefox', dict(firefox, url='https://github.com/bitwarden/android/releases/download/v1/x.xpi'))
+
+    def test_unknown_clients_and_extra_metadata_fields_are_rejected(self):
+        with self.assertRaisesMessage(ValidationError, 'Invalid client release metadata'):
+            validate_release('ios', android_metadata())
+        with self.assertRaisesMessage(ValidationError, 'Invalid client release metadata'):
+            validate_release('android', android_metadata(extra='field'))
+
+    def test_android_package_must_contain_an_apk_manifest(self):
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, 'w') as archive:
+            archive.writestr('classes.dex', b'not-a-manifest')
+        data = stream.getvalue()
+        release = SimpleNamespace(client='android', size=len(data), version='2026.10.0',
+            sha256=hashlib.sha256(data).hexdigest())
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'package.apk'
+            path.write_bytes(data)
+            with self.assertRaisesMessage(ValidationError, 'not an APK'):
+                verify_package(path, release)
