@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Android devices · PiVault</title>
+  <style>
+    body{font-family:system-ui,sans-serif;margin:24px auto;max-width:960px;padding:0 16px;color:#111}
+    h1{font-size:1.4rem} h2{font-size:1.1rem;margin:0 0 8px}
+    section{border:1px solid #ccc;border-radius:8px;padding:16px;margin:0 0 16px}
+    table{border-collapse:collapse;width:100%} td{padding:6px 8px;border-top:1px solid #eee;vertical-align:middle}
+    .secondary{color:#555;font-size:.9rem} button{padding:6px 10px}
+  </style>
+</head>
+<body data-mode="devices">
+  <p><a href="/system">Back to System</a></p>
+  <h1>Android devices</h1>
+  <section>
+    <h2>Sync helper</h2>
+    <p class="secondary">Run the helper on the computer the phone is plugged into. That computer needs adb (Android platform-tools) on its PATH. The download carries a sign-in token that expires after two hours.</p>
+    <p><a href="/devices/sync.py" download>Download pivault-android-sync.py</a></p>
+  </section>
+  {% for row in rows %}
+  <section>
+    <form method="post" action="/devices/{{ row.device.id }}/rename">{% csrf_token %}
+      <h2>{{ row.device.name }}</h2>
+      <label>Name <input name="name" value="{{ row.device.name }}" maxlength="80" required></label>
+      <button type="submit">Rename</button>
+    </form>
+    <p class="secondary">{{ row.device.model|default:"Model unknown" }} · Android {{ row.device.android_release|default:"unknown" }} · Last seen {{ row.device.last_seen|default:"never" }}</p>
+    <table>
+      {% for entry in row.apps %}
+      <tr>
+        <td>{{ entry.label }}</td>
+        <td>{% if entry.app %}{{ entry.app.observed_state }}{% if entry.app.observed_version %} {{ entry.app.observed_version }}{% endif %}{% else %}unknown{% endif %}</td>
+        <td>Wanted: {% if entry.enabled %}enabled{% else %}disabled{% endif %}</td>
+        <td>
+          <form method="post" action="/devices/{{ row.device.id }}/apps/{{ entry.client }}">{% csrf_token %}
+            <input type="hidden" name="enabled" value="{% if entry.enabled %}off{% else %}on{% endif %}">
+            <button type="submit">{% if entry.enabled %}Disable{% else %}Enable{% endif %}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+  {% empty %}
+  <p>No devices yet. Plug a phone into the sync computer and run the helper.</p>
+  {% endfor %}
+</body>
+</html>

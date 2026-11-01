@@ -1,7 +1,7 @@
 """Every portal route. Browser scripts are served from portal/static/portal/."""
 from django.urls import path
 from portal import notification_views as notifications
-from portal import search_views, service_control, vault_views, views
+from portal import device_views, search_views, service_control, vault_views, views
 from portal.vault_repair import repair as repair_existing_vault
 
 urlpatterns = [
@@ -35,6 +35,15 @@ urlpatterns = [
     # Launcher status dots; Admin start, stop and restart (Docker proxy, see service_control.py).
     path('services/status', service_control.status),
     path('services/<str:key>/<str:verb>', service_control.control),
+    # Android devices. Admin pages use the session; /devices/api/* takes the helper's sync token instead.
+    path('devices', device_views.overview),
+    path('devices/sync.py', device_views.helper_script),
+    path('devices/<uuid:device_id>/rename', device_views.rename),
+    path('devices/<uuid:device_id>/apps/<str:client>', device_views.set_app),
+    path('devices/api/identify', device_views.identify),
+    path('devices/api/manifest', device_views.manifest),
+    path('devices/api/apk/<str:client>', device_views.apk),
+    path('devices/api/<uuid:device_id>/report', device_views.report),
     # Private Caddy-only auth endpoint; Caddy answers 404 for it publicly.
     path('internal/gate', views.gate),
 ]
