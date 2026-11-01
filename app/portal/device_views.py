@@ -212,3 +212,14 @@ def helper_script(request):
                     .replace('__PIVAULT_TOKEN__', _issue_token(request.user)))
     return HttpResponse(script, content_type='text/x-python; charset=utf-8',
                         headers={'Content-Disposition': 'attachment; filename="pivault-android-sync.py"'})
+
+
+@admin_page
+@require_GET
+def ca_certificate(request):
+    # Only the public root certificate is copied into the data directory by the installer, never the CA key.
+    path = Path(settings.DATA_DIR) / 'caddy-root.crt'
+    if not path.is_file() or path.is_symlink():
+        raise Http404('The PiVault root certificate has not been installed yet.')
+    return FileResponse(path.open('rb'), as_attachment=True, filename='pivault-root.crt',
+                        content_type='application/x-x509-ca-cert')

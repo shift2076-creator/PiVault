@@ -174,3 +174,16 @@ class HelperParsingTests(TestCase):
         source = HELPER_PATH.read_text(encoding='utf-8')
         self.assertIn("BASE = '__PIVAULT_BASE__'", source)
         self.assertIn("TOKEN = '__PIVAULT_TOKEN__'", source)
+
+
+class CaCertificateTests(DeviceTestCase):
+    def test_root_certificate_is_admin_only_and_served_when_installed(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get('/devices/ca.crt').status_code, 403)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get('/devices/ca.crt').status_code, 404)
+        with override_settings(DATA_DIR=self.root):
+            (self.root / 'caddy-root.crt').write_bytes(b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
+            response = self.client.get('/devices/ca.crt')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b''.join(response.streaming_content), b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
