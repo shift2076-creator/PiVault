@@ -15,7 +15,7 @@ SERVICE = 'pivault-users'
 
 PORTAL = '''
     # BEGIN PIVAULT USERS INSTALLER
-    @pivault_users_installer path /join /join/* /users /users/* /notifications /notifications/* /search /search/* /system /system/* /services /services/* /internal /internal/*
+    @pivault_users_installer path /join /join/* /users /users/* /notifications /notifications/* /search /search/* /system /system/* /devices /devices/* /services /services/* /internal /internal/*
     handle @pivault_users_installer {
         @pivault_users_internal path /internal /internal/*
         respond @pivault_users_internal 404
@@ -32,7 +32,7 @@ LAUNCHER_END = '# END PIVAULT LAUNCHER AUTH'
 LAUNCHER_AUTH = '''
     # BEGIN PIVAULT LAUNCHER AUTH
     @pivault_launcher_auth {
-        not path /join /join/* /users /users/* /notifications /notifications/* /services /services/* /internal /internal/* /music /music/*
+        not path /join /join/* /users /users/* /notifications /notifications/* /devices /devices/* /services /services/* /internal /internal/* /music /music/*
     }
     header @pivault_launcher_auth Cache-Control "no-store, private"
     forward_auth @pivault_launcher_auth pivault-users:8000 {
@@ -271,7 +271,7 @@ def terminal_handler(config, host, path, port=443):
 
 def verify_routes(before, after, vault_host=None):
     for path in ('/join', '/users/add', '/users/sign-in', '/users/session', '/notifications', '/notifications/api',
-                 '/search', '/search/apps', '/system'):
+                 '/search', '/search/apps', '/system', '/devices'):
         value = terminal_handler(after, PORTAL_HOST, path, PORTAL_PORT)
         if not value or value.get('handler') != 'reverse_proxy' or value.get('upstreams') != [{'dial': 'pivault-users:8000'}]:
             raise ValueError('The candidate Caddy routes do not reach the portal before the existing handlers.')

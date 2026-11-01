@@ -42,7 +42,7 @@ def native_config(portal=False):
     routes = [{'handle': [homepage]}]
     if portal:
         routes.insert(0, {'match': [{'path': ['/join', '/join/*', '/users', '/users/*',
-            '/notifications', '/notifications/*', '/search', '/search/*', '/system', '/system/*', '/internal', '/internal/*']}],
+            '/notifications', '/notifications/*', '/search', '/search/*', '/system', '/system/*', '/devices', '/devices/*', '/internal', '/internal/*']}],
             'handle': [{'handler': 'subroute', 'routes': [
                 {'match': [{'path': ['/internal', '/internal/*']}], 'handle': [
                     {'handler': 'static_response', 'status_code': 404}]},
@@ -141,6 +141,9 @@ class ConfigurationTests(unittest.TestCase):
     def test_managed_route_includes_search(self):
         self.assertIn(' /search /search/* ', config.portal_caddyfile(CADDYFILE))
 
+    def test_managed_route_includes_devices(self):
+        self.assertIn(' /devices /devices/* ', config.portal_caddyfile(CADDYFILE))
+
     def test_managed_route_includes_system(self):
         self.assertIn(' /system /system/* ', config.portal_caddyfile(CADDYFILE))
 
@@ -148,7 +151,7 @@ class ConfigurationTests(unittest.TestCase):
         output = config.portal_caddyfile(CADDYFILE)
         self.assertEqual(output.count(config.LAUNCHER_BEGIN), 1)
         self.assertIn('not path /join /join/* /users /users/* /notifications /notifications/* '
-                      '/services /services/* /internal /internal/* /music /music/*', output)
+                      '/devices /devices/* /services /services/* /internal /internal/* /music /music/*', output)
 
     def test_app_sites_replace_live_copies_and_stay_idempotent(self):
         live = ('\nhttps://192.168.4.90:8083 {\n        tls internal\n'
@@ -170,7 +173,7 @@ class ConfigurationTests(unittest.TestCase):
             '/services /services/* /internal /internal/* /music', '/internal /internal/* /music')
         output = config.portal_caddyfile(live)
         self.assertEqual(output.count(config.LAUNCHER_BEGIN), 1)
-        self.assertIn('/notifications /notifications/* /services /services/* /internal', output)
+        self.assertIn('/notifications /notifications/* /devices /devices/* /services /services/* /internal', output)
         self.assertEqual(output, config.portal_caddyfile(output))
 
     def test_public_gate_is_rejected(self):
