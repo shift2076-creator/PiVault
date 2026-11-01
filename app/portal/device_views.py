@@ -21,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .client_packages import CLIENTS, download_filename, release_path
-from .models import ClientPackage, Device, DeviceApp, User
+from .models import ClientPackage, ClientRelease, Device, DeviceApp, User
 
 # Android package ids for the apps a phone can receive. Firefox is a browser add-on, not an Android app.
 # The list is the only gate: an app missing from it cannot be synced or toggled from the portal.
@@ -179,16 +179,29 @@ def apk(request, client):
                         filename=download_filename(client, package.current.version), content_type=CLIENTS[client][2])
 
 
+def _version_choices():
+    # Approved releases whose local copy is a regular file, newest first. set_version accepts only these.
+    choices = {}
+    for release in ClientRelease.objects.filter(notification__resolution='approve').order_by('-discovered_at'):
+        path = release_path(release)
+        if path.is_file() and not path.is_symlink():
+            choices.setdefault(release.client, []).append(release)
+    return choices
+
+
 @admin_page
 @require_GET
 def overview(request):
     rows = []
+    versions = _version_choices()
+    pinned = {package.client: package.current_id for package in ClientPackage.objects.all()}
     for device in Device.objects.prefetch_related('apps').order_by('name', 'first_seen'):
         apps = {app.client: app for app in device.apps.all()}
         rows.append({'device': device, 'apps': [
             {'client': client, 'label': CLIENTS[client][0], 'name': DEVICE_DESCRIPTIONS[client][0],
              'description': DEVICE_DESCRIPTIONS[client][1], 'app': apps.get(client),
-             'enabled': apps[client].enabled if client in apps else True}
+             'enabled': apps[client].enabled if client in apps else True,
+             'versions': versions.get(client, []), 'pinned': pinned.get(client)}
             for client in DEVICE_PACKAGES]})
     response = render(request, 'devices.html', {'rows': rows})
     response['Content-Security-Policy'] = DEVICE_PAGE_CSP
@@ -218,6 +231,28 @@ def set_app(request, device_id, client):
         return HttpResponseBadRequest('Choose on or off.')
     app.enabled = value == 'on'
     app.save(update_fields=['enabled'])
+    return redirect('/devices')
+
+
+@admin_page
+@require_POST
+def set_version(request, client):
+    # The chosen release becomes the version every phone syncs. Choosing an older approved release is how an app is reverted.
+    if client not in DEVICE_PACKAGES:
+        raise Http404()
+    release = get_object_or_404(ClientRelease.objects.filter(notification__resolution='approve'),
+                                pk=request.POST.get('release', ''), client=client)
+    path = release_path(release)
+    if not path.is_file() or path.is_symlink():
+        return HttpResponseBadRequest('That release has no local copy.')
+    with transaction.atomic():
+        package, _ = ClientPackage.objects.get_or_create(client=client)
+        if package.current_id != release.id:
+            package.previous = package.current
+            package.current = release
+            package.save(update_fields=['previous', 'current'])
+            # Phones keep reporting the old version until their next sync, so their state is no longer current.
+            DeviceApp.objects.filter(client=client).update(observed_state='unknown')
     return redirect('/devices')
 
 

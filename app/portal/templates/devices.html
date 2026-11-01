@@ -36,6 +36,9 @@
     tbody th{font-weight:500;white-space:nowrap;width:1%}
     tbody tr:last-child th,tbody tr:last-child td{border-bottom:0}
     .sync{text-align:right;width:1%;white-space:nowrap}
+    .version{white-space:nowrap}
+    .version-form{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0}
+    .version select{font:inherit;font-size:15px;min-height:42px;padding:8px 10px;border-radius:10px;border:1px solid #3a4250;background:var(--pv-background);color:var(--pv-text)}
     .pill{display:inline-block;font-size:14px;padding:7px 14px;border-radius:10px;border:1px solid #2e6b3a;color:var(--pv-green);white-space:nowrap}
     .retry{border-color:#7a5a2a;color:var(--pv-orange)}
     .warn{color:var(--pv-orange);font-size:13px}
@@ -78,6 +81,7 @@
           <tr>
             <th scope="col">App</th>
             <th scope="col">Description</th>
+            <th scope="col" class="version">Version</th>
             <th scope="col" class="sync">Sync to phone</th>
           </tr>
         </thead>
@@ -86,6 +90,7 @@
           <tr>
             <th scope="row">{{ entry.name }}</th>
             <td class="secondary">{{ entry.description }}{% if entry.app.observed_state == "error" %}<br><span class="warn">Install failed</span>{% endif %}</td>
+            <td class="version">{% if entry.versions %}<form class="version-form" method="post" action="/devices/apps/{{ entry.client }}/version">{% csrf_token %}<select name="release" aria-label="{{ entry.name }} version">{% if not entry.pinned %}<option value="" disabled selected>Choose</option>{% endif %}{% for release in entry.versions %}<option value="{{ release.id }}"{% if release.id == entry.pinned %} selected{% endif %}>{{ release.version }}</option>{% endfor %}</select><button class="btn" type="submit">Use</button></form>{% else %}<span class="secondary">None approved</span>{% endif %}{% if entry.app.observed_version %}<br><span class="secondary">On phone: {{ entry.app.observed_version }}</span>{% endif %}</td>
             <td class="sync">{% if entry.app.observed_state == "enabled" %}<span class="pill">✓ Synced</span>{% elif entry.app.observed_state == "error" %}<button class="btn retry" type="button" data-sync-client="{{ entry.client }}" disabled>Retry sync</button>{% else %}<button class="btn" type="button" data-sync-client="{{ entry.client }}" disabled>Sync to phone</button>{% endif %}<form class="toggle" method="post" action="/devices/{{ row.device.id }}/apps/{{ entry.client }}">{% csrf_token %}<input type="hidden" name="enabled" value="{% if entry.enabled %}off{% else %}on{% endif %}"><button class="btn" type="submit">{% if entry.enabled %}Disable{% else %}Enable{% endif %}</button></form></td>
           </tr>
           {% endfor %}

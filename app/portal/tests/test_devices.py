@@ -8,10 +8,11 @@ from unittest.mock import patch
 
 from django.core import signing
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from portal import device_views
 from portal.client_packages import release_path
-from portal.models import ClientPackage, ClientRelease, Device, DeviceApp, User
+from portal.models import ClientPackage, ClientRelease, Device, DeviceApp, Notification, User
 
 HELPER_PATH = Path(device_views.HELPER)
 ANDROID_ID = 'a1b2c3d4e5f60718'
@@ -230,3 +231,48 @@ class HelperSyncTests(TestCase):
             with self.assertRaises(self.helper.SyncError) as raised:
                 self.helper.sync_phone(context=None)
         self.assertIn('adb was not found on PATH', str(raised.exception))
+
+
+class VersionChoiceTests(DeviceTestCase):
+    def setUp(self):
+        super().setUp()
+        self.old = self.make_release('1.0.0', b'old-apk')
+        self.new = self.make_release('2.0.0', b'new-apk')
+        self.pending = self.make_release('3.0.0', b'pending-apk', approved=False)
+        self.identify()
+        self.client.force_login(self.admin)
+
+    def make_release(self, version, body, approved=True):
+        digest = hashlib.sha256(body).hexdigest()
+        notification = Notification.objects.create(id='notice-' + version, source='clients', kind='clients.update',
+            level='info', title='Update', message='Update', created_at=timezone.now(),
+            status='resolved' if approved else 'open', resolution='approve' if approved else '')
+        release = ClientRelease.objects.create(id='release-davx5-' + version, client='davx5', version=version,
+            sha256=digest, size=len(body), url='https://f-droid.org/repo/example.apk',
+            release_url='https://f-droid.org/packages/example/', notification=notification)
+        release_path(release).write_bytes(body)
+        return release
+
+    def test_dropdown_lists_only_approved_releases_with_a_local_copy(self):
+        response = self.client.get('/devices')
+        self.assertContains(response, '<option value="%s"' % self.old.id)
+        self.assertContains(response, '<option value="%s"' % self.new.id)
+        self.assertNotContains(response, self.pending.id)
+
+    def test_choosing_an_older_release_makes_it_the_version_every_phone_syncs(self):
+        ClientPackage.objects.create(client='davx5', current=self.new)
+        DeviceApp.objects.filter(client='davx5').update(observed_state='enabled')
+        response = self.client.post('/devices/apps/davx5/version', {'release': self.old.id})
+        self.assertEqual(response.status_code, 302)
+        package = ClientPackage.objects.get(client='davx5')
+        self.assertEqual((package.current_id, package.previous_id), (self.old.id, self.new.id))
+        self.assertEqual(DeviceApp.objects.filter(client='davx5', observed_state='unknown').count(), 1)
+        manifest = self.client.get('/devices/api/manifest', **self.bearer(self.admin)).json()['apps']
+        self.assertEqual(manifest['davx5']['version'], '1.0.0')
+
+    def test_unapproved_unknown_or_missing_releases_cannot_be_chosen(self):
+        self.assertEqual(self.client.post('/devices/apps/davx5/version', {'release': self.pending.id}).status_code, 404)
+        self.assertEqual(self.client.post('/devices/apps/davx5/version', {'release': ''}).status_code, 404)
+        self.assertEqual(self.client.post('/devices/apps/firefox/version', {'release': self.old.id}).status_code, 404)
+        release_path(self.old).unlink()
+        self.assertEqual(self.client.post('/devices/apps/davx5/version', {'release': self.old.id}).status_code, 400)
