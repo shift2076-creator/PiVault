@@ -207,7 +207,7 @@ def compose_configuration(original, *, image, uid, gid, network_names):
         'user': f'{uid}:{gid}', 'read_only': True,
         'cap_drop': ['ALL'], 'security_opt': ['no-new-privileges:true'],
         'tmpfs': ['/tmp:rw,noexec,nosuid,size=64m'],
-        'mem_limit': '384m',
+        'mem_limit': '512m',
         'env_file': ['/srv/pi-server/config/users/users.env'],
         'environment': {'PIVAULT_NATIVE_CONFIG': '/native.json'},
         'volumes': [

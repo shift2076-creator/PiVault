@@ -116,6 +116,11 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(output['services']['pivault-users']['networks'], ['private'])
         self.assertTrue(output['services']['pivault-users']['read_only'])
 
+    def test_users_service_memory_limit_is_512m(self):
+        output = config.compose_configuration({'services': {}}, image='pivault-users:test', uid=1000,
+                                              gid=1000, network_names=[])
+        self.assertEqual(output['services']['pivault-users']['mem_limit'], '512m')
+
     def test_unmanaged_name_collision_is_rejected(self):
         with self.assertRaises(ValueError):
             config.compose_configuration({'services': {'pivault-users': {'image': 'somebody-elses'}}},
