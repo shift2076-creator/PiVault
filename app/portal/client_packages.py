@@ -61,6 +61,22 @@ def read_json(url):
         return json.loads(data)
 
 
+def _bitwarden_artifact_rule(url):
+    p = urlsplit(url)
+    if p.hostname != 'github.com' or not p.path.startswith('/bitwarden/android/releases/download/') or not p.path.endswith('/com.x8bit.bitwarden.apk'):
+        raise ValidationError('Unexpected Android release artifact.')
+
+
+def _firefox_artifact_rule(url):
+    p = urlsplit(url)
+    if p.hostname != 'addons.mozilla.org' or not p.path.startswith('/firefox/downloads/file/') or not p.path.endswith('.xpi'):
+        raise ValidationError('Unexpected Firefox release artifact.')
+
+
+# Each client in CLIENTS needs one entry in ARTIFACT_RULES, DISCOVERERS and ARCHIVE_CHECKS.
+ARTIFACT_RULES = {'android': _bitwarden_artifact_rule, 'firefox': _firefox_artifact_rule}
+
+
 def validate_release(client, data):
     if client not in CLIENTS or set(data) != {'version', 'sha256', 'size', 'url', 'release_url'}:
         raise ValidationError('Invalid client release metadata.')
@@ -75,37 +91,39 @@ def validate_release(client, data):
     if type(data['size']) is not int or not 0 < data['size'] <= MAX_SIZE:
         raise ValidationError('The official client package exceeds the allowed size.')
     safe_url(data['url']); safe_url(data['release_url'])
-    p = urlsplit(data['url'])
-    if client == 'android':
-        if p.hostname != 'github.com' or not p.path.startswith('/bitwarden/android/releases/download/') or not p.path.endswith('/com.x8bit.bitwarden.apk'):
-            raise ValidationError('Unexpected Android release artifact.')
-    elif p.hostname != 'addons.mozilla.org' or not p.path.startswith('/firefox/downloads/file/') or not p.path.endswith('.xpi'):
-        raise ValidationError('Unexpected Firefox release artifact.')
+    ARTIFACT_RULES[client](data['url'])
     return data
 
 
+def _discover_firefox():
+    value = read_json('https://addons.mozilla.org/api/v5/addons/addon/bitwarden-password-manager/')
+    if value.get('guid') != FIREFOX_ID:
+        raise ValidationError('The Firefox add-on identity did not match Bitwarden.')
+    current = value['current_version']; file = current['file']
+    if file.get('status') != 'public':
+        raise ValidationError('The Firefox package is not a published release.')
+    return {'version': current['version'], 'sha256': file['hash'].removeprefix('sha256:'),
+        'size': file['size'], 'url': file['url'],
+        'release_url': 'https://addons.mozilla.org/en-US/firefox/addon/bitwarden-password-manager/'}
+
+
+def _discover_bitwarden_android():
+    releases = read_json('https://api.github.com/repos/bitwarden/android/releases?per_page=20')
+    release = next(r for r in releases if not r.get('draft') and not r.get('prerelease') and r['tag_name'].endswith('-bwpm'))
+    asset = next(a for a in release['assets'] if a['name'] == 'com.x8bit.bitwarden.apk')
+    digest = asset.get('digest', '')
+    if not digest.startswith('sha256:'):
+        raise ValidationError('The Android release has no upstream SHA-256 digest.')
+    return {'version': release['tag_name'].removeprefix('v').removesuffix('-bwpm'),
+        'sha256': digest[7:], 'size': asset['size'], 'url': asset['browser_download_url'],
+        'release_url': release['html_url']}
+
+
+DISCOVERERS = {'android': _discover_bitwarden_android, 'firefox': _discover_firefox}
+
+
 def discover(client):
-    if client == 'firefox':
-        value = read_json('https://addons.mozilla.org/api/v5/addons/addon/bitwarden-password-manager/')
-        if value.get('guid') != FIREFOX_ID:
-            raise ValidationError('The Firefox add-on identity did not match Bitwarden.')
-        current = value['current_version']; file = current['file']
-        if file.get('status') != 'public':
-            raise ValidationError('The Firefox package is not a published release.')
-        result = {'version': current['version'], 'sha256': file['hash'].removeprefix('sha256:'),
-            'size': file['size'], 'url': file['url'],
-            'release_url': 'https://addons.mozilla.org/en-US/firefox/addon/bitwarden-password-manager/'}
-    else:
-        releases = read_json('https://api.github.com/repos/bitwarden/android/releases?per_page=20')
-        release = next(r for r in releases if not r.get('draft') and not r.get('prerelease') and r['tag_name'].endswith('-bwpm'))
-        asset = next(a for a in release['assets'] if a['name'] == 'com.x8bit.bitwarden.apk')
-        digest = asset.get('digest', '')
-        if not digest.startswith('sha256:'):
-            raise ValidationError('The Android release has no upstream SHA-256 digest.')
-        result = {'version': release['tag_name'].removeprefix('v').removesuffix('-bwpm'),
-            'sha256': digest[7:], 'size': asset['size'], 'url': asset['browser_download_url'],
-            'release_url': release['html_url']}
-    return validate_release(client, result)
+    return validate_release(client, DISCOVERERS[client]())
 
 
 def record_release(client, data):
@@ -135,6 +153,31 @@ def release_path(release):
     return cache_root() / (release.client + '-' + release.sha256 + CLIENTS[release.client][1])
 
 
+def _is_cache_blob(name):
+    return any(re.fullmatch(re.escape(client) + '-[a-f0-9]{64}' + re.escape(extension), name)
+               for client, (_, extension, _) in CLIENTS.items())
+
+
+def _check_firefox_archive(archive, release):
+    if archive.getinfo('manifest.json').file_size > 1024 * 1024:
+        raise ValidationError('Invalid Firefox manifest.')
+    manifest = json.loads(archive.read('manifest.json'))
+    gecko = manifest.get('browser_specific_settings', manifest.get('applications', {})).get('gecko', {})
+    if gecko.get('id') != FIREFOX_ID or manifest.get('version') != release.version:
+        raise ValidationError('The Firefox package identity or version did not match.')
+    names = [name.lower() for name in archive.namelist()]
+    if not any(name.startswith('meta-inf/') and name.endswith(('.rsa', '.sig')) for name in names):
+        raise ValidationError('The Firefox package has no retained signing data.')
+
+
+def _check_android_archive(archive, release):
+    if 'AndroidManifest.xml' not in archive.namelist():
+        raise ValidationError('The Android package is not an APK.')
+
+
+ARCHIVE_CHECKS = {'android': _check_android_archive, 'firefox': _check_firefox_archive}
+
+
 def verify_package(path, release):
     if path.stat().st_size != release.size:
         raise ValidationError('Client package size does not match the approved release.')
@@ -145,18 +188,7 @@ def verify_package(path, release):
     if digest.hexdigest() != release.sha256:
         raise ValidationError('Client package checksum does not match the approved release.')
     with zipfile.ZipFile(path) as archive:
-        if release.client == 'firefox':
-            if archive.getinfo('manifest.json').file_size > 1024 * 1024:
-                raise ValidationError('Invalid Firefox manifest.')
-            manifest = json.loads(archive.read('manifest.json'))
-            gecko = manifest.get('browser_specific_settings', manifest.get('applications', {})).get('gecko', {})
-            if gecko.get('id') != FIREFOX_ID or manifest.get('version') != release.version:
-                raise ValidationError('The Firefox package identity or version did not match.')
-            names = [name.lower() for name in archive.namelist()]
-            if not any(name.startswith('meta-inf/') and name.endswith(('.rsa', '.sig')) for name in names):
-                raise ValidationError('The Firefox package has no retained signing data.')
-        elif 'AndroidManifest.xml' not in archive.namelist():
-            raise ValidationError('The Android package is not an APK.')
+        ARCHIVE_CHECKS[release.client](archive, release)
 
 
 def apply_release(release):
@@ -201,7 +233,7 @@ def apply_release(release):
         keep = {str(release_path(value)) for p in ClientPackage.objects.select_related('current', 'previous')
                 for value in (p.current, p.previous) if value}
         for path in cache_root().iterdir():
-            if re.fullmatch(r'(android|firefox)-[a-f0-9]{64}\.(apk|xpi)', path.name) and str(path) not in keep:
+            if _is_cache_blob(path.name) and str(path) not in keep:
                 path.unlink(missing_ok=True)
         return True
     finally:

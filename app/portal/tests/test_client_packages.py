@@ -230,3 +230,22 @@ class ClientRegistryTests(SimpleTestCase):
             path.write_bytes(data)
             with self.assertRaisesMessage(ValidationError, 'not an APK'):
                 verify_package(path, release)
+
+
+class ClientRegistryConsistencyTests(SimpleTestCase):
+    def test_every_client_has_one_rule_discoverer_and_archive_check(self):
+        from portal import client_packages
+        keys = set(client_packages.CLIENTS)
+        self.assertEqual(set(client_packages.ARTIFACT_RULES), keys)
+        self.assertEqual(set(client_packages.DISCOVERERS), keys)
+        self.assertEqual(set(client_packages.ARCHIVE_CHECKS), keys)
+
+    def test_cache_blob_names_match_only_known_clients_and_extensions(self):
+        from portal.client_packages import _is_cache_blob
+        digest = 'a' * 64
+        self.assertTrue(_is_cache_blob('android-' + digest + '.apk'))
+        self.assertTrue(_is_cache_blob('firefox-' + digest + '.xpi'))
+        for name in ('android-' + digest + '.xpi', 'ios-' + digest + '.ipa', 'android-' + digest[:-1] + 'G.apk',
+                     'android-' + digest + '.apk.tmp', '.client-abc123', 'android-' + digest + '.apk/'):
+            with self.subTest(name=name):
+                self.assertFalse(_is_cache_blob(name))
