@@ -15,8 +15,10 @@ import ssl
 import subprocess
 import sys
 import tempfile
+import threading
 import urllib.error
 import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = '__PIVAULT_BASE__'
 TOKEN = '__PIVAULT_TOKEN__'
@@ -25,6 +27,8 @@ DEVICE_LINE = re.compile(r'^(\S+)\s+device$', re.M)
 UNAUTHORIZED_LINE = re.compile(r'^(\S+)\s+unauthorized$', re.M)
 VERSION_NAME = re.compile(r'versionName=(\S+)')
 NEW_STATE = re.compile(r'new state: (\S+)')
+# The PiVault page on this computer's browser calls this local service. It accepts requests only from BASE.
+LOCAL_PORT = 8765
 
 
 def parse_devices(output):
@@ -122,27 +126,24 @@ def sync_app(binary, serial, base, token, context, client, app, approved, direct
         return {'state': 'error', 'version': ''}
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description='Sync approved PiVault apps to one USB-connected phone.')
-    parser.add_argument('--cafile', help='PEM file with the PiVault root certificate')
-    args = parser.parse_args(argv)
+class SyncError(Exception):
+    """A problem the person can fix on the phone or the computer. The message is shown as is."""
+
+
+def sync_phone(context, only=None, log=print):
+    """Sync the one connected phone. Pass a set of app names in only to sync just those apps."""
     binary = shutil.which('adb')
     if not binary:
-        print('adb was not found on PATH. Install Android platform-tools on this computer.')
-        return 1
-    context = ssl.create_default_context(cafile=args.cafile)
+        raise SyncError('adb was not found on PATH. Install Android platform-tools on this computer.')
     ready, unauthorized = parse_devices(adb(binary, None, 'devices')[1])
     if unauthorized:
-        print('Accept the USB debugging prompt on the phone, then run this again.')
-        return 1
+        raise SyncError('Accept the USB debugging prompt on the phone, then run this again.')
     if len(ready) != 1:
-        print('Connect exactly one phone. Found %d.' % len(ready))
-        return 1
+        raise SyncError('Connect exactly one phone. Found %d.' % len(ready))
     serial = ready[0]
     android_id = parse_android_id(adb(binary, serial, 'shell', 'settings', 'get', 'secure', 'android_id')[1])
     if not android_id:
-        print('Could not read the Android ID from the phone.')
-        return 1
+        raise SyncError('Could not read the Android ID from the phone.')
     model = adb(binary, serial, 'shell', 'getprop', 'ro.product.model')[1].strip()
     release = adb(binary, serial, 'shell', 'getprop', 'ro.build.version.release')[1].strip()
     try:
@@ -150,16 +151,103 @@ def main(argv=None):
                           {'android_id': android_id, 'model': model, 'android_release': release})
         manifest = api_call(BASE, TOKEN, context, '/devices/api/manifest')
     except urllib.error.HTTPError as error:
-        print('The portal refused the request (HTTP %d). If it says 401, download the script again.' % error.code)
-        return 1
+        raise SyncError('The portal refused the request (HTTP %d). If it says 401, download the script again.' % error.code)
     approved = manifest.get('apps', {})
-    print('Syncing %s' % device['name'])
+    log('Syncing %s' % device['name'])
     results = {}
     with tempfile.TemporaryDirectory() as directory:
         for client, app in sorted(device['apps'].items()):
+            if only is not None and client not in only:
+                continue
             results[client] = sync_app(binary, serial, BASE, TOKEN, context, client, app, approved, directory)
-            print('  %s: %s %s' % (client, results[client]['state'], results[client]['version']))
+            log('  %s: %s %s' % (client, results[client]['state'], results[client]['version']))
     api_call(BASE, TOKEN, context, '/devices/api/%s/report' % device['id'], {'apps': results})
+    return device['name'], results
+
+
+class LocalHandler(BaseHTTPRequestHandler):
+    context = None
+    lock = threading.Lock()
+
+    def _json(self, status, body, origin_ok):
+        data = json.dumps(body).encode()
+        self.send_response(status)
+        if origin_ok:
+            self.send_header('Access-Control-Allow-Origin', BASE)
+            self.send_header('Vary', 'Origin')
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_OPTIONS(self):
+        allowed = self.headers.get('Origin') == BASE
+        self.send_response(204 if allowed else 403)
+        if allowed:
+            self.send_header('Access-Control-Allow-Origin', BASE)
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path != '/status':
+            return self._json(404, {'error': 'Not found.'}, False)
+        self._json(200, {'service': 'pivault-android-sync'}, self.headers.get('Origin') == BASE)
+
+    def do_POST(self):
+        if self.headers.get('Origin') != BASE:
+            return self._json(403, {'error': 'Only the PiVault page may call this service.'}, False)
+        if self.path != '/sync':
+            return self._json(404, {'error': 'Not found.'}, True)
+        length = int(self.headers.get('Content-Length') or 0)
+        try:
+            body = json.loads(self.rfile.read(min(length, 4096)) or b'{}')
+        except ValueError:
+            return self._json(400, {'error': 'Invalid request.'}, True)
+        only = body.get('apps') if isinstance(body, dict) else None
+        if only is not None and (not isinstance(only, list) or not all(isinstance(app, str) for app in only)):
+            return self._json(400, {'error': 'Invalid app list.'}, True)
+        if not self.lock.acquire(blocking=False):
+            return self._json(409, {'error': 'A sync is already running.'}, True)
+        try:
+            name, results = sync_phone(self.context, only=set(only) if only is not None else None,
+                                       log=lambda line: None)
+        except SyncError as error:
+            return self._json(409, {'error': str(error)}, True)
+        finally:
+            self.lock.release()
+        self._json(200, {'device': name, 'results': results}, True)
+
+    def log_message(self, format, *args):
+        pass
+
+
+def serve(context):
+    LocalHandler.context = context
+    server = ThreadingHTTPServer(('127.0.0.1', LOCAL_PORT), LocalHandler)
+    print('PiVault sync is running on 127.0.0.1:%d. Keep this window open while you use the PiVault page.' % LOCAL_PORT)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    return 0
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description='Sync approved PiVault apps to one USB-connected phone.')
+    parser.add_argument('--cafile', help='PEM file with the PiVault root certificate')
+    parser.add_argument('command', nargs='?', choices=['serve'],
+                        help='serve: keep a local service running for the PiVault page')
+    args = parser.parse_args(argv)
+    context = ssl.create_default_context(cafile=args.cafile)
+    if args.command == 'serve':
+        return serve(context)
+    try:
+        sync_phone(context)
+    except SyncError as error:
+        print(error)
+        return 1
     return 0
 
 

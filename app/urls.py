@@ -37,6 +37,7 @@ urlpatterns = [
     path('services/<str:key>/<str:verb>', service_control.control),
     # Android devices. Admin pages use the session; /devices/api/* takes the helper's sync token instead.
     path('devices', device_views.overview),
+    path('devices/page.js', views.script('devices-page.js')),
     path('devices/sync.py', device_views.helper_script),
     path('devices/ca.crt', device_views.ca_certificate),
     path('devices/<uuid:device_id>/rename', device_views.rename),

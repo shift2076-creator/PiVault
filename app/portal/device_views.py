@@ -36,6 +36,10 @@ DEVICE_DESCRIPTIONS = {
     'jellyfin': ('Jellyfin', 'Client for your Jellyfin media server'),
     'organicmaps': ('Organic Maps', 'Offline maps and navigation'),
 }
+# The device page may call only the sync service on the sync computer (device_sync/pivault_android_sync.py serve).
+DEVICE_PAGE_CSP = ("default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+                   "script-src 'self'; connect-src 'self' http://127.0.0.1:8765; frame-ancestors 'none'; "
+                   "form-action 'self'; base-uri 'none'")
 TOKEN_SALT = 'pivault.devices.helper'
 TOKEN_SECONDS = 2 * 60 * 60
 HELPER = Path(__file__).resolve().parent / 'device_sync' / 'pivault_android_sync.py'
@@ -184,7 +188,9 @@ def overview(request):
              'description': DEVICE_DESCRIPTIONS[client][1], 'app': apps.get(client),
              'enabled': apps[client].enabled if client in apps else True}
             for client in DEVICE_PACKAGES]})
-    return render(request, 'devices.html', {'rows': rows})
+    response = render(request, 'devices.html', {'rows': rows})
+    response['Content-Security-Policy'] = DEVICE_PAGE_CSP
+    return response
 
 
 @admin_page

@@ -47,7 +47,8 @@
 <main>
   <a class="back" href="/system">‹ Back to System</a>
   <h1>Android devices</h1>
-  <section class="card" aria-labelledby="helper-h">
+  <p id="sync-status" class="warn" role="status"></p>
+  <section class="card" id="helper-section" aria-labelledby="helper-h">
     <h2 id="helper-h">Sync helper</h2>
     <p class="secondary">Run the helper on the computer the phone is plugged into. That computer needs adb (Android platform-tools) on its PATH. The download carries a sign-in token that expires after two hours.</p>
     <div class="helper-links">
@@ -84,7 +85,7 @@
           <tr>
             <th scope="row">{{ entry.name }}</th>
             <td class="secondary">{{ entry.description }}{% if entry.app.observed_state == "error" %}<br><span class="warn">Install failed</span>{% endif %}</td>
-            <td class="sync">{% if entry.app.observed_state == "enabled" %}<span class="pill">✓ Synced</span>{% elif entry.app.observed_state == "error" %}<button class="btn retry" type="button">Retry sync</button>{% else %}<button class="btn" type="button">Sync to phone</button>{% endif %}</td>
+            <td class="sync">{% if entry.app.observed_state == "enabled" %}<span class="pill">✓ Synced</span>{% elif entry.app.observed_state == "error" %}<button class="btn retry" type="button" data-sync-client="{{ entry.client }}" disabled>Retry sync</button>{% else %}<button class="btn" type="button" data-sync-client="{{ entry.client }}" disabled>Sync to phone</button>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -95,5 +96,6 @@
   <p class="empty">No devices yet. Plug a phone into the sync computer and run the helper.</p>
   {% endfor %}
 </main>
+<script src="/devices/page.js"></script>
 </body>
 </html>

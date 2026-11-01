@@ -205,3 +205,29 @@ class SystemPageTests(DeviceTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, 'id="android-devices"')
         self.assertNotContains(response, 'Manage phones and approved app sync')
+
+
+class SyncServiceTests(DeviceTestCase):
+    def test_device_page_loads_its_script_and_allows_only_the_local_sync_service(self):
+        self.client.force_login(self.admin)
+        response = self.client.get('/devices')
+        self.assertContains(response, 'src="/devices/page.js"')
+        self.assertIn('connect-src \'self\' http://127.0.0.1:8765', response['Content-Security-Policy'])
+        script = self.client.get('/devices/page.js', secure=True)
+        self.assertEqual(script.status_code, 200)
+        self.assertIn(b"SERVICE + '/sync'", script.content)
+
+    def test_other_pages_keep_the_default_policy(self):
+        response = self.client.get('/users/sign-in', secure=True)
+        self.assertNotIn('connect-src', response['Content-Security-Policy'])
+
+
+class HelperSyncTests(TestCase):
+    def setUp(self):
+        self.helper = load_helper()
+
+    def test_sync_phone_reports_a_missing_adb_as_a_plain_message(self):
+        with patch('shutil.which', return_value=None):
+            with self.assertRaises(self.helper.SyncError) as raised:
+                self.helper.sync_phone(context=None)
+        self.assertIn('adb was not found on PATH', str(raised.exception))
