@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -82,3 +84,27 @@ class ClientPackage(models.Model):
     latest = models.ForeignKey(ClientRelease, null=True, on_delete=models.PROTECT, related_name='+')
     checked_at = models.DateTimeField(null=True)
     last_error = models.CharField(max_length=200, blank=True)
+
+
+class Device(models.Model):
+    """An Android phone, identified by a keyed hash of its ANDROID_ID rather than its serial number."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=80)
+    identity = models.CharField(max_length=64, unique=True)
+    model = models.CharField(max_length=80, blank=True)
+    android_release = models.CharField(max_length=16, blank=True)
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(null=True)
+
+
+class DeviceApp(models.Model):
+    """Desired package state (enabled or disabled) and last observed state of one app on one device."""
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, related_name='apps')
+    client = models.CharField(max_length=16)
+    enabled = models.BooleanField(default=True)
+    observed_state = models.CharField(max_length=16, default='unknown')
+    observed_version = models.CharField(max_length=64, blank=True)
+    observed_at = models.DateTimeField(null=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['device', 'client'], name='one_app_state_per_device')]
