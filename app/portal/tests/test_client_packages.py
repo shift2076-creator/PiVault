@@ -249,3 +249,61 @@ class ClientRegistryConsistencyTests(SimpleTestCase):
                      'android-' + digest + '.apk.tmp', '.client-abc123', 'android-' + digest + '.apk/'):
             with self.subTest(name=name):
                 self.assertFalse(_is_cache_blob(name))
+
+
+def fdroid_fixture(package_id='org.adaway'):
+    def version(code, name, digest):
+        return {'file': {'name': '/%s_%d.apk' % (package_id, code), 'sha256': digest, 'size': 1000 + code},
+            'manifest': {'versionCode': code, 'versionName': name}}
+    return {'packages': {package_id: {'versions': {
+        'h1': version(60103, '6.1.3', 'a' * 64),
+        'h2': version(60104, '6.1.4', 'b' * 64),
+        'h3': version(60200, '6.2.0-beta1', 'c' * 64),
+    }}}}
+
+
+class FDroidSourceTests(SimpleTestCase):
+    def setUp(self):
+        from portal import client_packages
+        self.cp = client_packages
+        self.cp._INDEX_CACHE.clear()
+        self.addCleanup(self.cp._INDEX_CACHE.clear)
+
+    def test_discovery_picks_the_highest_stable_version_code(self):
+        with patch('portal.client_packages.read_json', return_value=fdroid_fixture()):
+            data = self.cp._discover_fdroid('org.adaway')
+        self.assertEqual(data, {'version': '6.1.4', 'sha256': 'b' * 64, 'size': 61104,
+            'url': 'https://f-droid.org/repo/org.adaway_60104.apk',
+            'release_url': 'https://f-droid.org/packages/org.adaway/'})
+
+    def test_discovery_refuses_a_package_missing_from_the_index(self):
+        with patch('portal.client_packages.read_json', return_value=fdroid_fixture()):
+            with self.assertRaisesMessage(ValidationError, 'does not list org.other'):
+                self.cp._discover_fdroid('org.other')
+
+    def test_discovery_refuses_a_package_with_only_prereleases(self):
+        fixture = fdroid_fixture()
+        fixture['packages']['org.adaway']['versions'] = {'h3': fixture['packages']['org.adaway']['versions']['h3']}
+        with patch('portal.client_packages.read_json', return_value=fixture):
+            with self.assertRaisesMessage(ValidationError, 'no stable release'):
+                self.cp._discover_fdroid('org.adaway')
+
+    def test_artifact_rule_accepts_only_the_package_apk_under_f_droid_repo(self):
+        self.cp._fdroid_artifact_rule('org.adaway', 'https://f-droid.org/repo/org.adaway_60104.apk')
+        for url in ('https://f-droid.org/repo/org.other_1.apk', 'https://evil.example/repo/org.adaway_1.apk',
+                    'https://f-droid.org/archive/org.adaway_1.apk', 'https://f-droid.org/repo/org.adaway_1.zip'):
+            with self.subTest(url=url):
+                with self.assertRaisesMessage(ValidationError, 'Unexpected F-Droid release artifact'):
+                    self.cp._fdroid_artifact_rule('org.adaway', url)
+
+    def test_index_is_read_once_per_maintenance_run_and_uses_the_larger_limit(self):
+        with patch('portal.client_packages.read_json', return_value=fdroid_fixture()) as read:
+            self.cp.fdroid_index(); self.cp.fdroid_index()
+        read.assert_called_once_with('https://f-droid.org/repo/index-v2.json', limit=128 * 1024 * 1024)
+
+    def test_bitwarden_and_firefox_keep_their_download_names(self):
+        self.assertEqual(self.cp.download_filename('android', '2026.10.0'), 'Bitwarden-2026.10.0.apk')
+        self.assertEqual(self.cp.download_filename('firefox', '2026.10.0'), 'Bitwarden-2026.10.0.xpi')
+
+    def test_every_client_has_a_download_name(self):
+        self.assertEqual(set(self.cp.DOWNLOAD_NAMES), set(self.cp.CLIENTS))

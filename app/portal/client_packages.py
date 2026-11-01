@@ -20,6 +20,8 @@ from .notifications import notify
 
 CLIENTS = {'android': ('Android app', '.apk', 'application/vnd.android.package-archive'),
            'firefox': ('Firefox extension', '.xpi', 'application/x-xpinstall')}
+# Prefix for the file name a vault user downloads, e.g. Bitwarden-2026.10.0.apk.
+DOWNLOAD_NAMES = {'android': 'Bitwarden', 'firefox': 'Bitwarden'}
 FIREFOX_ID = '{446900e4-71c2-419f-a6a7-df9c091e268b}'
 MAX_SIZE = 256 * 1024 * 1024
 
@@ -34,7 +36,7 @@ def safe_url(url, *, download=False):
         raise ValidationError('Invalid official client URL.')
     hosts = ('api.github.com', 'github.com', 'release-assets.githubusercontent.com',
         'objects.githubusercontent.com', 'github-releases.githubusercontent.com',
-        'addons.mozilla.org', 'addons.cdn.mozilla.net', 'addons.mozilla.net')
+        'addons.mozilla.org', 'addons.cdn.mozilla.net', 'addons.mozilla.net', 'f-droid.org')
     if p.hostname not in hosts:
         raise ValidationError('Unexpected official client download host.')
     return url
@@ -53,10 +55,10 @@ def http_open(url):
         'Accept': 'application/json,application/octet-stream;q=0.9'}), timeout=30)
 
 
-def read_json(url):
+def read_json(url, limit=2 * 1024 * 1024):
     with http_open(url) as response:
-        data = response.read(2 * 1024 * 1024 + 1)
-        if len(data) > 2 * 1024 * 1024:
+        data = response.read(limit + 1)
+        if len(data) > limit:
             raise ValidationError('Official release metadata was too large.')
         return json.loads(data)
 
@@ -74,6 +76,13 @@ def _firefox_artifact_rule(url):
 
 
 # Each client in CLIENTS needs one entry in ARTIFACT_RULES, DISCOVERERS and ARCHIVE_CHECKS.
+def _fdroid_artifact_rule(package_id, url):
+    p = urlsplit(url)
+    name = p.path.rsplit('/', 1)[-1]
+    if p.hostname != 'f-droid.org' or not p.path.startswith('/repo/') or not name.startswith(package_id + '_') or not name.endswith('.apk'):
+        raise ValidationError('Unexpected F-Droid release artifact.')
+
+
 ARTIFACT_RULES = {'android': _bitwarden_artifact_rule, 'firefox': _firefox_artifact_rule}
 
 
@@ -119,6 +128,38 @@ def _discover_bitwarden_android():
         'release_url': release['html_url']}
 
 
+FDROID_INDEX_URL = 'https://f-droid.org/repo/index-v2.json'
+FDROID_INDEX_LIMIT = 128 * 1024 * 1024
+_INDEX_CACHE = {}
+
+
+def fdroid_index():
+    # One index read serves every F-Droid client in a maintenance run; maintain() clears the cache.
+    if 'index' not in _INDEX_CACHE:
+        _INDEX_CACHE['index'] = read_json(FDROID_INDEX_URL, limit=FDROID_INDEX_LIMIT)
+    return _INDEX_CACHE['index']
+
+
+def _discover_fdroid(package_id):
+    package = fdroid_index().get('packages', {}).get(package_id)
+    if not package:
+        raise ValidationError('The F-Droid index does not list ' + package_id + '.')
+    versions = sorted(package.get('versions', {}).values(),
+        key=lambda value: value.get('manifest', {}).get('versionCode', 0), reverse=True)
+    for version in versions:
+        try:
+            name = version['manifest']['versionName']; parsed = Version(name)
+        except (InvalidVersion, TypeError, KeyError):
+            continue
+        if parsed.is_prerelease or parsed.is_devrelease:
+            continue
+        file = version['file']
+        return {'version': name, 'sha256': file['sha256'], 'size': file['size'],
+            'url': 'https://f-droid.org/repo/' + file['name'].lstrip('/'),
+            'release_url': 'https://f-droid.org/packages/' + package_id + '/'}
+    raise ValidationError('The F-Droid index has no stable release of ' + package_id + '.')
+
+
 DISCOVERERS = {'android': _discover_bitwarden_android, 'firefox': _discover_firefox}
 
 
@@ -151,6 +192,10 @@ def release_path(release):
     if release.client not in CLIENTS or not re.fullmatch('[a-f0-9]{64}', release.sha256):
         raise ValidationError('Invalid cached release identity.')
     return cache_root() / (release.client + '-' + release.sha256 + CLIENTS[release.client][1])
+
+
+def download_filename(client, version):
+    return DOWNLOAD_NAMES[client] + '-' + version + CLIENTS[client][1]
 
 
 def _is_cache_blob(name):
@@ -245,6 +290,7 @@ def maintain(check_only=False):
         # Every step needs the internet; offline mode pauses them without raising notices.
         return []
     cache_root().mkdir(mode=0o750, parents=True, exist_ok=True)
+    _INDEX_CACHE.clear()
     with (cache_root() / '.maintenance.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         errors = []

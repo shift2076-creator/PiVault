@@ -11,7 +11,7 @@ from django.db import DatabaseError
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_POST
-from .client_packages import CLIENTS, client_rows, release_path
+from .client_packages import CLIENTS, client_rows, download_filename, release_path
 from .invitations import find_valid, rate_limit
 from .models import ClientPackage
 from .runtime import PUBLIC_URLS, credential_plan
@@ -116,4 +116,4 @@ def download(request, client):
     if not path.is_file() or path.is_symlink():
         raise Http404('The approved local download is unavailable.')
     return FileResponse(path.open('rb'), as_attachment=client != 'firefox',
-        filename='Bitwarden-' + package.current.version + CLIENTS[client][1], content_type=CLIENTS[client][2])
+        filename=download_filename(client, package.current.version), content_type=CLIENTS[client][2])
