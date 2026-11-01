@@ -25,9 +25,10 @@ CLIENTS = {'android': ('Android app', '.apk', 'application/vnd.android.package-a
            'adaway': ('AdAway app', '.apk', 'application/vnd.android.package-archive'),
            'davx5': ('DAVx5 app', '.apk', 'application/vnd.android.package-archive'),
            'jellyfin': ('Jellyfin app', '.apk', 'application/vnd.android.package-archive'),
-           'organicmaps': ('Organic Maps app', '.apk', 'application/vnd.android.package-archive')}
+           'organicmaps': ('Organic Maps app', '.apk', 'application/vnd.android.package-archive'),
+           'vibrdrome': ('Vibrdrome app', '.apk', 'application/vnd.android.package-archive')}
 # Prefix for the file name a vault user downloads, e.g. Bitwarden-2026.10.0.apk.
-DOWNLOAD_NAMES = {'android': 'Bitwarden', 'firefox': 'Bitwarden', 'fdroid': 'F-Droid', 'adaway': 'AdAway', 'davx5': 'DAVx5', 'jellyfin': 'Jellyfin', 'organicmaps': 'OrganicMaps'}
+DOWNLOAD_NAMES = {'android': 'Bitwarden', 'firefox': 'Bitwarden', 'fdroid': 'F-Droid', 'adaway': 'AdAway', 'davx5': 'DAVx5', 'jellyfin': 'Jellyfin', 'organicmaps': 'OrganicMaps', 'vibrdrome': 'Vibrdrome'}
 FIREFOX_ID = '{446900e4-71c2-419f-a6a7-df9c091e268b}'
 MAX_SIZE = 256 * 1024 * 1024
 
@@ -89,7 +90,7 @@ def _fdroid_artifact_rule(package_id, url):
         raise ValidationError('Unexpected F-Droid release artifact.')
 
 
-ARTIFACT_RULES = {'android': functools.partial(_github_artifact_rule, 'bitwarden/android', re.compile(r'com\.x8bit\.bitwarden\.apk')), 'firefox': _firefox_artifact_rule, 'fdroid': functools.partial(_fdroid_artifact_rule, 'org.fdroid.fdroid'), 'adaway': functools.partial(_fdroid_artifact_rule, 'org.adaway'), 'davx5': functools.partial(_fdroid_artifact_rule, 'at.bitfire.davdroid'), 'jellyfin': functools.partial(_fdroid_artifact_rule, 'org.jellyfin.mobile'), 'organicmaps': functools.partial(_fdroid_artifact_rule, 'app.organicmaps')}
+ARTIFACT_RULES = {'android': functools.partial(_github_artifact_rule, 'bitwarden/android', re.compile(r'com\.x8bit\.bitwarden\.apk')), 'firefox': _firefox_artifact_rule, 'fdroid': functools.partial(_fdroid_artifact_rule, 'org.fdroid.fdroid'), 'adaway': functools.partial(_fdroid_artifact_rule, 'org.adaway'), 'davx5': functools.partial(_fdroid_artifact_rule, 'at.bitfire.davdroid'), 'jellyfin': functools.partial(_fdroid_artifact_rule, 'org.jellyfin.mobile'), 'organicmaps': functools.partial(_fdroid_artifact_rule, 'app.organicmaps'), 'vibrdrome': functools.partial(_github_artifact_rule, 'ddmoney420/vibrdrome-android', re.compile(r'.+\.apk'))}
 
 
 def validate_release(client, data):
@@ -169,7 +170,7 @@ def _discover_fdroid(package_id):
     raise ValidationError('The F-Droid index has no stable release of ' + package_id + '.')
 
 
-DISCOVERERS = {'android': functools.partial(_discover_github, 'bitwarden/android', '-bwpm', re.compile(r'com\.x8bit\.bitwarden\.apk')), 'firefox': _discover_firefox, 'fdroid': functools.partial(_discover_fdroid, 'org.fdroid.fdroid'), 'adaway': functools.partial(_discover_fdroid, 'org.adaway'), 'davx5': functools.partial(_discover_fdroid, 'at.bitfire.davdroid'), 'jellyfin': functools.partial(_discover_fdroid, 'org.jellyfin.mobile'), 'organicmaps': functools.partial(_discover_fdroid, 'app.organicmaps')}
+DISCOVERERS = {'android': functools.partial(_discover_github, 'bitwarden/android', '-bwpm', re.compile(r'com\.x8bit\.bitwarden\.apk')), 'firefox': _discover_firefox, 'fdroid': functools.partial(_discover_fdroid, 'org.fdroid.fdroid'), 'adaway': functools.partial(_discover_fdroid, 'org.adaway'), 'davx5': functools.partial(_discover_fdroid, 'at.bitfire.davdroid'), 'jellyfin': functools.partial(_discover_fdroid, 'org.jellyfin.mobile'), 'organicmaps': functools.partial(_discover_fdroid, 'app.organicmaps'), 'vibrdrome': functools.partial(_discover_github, 'ddmoney420/vibrdrome-android', '', re.compile(r'.+\.apk'))}
 
 
 def discover(client):
@@ -229,7 +230,7 @@ def _check_android_archive(archive, release):
         raise ValidationError('The Android package is not an APK.')
 
 
-ARCHIVE_CHECKS = {'android': _check_android_archive, 'firefox': _check_firefox_archive, 'fdroid': _check_android_archive, 'adaway': _check_android_archive, 'davx5': _check_android_archive, 'jellyfin': _check_android_archive, 'organicmaps': _check_android_archive}
+ARCHIVE_CHECKS = {'android': _check_android_archive, 'firefox': _check_firefox_archive, 'fdroid': _check_android_archive, 'adaway': _check_android_archive, 'davx5': _check_android_archive, 'jellyfin': _check_android_archive, 'organicmaps': _check_android_archive, 'vibrdrome': _check_android_archive}
 
 
 def verify_package(path, release):

@@ -379,3 +379,20 @@ class GitHubSourceTests(SimpleTestCase):
         with patch('portal.client_packages.read_json', return_value=[release]):
             with self.assertRaisesMessage(ValidationError, 'exactly one matching APK'):
                 cp._discover_github('o/r', '', _re.compile(r'.+\.apk'))
+
+
+class VibrdromeClientTests(SimpleTestCase):
+    def test_discovers_the_github_apk_and_names_the_download(self):
+        from portal import client_packages as cp
+        url = 'https://github.com/ddmoney420/vibrdrome-android/releases/download/v1.2.3/vibrdrome.apk'
+        release = {'draft': False, 'prerelease': False, 'tag_name': 'v1.2.3',
+            'html_url': 'https://github.com/ddmoney420/vibrdrome-android/releases/tag/v1.2.3',
+            'assets': [{'name': 'vibrdrome.apk', 'size': 2048, 'digest': 'sha256:' + 'f' * 64,
+                        'browser_download_url': url}]}
+        with patch('portal.client_packages.read_json', return_value=[release]):
+            data = cp.discover('vibrdrome')
+        self.assertEqual(data['version'], '1.2.3')
+        self.assertEqual(data['url'], url)
+        self.assertEqual(cp.download_filename('vibrdrome', '1.2.3'), 'Vibrdrome-1.2.3.apk')
+        with self.assertRaisesMessage(ValidationError, 'Unexpected Android release artifact'):
+            cp.validate_release('vibrdrome', dict(data, url='https://github.com/evil/app/releases/download/v1/vibrdrome.apk'))
