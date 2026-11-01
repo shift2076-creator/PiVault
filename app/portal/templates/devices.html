@@ -39,6 +39,7 @@
     .pill{display:inline-block;font-size:14px;padding:7px 14px;border-radius:10px;border:1px solid #2e6b3a;color:var(--pv-green);white-space:nowrap}
     .retry{border-color:#7a5a2a;color:var(--pv-orange)}
     .warn{color:var(--pv-orange);font-size:13px}
+    .toggle{display:inline-block;margin:0 0 0 8px}
     .empty{color:var(--pv-secondary)}
     @media(max-width:620px){h1{font-size:24px}.device-head{align-items:stretch}.rename input{min-width:0;flex:1}}
   </style>
@@ -85,7 +86,7 @@
           <tr>
             <th scope="row">{{ entry.name }}</th>
             <td class="secondary">{{ entry.description }}{% if entry.app.observed_state == "error" %}<br><span class="warn">Install failed</span>{% endif %}</td>
-            <td class="sync">{% if entry.app.observed_state == "enabled" %}<span class="pill">✓ Synced</span>{% elif entry.app.observed_state == "error" %}<button class="btn retry" type="button" data-sync-client="{{ entry.client }}" disabled>Retry sync</button>{% else %}<button class="btn" type="button" data-sync-client="{{ entry.client }}" disabled>Sync to phone</button>{% endif %}</td>
+            <td class="sync">{% if entry.app.observed_state == "enabled" %}<span class="pill">✓ Synced</span>{% elif entry.app.observed_state == "error" %}<button class="btn retry" type="button" data-sync-client="{{ entry.client }}" disabled>Retry sync</button>{% else %}<button class="btn" type="button" data-sync-client="{{ entry.client }}" disabled>Sync to phone</button>{% endif %}<form class="toggle" method="post" action="/devices/{{ row.device.id }}/apps/{{ entry.client }}">{% csrf_token %}<input type="hidden" name="enabled" value="{% if entry.enabled %}off{% else %}on{% endif %}"><button class="btn" type="submit">{% if entry.enabled %}Disable{% else %}Enable{% endif %}</button></form></td>
           </tr>
           {% endfor %}
         </tbody>
