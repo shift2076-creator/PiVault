@@ -319,3 +319,15 @@ class FdroidClientTests(SimpleTestCase):
         self.assertEqual(data['url'], 'https://f-droid.org/repo/org.fdroid.fdroid_60104.apk')
         self.assertEqual(data['version'], '6.1.4')
         self.assertEqual(cp.download_filename('fdroid', '6.1.4'), 'F-Droid-6.1.4.apk')
+
+
+class AdawayClientTests(SimpleTestCase):
+    def test_discovers_the_f_droid_build_and_names_the_download(self):
+        from portal import client_packages as cp
+        cp._INDEX_CACHE.clear()
+        self.addCleanup(cp._INDEX_CACHE.clear)
+        with patch('portal.client_packages.read_json', return_value=fdroid_fixture('org.adaway')):
+            data = cp.discover('adaway')
+        self.assertEqual(data['url'], 'https://f-droid.org/repo/org.adaway_60104.apk')
+        self.assertEqual(data['version'], '6.1.4')
+        self.assertEqual(cp.download_filename('adaway', '6.1.4'), 'AdAway-6.1.4.apk')
