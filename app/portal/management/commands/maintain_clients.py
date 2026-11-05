@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from portal.client_packages import maintain
-from portal.models import SiteSettings
+from django.utils import timezone
+from portal.models import Notification, SiteSettings
 
 
 class Command(BaseCommand):
@@ -16,4 +17,7 @@ class Command(BaseCommand):
         errors = maintain(check_only=options['check_only'])
         if errors:
             raise CommandError('Client maintenance needs review: ' + ', '.join(errors))
+        # The nightly job's failure notice for this step clears once a run finishes cleanly.
+        Notification.objects.filter(source='maintenance', title='Nightly client downloads needs review',
+            status='open').update(status='resolved', resolution='resolve', resolved_at=timezone.now())
         self.stdout.write('Approved local client updates processed; official release checks complete.')

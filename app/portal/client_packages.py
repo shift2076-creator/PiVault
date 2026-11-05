@@ -355,6 +355,10 @@ def maintain(check_only=False):
                         'The latest release could not be downloaded or verified. Nothing is installed from it.',
                         level='warning')
             prune_cache()
+        if not errors:
+            # A clean run means the earlier check and download failures no longer apply.
+            Notification.objects.filter(source='clients', status='open', level='warning').exclude(
+                kind='clients.update').update(status='resolved', resolution='resolve', resolved_at=timezone.now())
         return sorted(set(errors))
 
 
