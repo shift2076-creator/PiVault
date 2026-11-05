@@ -92,6 +92,9 @@ class LauncherAssetTests(unittest.TestCase):
         spec.loader.exec_module(module)
         self.assertEqual(module.splice(JS), JS)
 
+    def test_tools_group_with_only_the_hidden_password_manager_is_hidden(self):
+        self.assertIn('services-group:has(li.service[data-name="Password Manager"])', CSS)
+
     def test_javascript_parses(self):
         node = shutil.which('node')
         if not node:
