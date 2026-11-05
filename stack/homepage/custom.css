@@ -74,7 +74,7 @@ body:has(#pivault-books) #layout-groups {
   align-items: stretch !important;
   box-sizing: border-box !important;
   width: calc(100% - var(--pv-gutter) * 2) !important;
-  max-width: none !important;
+  max-width: 1200px !important;
   margin: 0 auto !important;
   padding: clamp(56px, 6.510417vw, 100px) 0 80px !important;
 }
@@ -179,6 +179,7 @@ body:has(#pivault-books) #pv-search input[type="search"]::placeholder {
 }
 
 body:has(#pivault-books) #pv-search kbd {
+  display: none !important;
   padding: 3px 8px;
   border: 1px solid var(--pv-border);
   border-radius: 6px;
@@ -535,7 +536,7 @@ body:has(#pivault-books) #layout-groups .pv-launch-menu p {
 body:has(#pivault-books) #pv-toolbar {
   position: fixed;
   top: clamp(20px, 3vw, 40px);
-  right: max(var(--pv-gutter), calc((100vw - 1120px) / 2 + var(--pv-gutter)));
+  right: max(var(--pv-gutter), calc((100vw - 1200px) / 2));
   z-index: 1000;
   display: flex;
   align-items: center;

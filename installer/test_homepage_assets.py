@@ -70,6 +70,11 @@ class LauncherAssetTests(unittest.TestCase):
     def test_hover_drops_the_shadow_and_darkens_the_top_edge(self):
         self.assertIn('box-shadow: 0 0 0 0 rgb(0 0 0 / 0%), inset 0 1px 0 #10161d;', CSS)
 
+    def test_content_is_capped_at_1200px_and_search_hint_is_hidden(self):
+        self.assertIn('max-width: 1200px !important;', CSS)
+        self.assertIn('calc((100vw - 1200px) / 2)', CSS)
+        self.assertIn('#pv-search kbd {\n  display: none !important;', CSS)
+
     def test_javascript_parses(self):
         node = shutil.which('node')
         if not node:
