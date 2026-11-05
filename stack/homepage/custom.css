@@ -9,6 +9,7 @@ body:has(#pivault-books) {
   --pv-column-gap: clamp(32px, 4.166667vw, 64px);
   --pv-icon-size: 44px;
   --pv-item-height: 104px;
+  --pv-search-gap: 20px;
   background: var(--pv-background) !important;
   color: var(--pv-text) !important;
 }
@@ -41,6 +42,7 @@ body:has(#pivault-books) #layout-groups {
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   grid-template-areas:
     "title title title title"
+    "search search search search"
     "entertainment knowledge organization tools" !important;
   column-gap: var(--pv-column-gap) !important;
   row-gap: 0 !important;
@@ -56,12 +58,16 @@ body:has(#pivault-books) #layout-groups::before {
   content: "PiVault";
   grid-area: title;
   display: block;
-  margin: 0 0 72px;
-  color: var(--pv-accent);
-  font-size: 34px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -1.1px;
+  height: 40px;
+  margin: 0 0 var(--pv-search-gap);
+  padding-left: 56px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' fill='none'%3E%3Crect x='8' y='20' width='104' height='80' rx='10' stroke='%2391acc3' stroke-width='11'/%3E%3Cpath d='M53 60A13 13 0 1 1 67 60L72 86H48Z' stroke='%2391acc3' stroke-width='11' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat left center / 40px 40px;
+  color: var(--pv-secondary);
+  font-size: 56px;
+  font-weight: 300;
+  line-height: 40px;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 
@@ -248,11 +254,10 @@ body:has(#pivault-books) #layout-groups a:focus-visible {
   body:has(#pivault-books) { --pv-column-gap: 40px; }
   body:has(#pivault-books) #layout-groups {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-areas: "title title" "entertainment knowledge" "organization tools" !important;
+    grid-template-areas: "title title" "search search" "entertainment knowledge" "organization tools" !important;
     row-gap: 48px !important;
     padding-top: 48px !important;
   }
-  body:has(#pivault-books) #layout-groups::before { margin-bottom: 0; }
   body:has(#pivault-books) #layout-groups > .services-group:has(#pivault-inventory)::before {
     display: none;
   }
@@ -261,7 +266,7 @@ body:has(#pivault-books) #layout-groups a:focus-visible {
 @media (max-width: 767px) {
   body:has(#pivault-books) #layout-groups {
     grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-areas: "title" "entertainment" "knowledge" "organization" "tools" !important;
+    grid-template-areas: "title" "search" "entertainment" "knowledge" "organization" "tools" !important;
     row-gap: 36px !important;
     padding-top: 32px !important;
   }

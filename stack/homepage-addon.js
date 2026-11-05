@@ -49,9 +49,9 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     style.textContent = `
       #pv-settings{position:relative;order:2;color:var(--pv-text,#e8edf2);font:inherit;font-size:16px;line-height:1.45}
       #pv-settings [hidden]{display:none!important}
-      #pv-settings .pv-gear{display:inline-flex;align-items:center;height:auto;padding:0;border:0;background:transparent;color:var(--pv-text,#e7ecf2);font:inherit;font-size:14px;cursor:pointer}
-      #pv-settings .pv-gear:hover,#pv-settings .pv-gear[aria-expanded=true]{text-decoration:underline;text-underline-offset:4px}
-      #pv-settings .pv-menu{position:absolute;right:0;top:34px;min-width:240px;padding:8px;border:1px solid var(--pv-menu-border,#3a4553);border-radius:.5em;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px #0005}
+      #pv-settings .pv-gear{display:grid;place-items:center;width:40px;height:40px;padding:8px;border:0;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer}
+      #pv-settings .pv-gear:hover,#pv-settings .pv-gear[aria-expanded=true]{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
+      #pv-settings .pv-menu{position:absolute;right:0;top:48px;min-width:240px;padding:8px;border:1px solid var(--pv-menu-border,#3a4553);border-radius:.5em;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px #0005}
       #pv-settings h2{margin:6px 10px 8px;font-size:12px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--pv-secondary,#91acc3)}
       #pv-settings a{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 10px;border-radius:.4em;color:var(--pv-text,#e8edf2);text-decoration:none}
       #pv-settings a:hover{background:rgba(151,170,190,.1)}
@@ -62,7 +62,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     button.type = 'button'; button.className = 'pv-gear';
     button.setAttribute('aria-label', 'Settings'); button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-controls', 'pv-settings-menu');
-    button.textContent = 'Settings';
+    button.append(icon(GEAR, 20));
     panel = document.createElement('nav'); panel.id = 'pv-settings-menu'; panel.className = 'pv-menu';
     panel.setAttribute('aria-label', 'Settings'); panel.hidden = true;
     const heading = document.createElement('h2'); heading.textContent = 'Settings';
@@ -153,11 +153,11 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     style.textContent = `
       #pv-admin-notifications{position:relative;order:1;color:var(--pv-text,#e7ecf2);font:14px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
       #pv-admin-notifications [hidden]{display:none!important}
-      #pv-admin-notifications .pv-bell{position:relative;display:inline-flex;align-items:center;gap:8px;height:auto;padding:0;border:0;background:transparent;color:var(--pv-text,#e7ecf2);font:inherit;font-size:14px;cursor:pointer}
-      #pv-admin-notifications .pv-bell:hover{text-decoration:underline;text-underline-offset:4px}
+      #pv-admin-notifications .pv-bell{position:relative;display:grid;place-items:center;width:40px;height:40px;padding:8px;border:0;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer}
+      #pv-admin-notifications .pv-bell:hover{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
       #pv-admin-notifications .pv-bell:focus-visible,#pv-admin-notifications a:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:4px}
-      #pv-admin-notifications .pv-count{min-width:20px;padding:1px 6px;border-radius:999px;background:var(--pv-accent,#6cc0e6);color:var(--pv-detail,#1c222b);font-size:12px;font-weight:600;text-align:center}
-      #pv-admin-notifications .pv-panel{position:absolute;right:0;top:34px;width:min(440px,calc(100vw - 48px));max-height:min(620px,calc(100dvh - 100px));overflow:auto;padding:22px;border:1px solid var(--pv-menu-border,#3a4553);border-radius:.5em;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px #0005}
+      #pv-admin-notifications .pv-count{position:absolute;top:0;right:0;min-width:19px;padding:1px 4px;border-radius:12px;background:#91acc3;color:#151c22;font-size:11px;font-weight:700;text-align:center}
+      #pv-admin-notifications .pv-panel{position:absolute;right:0;top:48px;width:min(440px,calc(100vw - 48px));max-height:min(620px,calc(100dvh - 100px));overflow:auto;padding:22px;border:1px solid var(--pv-menu-border,#3a4553);border-radius:.5em;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px #0005}
       #pv-admin-notifications h2{font-size:17px;margin:0 0 4px;color:var(--pv-accent,#b4c0ce)}
       #pv-admin-notifications .pv-summary,#pv-admin-notifications time{color:var(--pv-secondary,#91acc3);font-size:12px}
       #pv-admin-notifications ol{list-style:none;margin:14px 0;padding:0}
@@ -168,9 +168,13 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     `;
     button = make('button', undefined, 'pv-bell');
     button.type = 'button'; button.setAttribute('aria-expanded', 'false');
+    button.hidden = true;  // Shown only while there are open notices.
     button.setAttribute('aria-controls', 'pv-notification-panel');
     badge = make('span', '', 'pv-count'); badge.hidden = true;
-    button.append(make('span', 'Notices'), badge);
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    for (const [name, value] of Object.entries({viewBox:'0 0 24 24', width:'22', height:'22', fill:'none', stroke:'currentColor', 'stroke-width':'1.7', 'stroke-linecap':'round', 'stroke-linejoin':'round', 'aria-hidden':'true'})) svg.setAttribute(name, value);
+    const bell = document.createElementNS(ns, 'path'); bell.setAttribute('d', 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4'); svg.append(bell);
+    button.append(svg, badge);
     panel = make('section', undefined, 'pv-panel'); panel.id = 'pv-notification-panel'; panel.hidden = true;
     panel.setAttribute('aria-label', 'Admin notifications');
     const heading = make('h2','Admin notifications');
@@ -195,6 +199,8 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     mount();
     badge.textContent = state.unread_count > 99 ? '99+' : String(state.unread_count);
     badge.hidden = state.unread_count === 0;
+    button.hidden = state.items.length === 0;
+    if (button.hidden) close();
     button.setAttribute('aria-label', `Admin notifications: ${state.unread_count} unread, ${state.open_count} open`);
     summary.textContent = `${state.open_count} open · ${state.unread_count} unread`;
     list.replaceChildren();
@@ -243,7 +249,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   style.id = 'pv-search-style';
   // The repeated ID outranks the launcher CSS; the field and scope control sit in the "search" grid area.
   style.textContent = `
-    ${L} > #pv-search{grid-area:search;display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;margin:12px 0 0;
+    ${L} > #pv-search{grid-area:search;display:flex;flex-direction:column;align-items:center;gap:var(--pv-search-gap,20px);width:100%;margin:0;
       color:var(--pv-text,#e7ecf2);font:inherit;font-size:16px;z-index:1}
     #pv-search .pv-field{display:flex;align-items:center;gap:12px;width:100%;max-width:720px;height:64px;box-sizing:border-box;
       padding:0 14px 0 20px;border:1px solid var(--pv-border,#2c3542);border-radius:16px;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px rgba(0,0,0,.35)}
