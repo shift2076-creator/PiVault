@@ -19,8 +19,8 @@ main{width:calc(100% - var(--pv-gutter)*2);max-width:1100px;margin:auto;padding:
 {% else %}
 {% if client.key == 'firefox' %}<a href="https://addons.mozilla.org/en-US/firefox/addon/bitwarden-password-manager/" rel="noreferrer">Install Firefox extension</a>
 {% else %}<a href="https://play.google.com/store/apps/details?id=com.x8bit.bitwarden" rel="noreferrer">Install from Google Play</a>{% endif %}
-<small>Local copy awaiting Admin approval.</small>{% endif %}
-{% if client.key == 'firefox' %}<small>For manual updates: Firefox → Add-ons and themes → Bitwarden → Automatic updates → Off. Install a newer approved local copy when needed.</small>
+<small>Local copy downloaded automatically. Install it manually when you choose.</small>{% endif %}
+{% if client.key == 'firefox' %}<small>For manual updates: Firefox → Add-ons and themes → Bitwarden → Automatic updates → Off. Install a newer local copy when you choose.</small>
 {% elif client.available %}<small>Allow this APK installation when Android asks. Leave automatic updates disabled for this app if your app store manages it.</small>
 {% else %}<small>App updates follow your Play Store settings.</small>{% endif %}</div>{% endfor %}
 <div class="client"><strong>iPhone / iPad</strong><a href="https://itunes.apple.com/app/bitwarden-free-password-manager/id1137397744?mt=8" rel="noreferrer">Install from the App Store</a><small>App updates follow the device’s App Store settings.</small></div>
@@ -29,5 +29,5 @@ main{width:calc(100% - var(--pv-gutter)*2);max-width:1100px;margin:auto;padding:
 <div class="client"><strong>Edge</strong><a href="https://microsoftedge.microsoft.com/addons/detail/jbkfoedolllekgbhcbcoahefnbanhhlh" rel="noreferrer">Install Edge extension</a><small>Browser-managed updates are separate from PiVault’s locally hosted copies.</small></div>
 </div>
 <a class="dashboard" href="/">Go to my Dashboard</a>
-<p class="secondary maintenance">PiVault checks its local downloads at 2:00 AM. An Admin must approve each replacement. These approvals do not change automatic-update settings on your devices.</p>
+<p class="secondary maintenance">PiVault checks and downloads its local copies at 2:00 AM automatically. Installing on your devices stays manual and does not change automatic-update settings.</p>
 </main><script src="/users/complete.js" defer></script></body></html>

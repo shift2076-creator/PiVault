@@ -187,10 +187,10 @@
   {% endif %}
   {% if mode == 'admin' %}
   <section class="client-updates"><h2>Local apps and extensions</h2>
-    <p class="secondary">{% if offline_mode %}Paused by offline mode. Already approved local copies stay available.{% else %}Checked daily at 2:00 AM. Local downloads change only after an Admin approves the notification.{% endif %}</p>
+    <p class="secondary">{% if offline_mode %}Paused by offline mode. Already approved local copies stay available.{% else %}Checked and downloaded automatically each day at 2:00 AM. Installing on devices stays manual.{% endif %}</p>
     <div class="client-row secondary"><span>Client</span><span>Local</span><span>Available</span><span>Status</span></div>
     {% for client in client_rows %}<div class="client-row"><strong>{{ client.label }}</strong><span>{{ client.current }}</span><span>{{ client.latest }}</span>
-      <span>{{ client.status }}{% if client.review_url %} · <a href="{{ client.review_url }}">Review update</a>{% endif %}
+      <span>{{ client.status }}
       {% if client.checked_at %}<small>Checked {{ client.checked_at }}</small>{% endif %}{% if client.error %}<small>{{ client.error }}</small>{% endif %}</span></div>{% endfor %}
   </section>
   {% endif %}

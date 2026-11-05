@@ -190,13 +190,6 @@ def record_release(client, data):
             package.save(update_fields=['checked_at', 'last_error'])
             return
         release, _ = ClientRelease.objects.get_or_create(id=identity, defaults={'client': client, **data})
-        if package.current_id != release.id and release.notification_id is None:
-            item = notify('clients', identity, CLIENTS[client][0] + ' update available',
-                'The download is already stored locally. Approve it to install it on devices and offer it to users.',
-                kind='clients.update', level='info', details={'release_id': identity, 'client': client,
-                    'version': data['version'], 'current_version': package.current.version if package.current else '',
-                    'sha256': data['sha256'], 'size': data['size'], 'release_url': data['release_url']})
-            release.notification = item; release.save(update_fields=['notification'])
         package.latest = release; package.checked_at = timezone.now(); package.last_error = ''
         package.save(update_fields=['latest', 'checked_at', 'last_error'])
 
@@ -292,24 +285,14 @@ def prune_cache():
 
 def apply_release(release):
     # Never called by a web view: only the scheduled management command uses it.
-    item = release.notification
-    if not item or item.kind != 'clients.update' or item.resolution != 'approve' or item.status != 'open':
-        return False
     package = ClientPackage.objects.filter(client=release.client).select_related('current').first()
     if package and package.current and Version(package.current.version) > Version(release.version):
-        item.status = 'resolved'; item.resolved_at = timezone.now()
-        item.save(update_fields=['status', 'resolved_at'])
         return False
     fetch(release)
     with transaction.atomic():
-        item = Notification.objects.select_for_update().get(pk=item.pk)
-        if item.resolution != 'approve' or item.status != 'open':
-            return False
         package, _ = ClientPackage.objects.get_or_create(client=release.client)
         package.previous = package.current; package.current = release
         package.save(update_fields=['previous', 'current'])
-        item.status = 'resolved'; item.resolved_at = timezone.now()
-        item.save(update_fields=['status', 'resolved_at'])
     prune_cache()
     return True
 
@@ -323,9 +306,10 @@ def maintain(check_only=False):
     with (cache_root() / '.maintenance.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         errors = []
-        approved = ClientRelease.objects.none() if check_only else ClientRelease.objects.filter(notification__kind='clients.update',
-                notification__status='open', notification__resolution='approve').order_by('discovered_at')
-        for release in approved:
+        # Downloads are automatic: each package's newest verified release is published without approval.
+        pending = [] if check_only else [p.latest for p in ClientPackage.objects.select_related('latest', 'current')
+                   .filter(latest__isnull=False) if p.latest != p.current]
+        for release in pending:
             try:
                 apply_release(release)
             except Exception:
@@ -359,26 +343,25 @@ def maintain(check_only=False):
             # A clean run means the earlier check and download failures no longer apply.
             Notification.objects.filter(source='clients', status='open', level='warning').exclude(
                 kind='clients.update').update(status='resolved', resolution='resolve', resolved_at=timezone.now())
+            Notification.objects.filter(kind='clients.update', status='open').update(
+                status='resolved', resolution='resolve', resolved_at=timezone.now())
         return sorted(set(errors))
 
 
 def client_rows():
-    packages = {p.client: p for p in ClientPackage.objects.select_related('current', 'latest__notification')}
+    packages = {p.client: p for p in ClientPackage.objects.select_related('current', 'latest')}
     rows = []
     for client, (label, _, _) in CLIENTS.items():
         p = packages.get(client)
-        item = p.latest.notification if p and p.latest else None
         current = p.current if p else None
         available = bool(current and release_path(current).is_file())
         pending = bool(p and p.latest and p.latest_id != p.current_id)
         status = 'Up to date' if available and not pending else 'Not downloaded'
         if pending:
-            status = 'Approved · queued for 2:00 AM' if item and item.resolution == 'approve' else (
-                'Skipped this version' if item and item.resolution == 'skip' else 'Approval needed')
+            status = 'Download pending · retries at 2:00 AM'
         if p and p.last_error:
             status = 'Check failed · local copy retained' if available else 'Check failed'
         rows.append({'key': client, 'label': label, 'current': current.version if current else '—',
             'latest': p.latest.version if p and p.latest else '—', 'checked_at': p.checked_at if p else None,
-            'error': p.last_error if p else '', 'status': status, 'available': available,
-            'review_url': '/notifications/' + item.id if item and pending else ''})
+            'error': p.last_error if p else '', 'status': status, 'available': available})
     return rows
