@@ -16,6 +16,7 @@ urlpatterns = [
     path('notifications/seen', notifications.seen),
     path('notifications', notifications.overview),
     path('notifications/<str:event_id>/resolve', notifications.resolve),
+    path('notifications/clear-failures', notifications.clear_failures),
     path('notifications/<str:event_id>', notifications.detail),
     # Joining and accounts.
     path('join', views.join),

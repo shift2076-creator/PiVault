@@ -106,3 +106,13 @@ def resolve(request, event_id):
         return JsonResponse({'status': item.status, 'pending_delivery': item.status == 'open'},
                             status=202 if item.status == 'open' else 200)
     return redirect('/notifications/' + item.id)
+
+
+@require_POST
+@admin_only
+def clear_failures(request):
+    """Resolve open client and maintenance failure notices in one step; approvals are left for review."""
+    with transaction.atomic():
+        Notification.objects.filter(source__in=['clients', 'maintenance'], status='open', level='warning').exclude(
+            kind='clients.update').update(status='resolved', resolution='resolve', resolved_at=timezone.now())
+    return redirect('/notifications')

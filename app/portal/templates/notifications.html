@@ -61,6 +61,7 @@
     <p><a href="/notifications">All notifications</a></p>
   {% else %}
     <h2>Needs attention</h2>
+    <form method="post" action="/notifications/clear-failures">{% csrf_token %}<button type="submit">Clear failure notices</button></form>
     {% for item in open_notifications %}
       <article><h3><a href="/notifications/{{ item.id }}">{{ item.title }}</a></h3>
       <span class="secondary">{{ item.source }} · {{ item.created_at }}</span><p>{{ item.message }}</p>
