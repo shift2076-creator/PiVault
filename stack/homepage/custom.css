@@ -35,9 +35,10 @@ body:has(#pivault-books) {
   color: var(--pv-text) !important;
 }
 
+/* A flat background: the page is the same dark colour edge to edge, with no lighter centre. */
 body:has(#pivault-books) #page_wrapper {
   min-height: 100vh !important;
-  background: radial-gradient(ellipse at 52% 45%, #1a222a 0%, #151c22 68%, #131a20 100%) !important;
+  background: #151c22 !important;
   background-image: none !important;
 }
 
@@ -57,17 +58,20 @@ body:has(#pivault-books) #bookmarks:empty {
 }
 
 
-/* 2. Grid: title, search, then three columns. The fourth column is reserved for "tools". */
+/* 2. Grid: one full-width column. Title, search, then each service group as its own row. */
 
 body:has(#pivault-books) #layout-groups {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: minmax(0, 1fr) !important;
   grid-template-areas:
-    "title title title title"
-    "search search search search"
-    "entertainment knowledge organization tools";
-  column-gap: var(--pv-column-gap) !important;
-  row-gap: 0 !important;
+    "title"
+    "search"
+    "entertainment"
+    "knowledge"
+    "organization"
+    "tools";
+  column-gap: 0 !important;
+  row-gap: 48px !important;
   align-items: stretch !important;
   box-sizing: border-box !important;
   width: calc(100% - var(--pv-gutter) * 2) !important;
@@ -204,10 +208,9 @@ body:has(#pivault-books) #pv-search :focus-visible {
 }
 
 
-/* 5. Column groups: a divider rule between columns, a ruled heading, and a plain list. */
+/* 5. Service groups: a full-width row with a ruled heading, then its tiles in a plain list. */
 
 body:has(#pivault-books) #layout-groups > .services-group {
-  position: relative !important;
   min-width: 0 !important;
   width: 100% !important;
   margin: 0 !important;
@@ -215,19 +218,6 @@ body:has(#pivault-books) #layout-groups > .services-group {
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-}
-
-body:has(#pivault-books) #layout-groups > .services-group::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 calc(var(--pv-column-gap) / -2);
-  width: 1px;
-  background: var(--pv-divider);
-  pointer-events: none;
-}
-
-body:has(#pivault-books) #layout-groups > .services-group:has(#pivault-books)::before {
-  display: none;
 }
 
 body:has(#pivault-books) #layout-groups .services-group > button {
@@ -602,45 +592,7 @@ body:has(#pivault-books) #pv-settings .pv-menu a:focus-visible {
 }
 
 
-/* 9. Responsive layouts. */
-
-@media (max-width: 1279px) {
-  body:has(#pivault-books) { --pv-column-gap: 40px; }
-
-  body:has(#pivault-books) #layout-groups {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    grid-template-areas:
-      "title title"
-      "search search"
-      "entertainment knowledge"
-      "organization tools" !important;
-    row-gap: 48px !important;
-    padding-top: 48px !important;
-  }
-
-  body:has(#pivault-books) #layout-groups > .services-group:has(#pivault-inventory)::before {
-    display: none;
-  }
-}
-
-@media (max-width: 767px) {
-  body:has(#pivault-books) #layout-groups {
-    grid-template-columns: minmax(0, 1fr) !important;
-    grid-template-areas:
-      "title"
-      "search"
-      "entertainment"
-      "knowledge"
-      "organization"
-      "tools" !important;
-    row-gap: 36px !important;
-    padding-top: 32px !important;
-  }
-
-  body:has(#pivault-books) #layout-groups > .services-group::before {
-    display: none;
-  }
-}
+/* 9. Motion preference. The layout is a single column at every width, so no breakpoints are needed. */
 
 @media (prefers-reduced-motion: reduce) {
   body:has(#pivault-books) #layout-groups .service-title,
