@@ -53,7 +53,6 @@ class LauncherAssetTests(unittest.TestCase):
 
     def test_categories_are_rows_and_entries_sit_in_columns(self):
         self.assertIn('"entertainment"', CSS)
-        self.assertNotIn('repeat(4, minmax(0, 1fr))', CSS)
         self.assertIn('repeat(4, minmax(0, 1fr))', CSS)
         self.assertIn('repeat(2, minmax(0, 1fr))', CSS)
         self.assertIn('calc(var(--pv-column-gap) / 3)', CSS)
