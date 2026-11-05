@@ -1,6 +1,6 @@
 # Unified admin notifications
 
-Implemented in the existing Admin/User backend. The combined Users installer deploys these routes, the shared outbox mount and the launcher bell. Existing launcher CSS is preserved.
+Implemented in the existing Admin/User backend. The combined Users installer deploys these routes, the shared outbox mount and the launcher bell. The launcher stylesheet is maintained separately in `stack/homepage/`; see `stack/homepage/README.md`.
 
 ## Behavior
 
@@ -19,7 +19,7 @@ The combined Users installer handles the following steps. These manual details d
 1. Apply migration `0002_notification_notificationreceipt.py` to the persistent Users database using the backend's established deployment environment.
 2. Give the backend read/write access to the same notification folder used by the Bash downloader: `/srv/pi-server/config/notifications` on the Pi host. Set `PIVAULT_NOTIFICATION_ROOT` to its actual mounted path inside the backend. `inbox/` and `decisions/` must persist across restarts and be writable by the existing producer/backend identities; do not expose the folder through a web file server.
 3. Route `/notifications`, `/notifications/*`, `/users/*` and `/join` to the same private Users backend over the existing HTTPS origin. Preserve the current certificate data and unrelated service routes. Do not publish the backend's port or expose `/internal/gate` publicly.
-4. Enable the updated `homepage-addon.js` through Homepage's existing `custom.js` facility after the routes and authenticated Admin session work. Preserve any current JavaScript when combining it. This addon includes the existing Add User tool and the notification bell; it does not replace the accepted launcher stylesheet.
+4. Enable the updated `homepage-addon.js` through Homepage's existing `custom.js` facility after the routes and authenticated Admin session work. Preserve any current JavaScript when combining it. This addon includes the existing Add User tool and the notification bell; it does not change `stack/homepage/custom.css`.
 5. Verify an Admin can read and resolve a test event and an ordinary User receives 403 on those same endpoints. Only then is the dashboard feature live.
 
 The combined cinema package stores events immediately even if no browser is open. Those events remain pending until an admin opens the deployed dashboard/API. This source checkpoint does not itself alter the Pi's current Caddy or Compose configuration.
