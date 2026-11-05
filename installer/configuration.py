@@ -15,7 +15,7 @@ SERVICE = 'pivault-users'
 
 PORTAL = '''
     # BEGIN PIVAULT USERS INSTALLER
-    @pivault_users_installer path /join /join/* /users /users/* /notifications /notifications/* /search /search/* /system /system/* /devices /devices/* /services /services/* /internal /internal/*
+    @pivault_users_installer path /join /join/* /users /users/* /notifications /notifications/* /search /search/* /system /system/* /devices /devices/* /services /services/* /internal /internal/* /favicon.ico /apple-touch-icon.png /manifest.webmanifest
     handle @pivault_users_installer {
         @pivault_users_internal path /internal /internal/*
         respond @pivault_users_internal 404
@@ -32,7 +32,7 @@ LAUNCHER_END = '# END PIVAULT LAUNCHER AUTH'
 LAUNCHER_AUTH = '''
     # BEGIN PIVAULT LAUNCHER AUTH
     @pivault_launcher_auth {
-        not path /join /join/* /users /users/* /notifications /notifications/* /devices /devices/* /services /services/* /internal /internal/* /music /music/*
+        not path /join /join/* /users /users/* /notifications /notifications/* /devices /devices/* /services /services/* /internal /internal/* /music /music/* /favicon.ico /apple-touch-icon.png /manifest.webmanifest
     }
     header @pivault_launcher_auth Cache-Control "no-store, private"
     forward_auth @pivault_launcher_auth pivault-users:8000 {

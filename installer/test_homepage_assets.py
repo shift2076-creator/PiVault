@@ -91,6 +91,9 @@ class LauncherAssetTests(unittest.TestCase):
         data = (ROOT / 'stack/homepage/favicon/apple-touch-icon.png').read_bytes()
         self.assertEqual(data[25], 2, 'PNG colour type must be RGB (2), not RGBA')
 
+    def test_launcher_links_the_web_app_manifest_served_by_the_portal(self):
+        self.assertIn("make('link', {rel: 'manifest', href: '/manifest.webmanifest'})", JS)
+
     def test_favicon_block_matches_its_files(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location('favicon_block', ROOT / 'tools/favicon_block.py')

@@ -10,6 +10,10 @@ urlpatterns = [
     path('users/vault.js', views.script('vault-crypto.js')),
     path('users/complete.js', views.script('complete.js')),
     path('users/vault-repair.js', views.script('vault-repair.js')),
+    # Browser icons and the web app manifest. Public, so browsers can fetch them without a session.
+    path('favicon.ico', views.static_file('favicon.ico', 'image/x-icon')),
+    path('apple-touch-icon.png', views.static_file('apple-touch-icon.png', 'image/png')),
+    path('manifest.webmanifest', views.static_file('manifest.webmanifest', 'application/manifest+json')),
     path('notifications/bell.js', notifications.admin_only(views.script('notifications-bell.js'))),
     # Notifications (Admin only).
     path('notifications/api', notifications.feed),

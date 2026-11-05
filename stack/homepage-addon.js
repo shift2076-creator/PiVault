@@ -392,6 +392,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     make('link', {rel: 'icon', type: 'image/png', sizes: '32x32', href: FAVICON.png32}),
     make('link', {rel: 'icon', type: 'image/x-icon', sizes: '48x48', href: FAVICON.ico}),
     make('link', {rel: 'apple-touch-icon', sizes: '180x180', href: FAVICON.apple}),
+    make('link', {rel: 'manifest', href: '/manifest.webmanifest'}),
   ];
   const apply = () => {
     document.head.querySelectorAll('link[rel~="icon"],link[rel="apple-touch-icon"]').forEach(link => {

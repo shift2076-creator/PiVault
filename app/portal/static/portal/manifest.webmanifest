@@ -1,0 +1,10 @@
+{
+  "name": "PiVault",
+  "short_name": "PiVault",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#151c22",
+  "theme_color": "#151c22",
+  "icons": [{"src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png"}]
+}
