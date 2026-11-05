@@ -75,6 +75,23 @@ class LauncherAssetTests(unittest.TestCase):
         self.assertIn('calc((100vw - 1200px) / 2)', CSS)
         self.assertIn('#pv-search kbd {\n  display: none !important;', CSS)
 
+    def test_favicon_files_have_the_right_sizes(self):
+        import struct
+        favicon = ROOT / 'stack/homepage/favicon'
+        for name, size in (('favicon-16.png', 16), ('favicon-32.png', 32), ('apple-touch-icon.png', 180)):
+            data = (favicon / name).read_bytes()
+            self.assertEqual(data[:8], b'\x89PNG\r\n\x1a\n', name)
+            self.assertEqual(struct.unpack('>II', data[16:24]), (size, size), name)
+        ico = (favicon / 'favicon.ico').read_bytes()
+        self.assertEqual(struct.unpack('<HHH', ico[:6]), (0, 1, 3))
+
+    def test_favicon_block_matches_its_files(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('favicon_block', ROOT / 'tools/favicon_block.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(module.splice(JS), JS)
+
     def test_javascript_parses(self):
         node = shutil.which('node')
         if not node:
