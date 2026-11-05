@@ -150,6 +150,9 @@ def fdroid_index():
     return _INDEX_CACHE['index']
 
 
+FDROID_BUILD_SUFFIX = re.compile(r'-(ose|FDroid)$')
+
+
 def _discover_fdroid(package_id):
     package = fdroid_index().get('packages', {}).get(package_id)
     if not package:
@@ -158,7 +161,7 @@ def _discover_fdroid(package_id):
         key=lambda value: value.get('manifest', {}).get('versionCode', 0), reverse=True)
     for version in versions:
         try:
-            name = version['manifest']['versionName']; parsed = Version(name)
+            name = FDROID_BUILD_SUFFIX.sub('', version['manifest']['versionName']); parsed = Version(name)
         except (InvalidVersion, TypeError, KeyError):
             continue
         if parsed.is_prerelease or parsed.is_devrelease:
