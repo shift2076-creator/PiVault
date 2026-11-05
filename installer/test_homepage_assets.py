@@ -62,6 +62,10 @@ class LauncherAssetTests(unittest.TestCase):
         self.assertIn('#pv-title::before', CSS)
         self.assertIn('height: 1.1em;', CSS)
 
+    def test_tile_panel_is_always_shown_and_not_clipped(self):
+        self.assertNotIn('clip-path', CSS)
+        self.assertNotIn('opacity: 0;\n  pointer-events', CSS)
+
     def test_javascript_parses(self):
         node = shutil.which('node')
         if not node:

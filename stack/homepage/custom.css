@@ -333,7 +333,7 @@ body:has(#pivault-books) #layout-groups .service-title {
   box-shadow: none !important;
 }
 
-/* The lifted panel. Its shadow is clipped to this row so it does not spill into the next one. */
+/* The tile panel. It is always shown; hovering deepens its shadow. Nothing clips the shadow. */
 body:has(#pivault-books) #layout-groups .service-title::before {
   content: "";
   position: absolute;
@@ -341,16 +341,14 @@ body:has(#pivault-books) #layout-groups .service-title::before {
   z-index: -1;
   border-radius: 0.5em;
   background: linear-gradient(145deg, #2b3643, #202a35);
-  clip-path: inset(-12px -2em);
-  box-shadow: 0 0 0.5em 0em rgb(0 0 0 / 50%), inset 0 1px 0 rgb(206 220 235 / 26%);
-  opacity: 0;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 35%), inset 0 1px 0 rgb(206 220 235 / 26%);
+  opacity: 1;
   pointer-events: none;
   transition: box-shadow 250ms ease, opacity 200ms ease;
 }
 
 body:has(#pivault-books) #layout-groups .service-title:is(:hover, :has(a:focus-visible))::before {
-  box-shadow: 0 0 0.8em 1em rgb(0 0 0 / 20%), inset 0 1px 0 rgb(206 220 235 / 26%);
-  opacity: 1;
+  box-shadow: 0 14px 30px rgb(0 0 0 / 40%), inset 0 1px 0 rgb(206 220 235 / 26%);
 }
 
 body:has(#pivault-books) #layout-groups .service-icon {
