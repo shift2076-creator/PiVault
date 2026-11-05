@@ -265,20 +265,27 @@ body:has(#pivault-books) #layout-groups .service-group-icon {
 }
 
 body:has(#pivault-books) #layout-groups .services-list {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 0 var(--pv-column-gap) !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 calc(var(--pv-column-gap) / 3) !important;
   margin: 14px -6px 0 !important;
   padding: 6px !important;
   list-style: none !important;
 }
 
-/* The Password Manager tile is shown in the Settings menu instead (see stack/homepage-addon.js). */
-body:has(#pivault-books) #layout-groups .services-list > li.service {
-  flex: 0 0 260px !important;
-  width: 260px !important;
+@media (max-width: 1199px) {
+  body:has(#pivault-books) #layout-groups .services-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
 }
 
+@media (max-width: 767px) {
+  body:has(#pivault-books) #layout-groups .services-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* The Password Manager tile is shown in the Settings menu instead (see stack/homepage-addon.js). */
 body:has(#pivault-books) li.service[data-name="Password Manager"] {
   display: none !important;
 }
@@ -317,7 +324,7 @@ body:has(#pivault-books) #layout-groups .service-title {
   gap: 16px !important;
   min-height: var(--pv-item-height) !important;
   margin: 0 !important;
-  padding: 0 4px !important;
+  padding: 0 12px !important;
   box-sizing: border-box !important;
   border-radius: 0.5em !important;
   font-size: 1rem;
