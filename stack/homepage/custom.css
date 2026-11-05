@@ -55,7 +55,7 @@ body:has(#pivault-books) #layout-groups {
 }
 
 body:has(#pivault-books) #layout-groups::before {
-  content: "PiVault";
+  content: none;
   grid-area: title;
   display: block;
   height: 40px;

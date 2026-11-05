@@ -264,12 +264,32 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     #pv-search .pv-scope{padding:7px 16px;border:0;border-radius:9px;background:transparent;color:var(--pv-secondary,#a3afbe);font:inherit;font-size:14px;cursor:pointer}
     #pv-search .pv-scope[aria-pressed=true]{background:var(--pv-surface,#1c222b);color:var(--pv-text,#e7ecf2);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.4)}
     #pv-search :focus-visible{outline:2px solid var(--pv-accent,#6cc0e6);outline-offset:3px}
+    #pv-title{grid-area:title;display:flex;align-items:center;justify-content:center;gap:16px;height:40px;margin:0 0 var(--pv-search-gap,20px)}
+    #pv-title svg{width:40px;height:40px;flex:none}
+    #pv-title h1{margin:0;font-size:56px;font-weight:300;line-height:40px;letter-spacing:-0.02em;color:#91acc3;white-space:nowrap}
   `;
   const make = (tag, props = {}) => Object.assign(document.createElement(tag), props);
   let apps = [], bar = null, scope = SCOPES[0];
+  // The title and its mark are real elements, so they can be centered and sized together.
+  function ensureTitle(host) {
+    if (host.querySelector(':scope > #pv-title')) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const mark = document.createElementNS(ns, 'svg');
+    mark.setAttribute('viewBox', '0 0 120 120'); mark.setAttribute('fill', 'none'); mark.setAttribute('aria-hidden', 'true');
+    const rect = document.createElementNS(ns, 'rect');
+    for (const [k, v] of Object.entries({x:'8', y:'20', width:'104', height:'80', rx:'10', stroke:'#91acc3', 'stroke-width':'11'})) rect.setAttribute(k, v);
+    const keyhole = document.createElementNS(ns, 'path');
+    for (const [k, v] of Object.entries({d:'M53 60A13 13 0 1 1 67 60L72 86H48Z', stroke:'#91acc3', 'stroke-width':'11', 'stroke-linejoin':'round'})) keyhole.setAttribute(k, v);
+    mark.append(rect, keyhole);
+    const box = make('div', {id: 'pv-title'});
+    box.append(mark, make('h1', {textContent: 'PiVault'}));
+    host.prepend(box);
+  }
   function mount() {
     const host = document.getElementById('layout-groups');
-    if (!host || bar?.isConnected) return;
+    if (!host) return;
+    ensureTitle(host);
+    if (bar?.isConnected) return;
     if (!style.isConnected) document.head.append(style);
     bar = make('form', {id: 'pv-search', method: 'get', action: '/search', role: 'search'});
     const field = make('label', {className: 'pv-field'});
@@ -300,7 +320,8 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
       const keys = scope[1] === null ? apps.map(app => app.key) : [scope[1]];
       for (const key of keys) bar.append(make('input', {type: 'hidden', name: 'app', value: key}));
     });
-    host.prepend(bar);
+    const title = host.querySelector(':scope > #pv-title');
+    if (title) title.after(bar); else host.prepend(bar);
   }
   // "/" focuses the search field unless the user is already typing somewhere.
   document.addEventListener('keydown', event => {
