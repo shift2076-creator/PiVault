@@ -67,7 +67,7 @@ class LauncherAssetTests(unittest.TestCase):
         self.assertNotIn('opacity: 0;\n  pointer-events', CSS)
 
     def test_hover_drops_the_shadow_and_darkens_the_top_edge(self):
-        self.assertIn('box-shadow: inset 0 1px 0 #10161d;', CSS)
+        self.assertIn('box-shadow: 0 0 0 0 rgb(0 0 0 / 0%), inset 0 1px 0 #10161d;', CSS)
 
     def test_javascript_parses(self):
         node = shutil.which('node')
