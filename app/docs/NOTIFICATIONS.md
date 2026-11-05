@@ -55,9 +55,9 @@ Run `python manage.py test portal` and `python manage.py check` using the existi
 
 ## Approved local client releases
 
-`clients.update` events use the same Admin inbox, role checks, CSRF protection, unread receipts and resolution history. Approve update queues the exact release until nightly maintenance. Skip this version resolves it without a download. An approval stays open until the original package passes size, SHA-256 and archive checks and is atomically published. Failures retain the current local copy and notify Admins. The Add User page displays current/latest versions, last check time and review links.
+Client releases download automatically. Each nightly run fetches the newest stable release from its official source, checks size, SHA-256 and archive structure, and publishes it atomically. Downloads never install on devices; installs stay manual. A failed check or verification retains the current local copy and notifies Admins; the next run retries. Older releases never replace a newer published copy. The Add User page displays current/latest versions and last check time.
 
-`pivault-maintenance.timer` runs at 2:00 AM America/New_York, without catch-up runs. Its coordinator applies previously approved client copies, checks for new releases, then starts the existing cinema service when video scheduling was already enabled. A client-check failure does not suppress the cinema step. Disabled cinema scheduling stays disabled. The existing cinema filesize approvals, quota and cap are unchanged. No automatic OS, container or device-app upgrades are included.
+`pivault-maintenance.timer` runs at 2:00 AM America/New_York, without catch-up runs. Its coordinator checks for new client releases, downloads and publishes them, then starts the existing cinema service when video scheduling was already enabled. A client-check failure does not suppress the cinema step. Disabled cinema scheduling stays disabled. The existing cinema filesize approvals, quota and cap are unchanged. No automatic OS, container or device-app upgrades are included.
 
 ## Maintained copies
 
