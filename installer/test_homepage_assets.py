@@ -51,15 +51,15 @@ class LauncherAssetTests(unittest.TestCase):
         for selector in ('#pv-toolbar', '#pv-settings', '#pv-search'):
             self.assertIn(selector, CSS, selector)
 
-    def test_desktop_groups_are_four_columns(self):
-        self.assertIn('repeat(4, minmax(0, 1fr))', CSS)
-        self.assertIn('"entertainment knowledge organization tools"', CSS)
-        self.assertNotIn('repeat(2, minmax(0, 1fr))', CSS)
+    def test_categories_are_rows_and_entries_sit_in_columns(self):
+        self.assertIn('"entertainment"', CSS)
+        self.assertNotIn('repeat(4, minmax(0, 1fr))', CSS)
+        self.assertIn('repeat(auto-fit, minmax(220px, 1fr))', CSS)
 
     def test_title_is_centred_with_an_icon_at_text_height(self):
         self.assertIn('justify-content: center', CSS)
         self.assertIn('#pv-title::before', CSS)
-        self.assertIn('height: 0.7em;', CSS)
+        self.assertIn('height: 0.91em;', CSS)
 
     def test_javascript_parses(self):
         node = shutil.which('node')
