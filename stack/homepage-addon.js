@@ -249,7 +249,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   style.id = 'pv-search-style';
   // The repeated ID outranks the launcher CSS; the field and scope control sit in the "search" grid area.
   style.textContent = `
-    ${L} > #pv-search{grid-area:search;display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;margin:12px 0 0;
+    ${L} > #pv-search{grid-area:search;display:flex;flex-direction:column;align-items:center;gap:var(--pv-search-gap,20px);width:100%;margin:0;
       color:var(--pv-text,#e7ecf2);font:inherit;font-size:16px;z-index:1}
     #pv-search .pv-field{display:flex;align-items:center;gap:12px;width:100%;max-width:720px;height:64px;box-sizing:border-box;
       padding:0 14px 0 20px;border:1px solid var(--pv-border,#2c3542);border-radius:16px;background:var(--pv-surface,#1c222b);box-shadow:0 10px 30px rgba(0,0,0,.35)}
