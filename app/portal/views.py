@@ -256,3 +256,13 @@ def script(name):
     def view(request):
         return HttpResponse(_asset(name), content_type='application/javascript; charset=utf-8')
     return view
+
+
+def static_file(name, content_type):
+    """A public file from portal/static/portal, served as bytes (icons and the web app manifest)."""
+    from pathlib import Path
+    data = (Path(__file__).parent / 'static' / 'portal' / name).read_bytes()
+    @require_GET
+    def view(request):
+        return HttpResponse(data, content_type=content_type)
+    return view

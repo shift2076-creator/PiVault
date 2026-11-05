@@ -156,7 +156,8 @@ class ConfigurationTests(unittest.TestCase):
         output = config.portal_caddyfile(CADDYFILE)
         self.assertEqual(output.count(config.LAUNCHER_BEGIN), 1)
         self.assertIn('not path /join /join/* /users /users/* /notifications /notifications/* '
-                      '/devices /devices/* /services /services/* /internal /internal/* /music /music/*', output)
+                      '/devices /devices/* /services /services/* /internal /internal/* /music /music/* '
+                      '/favicon.ico /apple-touch-icon.png /manifest.webmanifest', output)
 
     def test_app_sites_replace_live_copies_and_stay_idempotent(self):
         live = ('\nhttps://192.168.4.90:8083 {\n        tls internal\n'
