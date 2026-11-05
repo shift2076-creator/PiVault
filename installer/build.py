@@ -10,7 +10,7 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 # Repository paths the Pi-side installer needs; nothing else is shipped.
-PAYLOAD = ('app', 'installer', 'stack/homepage-addon.js', 'jobs/maintenance.py')
+PAYLOAD = ('app', 'installer', 'stack/homepage-addon.js', 'stack/homepage/custom.css', 'jobs/maintenance.py')
 
 
 def payload_files():

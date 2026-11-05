@@ -423,6 +423,8 @@ class InstallationTransactionTests(unittest.TestCase):
             source.joinpath('app/Dockerfile').write_text('# image fixture\n')
             source.joinpath('stack').mkdir()
             source.joinpath('stack/homepage-addon.js').write_text('window.usersAddon=true;')
+            source.joinpath('stack/homepage').mkdir()
+            source.joinpath('stack/homepage/custom.css').write_text('/* PIVAULT CSS */')
             source.joinpath('jobs').mkdir()
             source.joinpath('jobs/maintenance.py').write_text('# runtime fixture\n')
             vault_data = config_dir / 'vaultwarden'
@@ -485,7 +487,13 @@ class InstallationTransactionTests(unittest.TestCase):
                 else:
                     install.main()
             self.assertEqual(caddyfile.stat().st_ino, inode)
-            self.assertEqual(css.read_bytes(), snapshots[css])
+            if fail_probe:
+                # The probe fails before the stylesheet is written, so the live file stays and no backup is made.
+                self.assertEqual(css.read_bytes(), b'/* ACCEPTED CSS */')
+                self.assertEqual(list(css.parent.glob('custom.css.bak-*')), [])
+            else:
+                self.assertEqual(css.read_bytes(), b'/* PIVAULT CSS */')
+                self.assertEqual([p.read_bytes() for p in css.parent.glob('custom.css.bak-*')], [b'/* ACCEPTED CSS */'])
             self.assertEqual(env.read_bytes(), snapshots[env])
             self.assertNotIn('existing-secret-', output.getvalue())
             if fail_probe:
@@ -507,7 +515,7 @@ class InstallationTransactionTests(unittest.TestCase):
     def test_failed_tls_probe_restores_files_database_and_previous_service(self):
         self.exercise(True)
 
-    def test_success_installs_only_the_portal_preserving_existing_services_and_css(self):
+    def test_success_installs_only_the_portal_preserving_existing_services_and_refreshes_css(self):
         self.exercise(False)
 
     def test_enabled_video_timer_moves_to_consolidated_schedule(self):
@@ -533,7 +541,7 @@ class PackageTests(unittest.TestCase):
             names = set(archive.getnames())
         for required in ('installer/install.py', 'installer/configuration.py', 'installer/native.py',
                          'app/Dockerfile', 'app/manage.py', 'app/healthcheck.py',
-                         'stack/homepage-addon.js', 'jobs/maintenance.py'):
+                         'stack/homepage-addon.js', 'stack/homepage/custom.css', 'jobs/maintenance.py'):
             self.assertIn(required, names)
         self.assertFalse([n for n in names if n.startswith(('jobs/cinema/', 'tools/', 'stack/docker-compose'))])
 

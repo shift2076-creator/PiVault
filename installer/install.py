@@ -227,10 +227,12 @@ def install_portal():
     homepage = inspect('pivault-homepage')
     homepage_config = container_path(homepage, '/app/config')
     custom_js = homepage_config / 'custom.js'
-    before = {p: snapshot(p) for p in (COMPOSE, caddyfile, custom_js)}
+    custom_css = homepage_config / 'custom.css'
+    before = {p: snapshot(p) for p in (COMPOSE, caddyfile, custom_js, custom_css)}
     caddy_candidate = apps_caddyfile(portal_caddyfile(caddyfile.read_text()))
     js_candidate = homepage_js(custom_js.read_text() if custom_js.exists() else '',
                                (SOURCE / 'stack/homepage-addon.js').read_text())
+    css_candidate = (SOURCE / 'stack/homepage/custom.css').read_text()
     old_container = inspect(SERVICE, missing=True)
     if old_container and (old_container.get('Config', {}).get('Labels', {}) or {}).get('org.pivault.managed') != LABEL:
         raise InstallError('An unmanaged pivault-users container already exists.')
@@ -382,6 +384,10 @@ def install_portal():
             portal_probe()
             publish_root_certificate(data_dir, uid, gid)
             write_file(custom_js, js_candidate, mode=0o644)
+            if custom_css.is_file():
+                # Keep the live stylesheet, in case it holds an edit not yet in the repository.
+                custom_css.with_name('custom.css.bak-' + time.strftime('%Y%m%d-%H%M%S')).write_bytes(custom_css.read_bytes())
+            write_file(custom_css, css_candidate, mode=0o644)
             runtime_path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
             write_file(runtime_path, (SOURCE / 'jobs/maintenance.py').read_text(), mode=0o700)
             write_file(maintenance_config, json.dumps({'cinema_enabled': bool(cinema_enabled)}, indent=2) + '\n')
