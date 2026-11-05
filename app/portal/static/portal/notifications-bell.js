@@ -40,6 +40,7 @@
     `;
     button = make('button', undefined, 'pv-bell');
     button.type = 'button'; button.setAttribute('aria-expanded', 'false');
+    button.hidden = true;  // Shown only while there are open notices.
     button.setAttribute('aria-controls', 'pv-notification-panel');
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
@@ -72,6 +73,8 @@
     mount();
     badge.textContent = state.unread_count > 99 ? '99+' : String(state.unread_count);
     badge.hidden = state.unread_count === 0;
+    button.hidden = state.items.length === 0;
+    if (button.hidden) close();
     button.setAttribute('aria-label', `Admin notifications: ${state.unread_count} unread, ${state.open_count} open`);
     summary.textContent = `${state.open_count} open · ${state.unread_count} unread`;
     list.replaceChildren();
