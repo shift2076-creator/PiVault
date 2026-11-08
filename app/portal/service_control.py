@@ -23,8 +23,6 @@ CONTAINERS = {
     'videos': 'jellyfin',
     'documents': 'pivault-paperless',
     'offline-wiki': 'pivault-kiwix',
-    'inventory': 'pivault-homebox',
-    'pantry': 'pivault-grocy',
     'photos': 'lychee',
 }
 VERBS = ('start', 'stop', 'restart')

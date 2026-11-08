@@ -65,7 +65,7 @@ class Connector:
 
     def allowed(self, user):
         from .services import ADAPTERS
-        # Apps without per-user portal accounts (Kiwix, Calibre-Web, Paperless, Grocy) are
+        # Apps without per-user portal accounts (Kiwix, Calibre-Web, Paperless) are
         # shared with every signed-in user; provisioned apps follow the user's access.
         if self.key not in ADAPTERS:
             return True
@@ -271,41 +271,7 @@ class DocumentSearch(Connector):
                 for d in value.get('results', []) if isinstance(d.get('id'), int)]
 
 
-class InventorySearch(Connector):
-    """Homebox entity search with an API key from the shared household."""
-    key = 'inventory'
-    modes = ('shared',)  # An isolated household is not visible to the shared key.
-
-    def __init__(self, origin, link, api_key):
-        if not api_key or any(c in api_key for c in '\r\n'):
-            raise ValueError('Inventory search needs a Homebox API key.')
-        super().__init__(origin, link, {'Authorization': 'Bearer ' + api_key.removeprefix('Bearer ')})
-
-    def search(self, term):
-        value = self.json('/api/v1/entities', {'q': term, 'pageSize': LIMIT, 'page': 1})
-        return [Result(i.get('name', ''), self.link + '/item/' + quote(str(i['id']), safe=''),
-                       (i.get('parent') or {}).get('name', ''), _text(i.get('description', '')))
-                for i in value.get('items', []) if i.get('id')]
-
-
-class PantrySearch(Connector):
-    """Grocy product lookup; Grocy keeps one shared household."""
-    key = 'pantry'
-    UNSAFE = re.compile(r'[^\w .\-]', re.UNICODE)  # Grocy's filter grammar rejects other characters.
-
-    def __init__(self, origin, link, api_key):
-        if not api_key or any(c in api_key for c in '\r\n'):
-            raise ValueError('Pantry search needs a Grocy API key.')
-        super().__init__(origin, link, {'GROCY-API-KEY': api_key, 'Accept': 'application/json'})
-
-    def search(self, term):
-        safe = self.UNSAFE.sub(' ', term).strip()
-        if not safe:
-            return []
-        value = self.json('/api/objects/products', {'query[]': 'name~' + safe, 'limit': LIMIT})
-        return [Result(p.get('name', ''), self.link + '/product/' + str(int(p['id'])), '',
-                       _text(p.get('description', '')))
-                for p in value if isinstance(p, dict) and str(p.get('id', '')).isdigit()][:LIMIT]
+RETIRED_APPS = ('inventory', 'pantry')  # Removed apps; an old native.json may still name them.
 
 
 def configure(config):
@@ -323,10 +289,10 @@ def configure(config):
                                        c.get('library_ids', navidrome.get('library_ids'))),
         'books': lambda c: BookSearch(c['origin'], c['link'], c['username'], c['password']),
         'documents': lambda c: DocumentSearch(c['origin'], c['link'], c['token']),
-        'inventory': lambda c: InventorySearch(c['origin'], c['link'], c['api_key']),
-        'pantry': lambda c: PantrySearch(c['origin'], c['link'], c['api_key']),
     }
     for key, value in search.items():
+        if key in RETIRED_APPS:
+            continue
         if key not in builders:
             raise ValueError('Unknown search app: ' + key)
         CONNECTORS[key] = builders[key](value)

@@ -5,8 +5,8 @@ from .setup_logging import event
 
 SERVICES = (
     ('books', 'Books'), ('games', 'Games'), ('music', 'Music'), ('videos', 'Videos'),
-    ('documents', 'Documents'), ('wiki', 'Offline Wiki'), ('inventory', 'Inventory'),
-    ('pantry', 'Pantry'), ('passwords', 'Password Manager'),
+    ('documents', 'Documents'), ('wiki', 'Offline Wiki'),
+    ('passwords', 'Password Manager'),
 )
 ADAPTERS = {}
 

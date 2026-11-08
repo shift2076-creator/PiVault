@@ -14,7 +14,6 @@ def configure():
     from .services import ADAPTERS
     from .integrations.vaultwarden import VaultwardenAdapter
     from .integrations.jellyfin import JellyfinAdapter
-    from .integrations.homebox import HomeboxAdapter
     from .integrations.navidrome import NavidromeAdapter
     for key, value in config.get('public_urls', {}).items():
         parsed = urlsplit(value)
@@ -31,11 +30,6 @@ def configure():
     video = config.get('jellyfin')
     if video:
         ADAPTERS['videos'] = JellyfinAdapter(video['origin'], video['api_key'])
-    inventory = config.get('homebox')
-    if inventory:
-        ADAPTERS['inventory'] = HomeboxAdapter(inventory['origin'],
-            allow_isolated=inventory.get('allow_isolated', False), shared_token=inventory.get('shared_token', ''),
-            shared_group_id=inventory.get('shared_group_id', ''))
     from .search import configure as configure_search
     configure_search(config)
 

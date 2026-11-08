@@ -12,8 +12,6 @@ TOOLS = (
     ('Books', 8083, '/'),
     ('Offline Wiki', 8084, '/'),
     ('Documents', 8085, '/'),
-    ('Inventory', 8087, '/'),
-    ('Pantry', 9283, '/'),
     ('Photos', 8446, '/'),
     ('Videos', 8096, '/'),
     ('Arcade', 8000, '/'),

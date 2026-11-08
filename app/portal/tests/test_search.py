@@ -15,8 +15,6 @@ CONFIG = {
         'books': {'origin': 'http://calibre-web:8083', 'link': 'http://192.168.4.90:8083',
                   'username': 'search', 'password': 'pw'},
         'documents': {'origin': 'http://paperless:8000', 'link': 'http://192.168.4.90:8085', 'token': 't'},
-        'inventory': {'origin': 'http://homebox:7745', 'link': 'http://192.168.4.90:8087', 'api_key': 'k'},
-        'pantry': {'origin': 'http://grocy:80', 'link': 'http://192.168.4.90:9283', 'api_key': 'g'},
     },
 }
 CATALOG = b'''<feed xmlns="http://www.w3.org/2005/Atom">
@@ -70,7 +68,7 @@ class SearchTests(TestCase):
         search.configure(CONFIG)
         self.addCleanup(search.CONNECTORS.clear)
         everything = {key: 'shared' for key in ('books', 'music', 'videos', 'documents', 'wiki',
-                                                'inventory', 'pantry', 'games', 'passwords')}
+                                                'games', 'passwords')}
         self.user = User.objects.create_user(username='u', email='u@example.com', display_name='U',
                                              role='user', service_access=everything)
         self.calls = []
@@ -89,14 +87,22 @@ class SearchTests(TestCase):
         self.assertEqual(self.calls, [])
 
     def test_provisioned_apps_follow_access_and_unprovisioned_apps_are_shared(self):
-        self.user.service_access = {'inventory': 'isolated', 'music': 'none', 'videos': 'shared'}
+        self.user.service_access = {'music': 'none', 'videos': 'shared'}
         self.user.save()
-        provisioned = {key: object() for key in ('inventory', 'music', 'videos')}
+        provisioned = {key: object() for key in ('music', 'videos')}
         with patch.dict('portal.services.ADAPTERS', provisioned, clear=True):
             keys = [app['key'] for app in self.get('/search/apps').json()['apps']]
-        # Isolated Inventory and no-access Music are hidden; Wiki, Books, Documents and
-        # Pantry have no portal accounts, so every signed-in user shares them.
-        self.assertEqual(keys, ['books', 'videos', 'documents', 'wiki', 'pantry'])
+        # No-access Music is hidden; Wiki, Books and Documents have no portal accounts,
+        # so every signed-in user shares them.
+        self.assertEqual(keys, ['books', 'videos', 'documents', 'wiki'])
+
+    def test_retired_apps_in_an_old_config_are_ignored(self):
+        search.configure({'search': {
+            'inventory': {'origin': 'http://homebox:7745', 'link': 'http://192.168.4.90:8087', 'api_key': 'k'},
+            'pantry': {'origin': 'http://grocy:80', 'link': 'http://192.168.4.90:9283', 'api_key': 'g'},
+            'wiki': {'origin': 'http://kiwix:8080', 'link': 'http://192.168.4.90:8084'},
+        }})
+        self.assertEqual(set(search.CONNECTORS), {'wiki'})
 
     def test_only_ticked_apps_are_called(self):
         response = self.get('/search?q=apollo&app=wiki&app=videos&app=passwords')
@@ -153,8 +159,7 @@ class SearchTests(TestCase):
         response = self.get('/search?q=moon')
         for link in ('http://192.168.4.90:4533/music/app/#/album/al1/show', 'http://192.168.4.90:8083/book/42',
                      'http://192.168.4.90:8083/book/43',
-                     'http://192.168.4.90:8085/documents/7/details', 'http://192.168.4.90:8087/item/u-1',
-                     'http://192.168.4.90:9283/product/3'):
+                     'http://192.168.4.90:8085/documents/7/details'):
             self.assertContains(response, 'href="' + link + '"')
         music = next(query for key, _, query in self.calls if key == 'music')
         self.assertEqual(music['musicFolderId'], [1])
@@ -166,11 +171,6 @@ class SearchTests(TestCase):
         with patch.object(search.Connector, 'fetch', broken):
             response = self.get('/search?q=apollo&app=documents')
         self.assertContains(response, 'Documents could not be searched right now.')
-
-    def test_pantry_strips_characters_outside_grocys_filter_grammar(self):
-        self.get('/search?q=moon%27s+pie%26&app=pantry')
-        query = next(query for key, _, query in self.calls if key == 'pantry')
-        self.assertEqual(query['query[]'], 'name~moon s pie')
 
     def test_wiki_rejects_links_to_other_hosts(self):
         connector = search.CONNECTORS['wiki']
