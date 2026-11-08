@@ -113,9 +113,10 @@ class ClientPackageTests(TestCase):
                     'https://addons.mozilla.org.evil.example/a', 'https://user:secret@github.com/a'):
             with self.assertRaises(Exception): safe_url(url)
 
-    def test_admin_page_shows_local_version_and_pending_download(self):
+    def test_settings_page_shows_local_version_and_pending_download(self):
         self.release(); self.client.force_login(self.admin)
-        response = self.client.get('/users/add', secure=True)
+        self.assertNotContains(self.client.get('/users/add', secure=True), 'Local apps and extensions')
+        response = self.client.get('/system', secure=True)
         self.assertContains(response, 'Local apps and extensions')
         self.assertContains(response, '2026.10.0')
         self.assertContains(response, 'Download pending')

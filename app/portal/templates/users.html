@@ -253,7 +253,7 @@
     <ul class="tool-links">{% for name, url in tools %}<li><a href="{{ url }}">{{ name }}</a></li>{% endfor %}</ul>
   </section>
   {% endif %}
-  {% if mode == 'admin' %}
+  {% if mode == 'system' %}
   <section class="client-updates"><h2>Local apps and extensions</h2>
     <p class="secondary">{% if offline_mode %}Paused by offline mode. Already approved local copies stay available.{% else %}Checked and downloaded automatically each day at 2:00 AM. Installing on devices stays manual.{% endif %}</p>
     <div class="client-row secondary"><span>Client</span><span>Local</span><span>Available</span><span>Status</span></div>

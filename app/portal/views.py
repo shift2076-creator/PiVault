@@ -39,7 +39,7 @@ def page(request, mode, **context):
     from .client_packages import client_rows
     root = root_certificate() if mode == 'system' else None
     return render(request, 'users.html', {'mode': mode, 'services': services,
-                  'client_rows': client_rows() if mode == 'admin' else [],
+                  'client_rows': client_rows() if mode == 'system' else [],
                   'offline_mode': SiteSettings.is_offline() if mode in ('admin', 'system') else False,
                   'ca_ready': root is not None,
                   'ca_fingerprint': root_fingerprint(root) if root is not None else '',
