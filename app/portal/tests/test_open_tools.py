@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from portal.invitations import issue
 from portal.models import Invitation, User
-from portal.services import provision
+from portal.services import normalize_access, provision
 
 migration = import_module('portal.migrations.0007_open_tools_shared')
 
@@ -92,6 +92,14 @@ class OpenToolsTests(TestCase):
             markup = self.client.get('/users/add', secure=True).content.decode()
         self.assertRegex(row(markup, 'passwords'), r'value="isolated"[^>]* checked disabled>')
         self.assertNotIn('value="none"', row(markup, 'passwords'))
+
+    def test_radicale_offers_no_shared_access_and_rejects_shared(self):
+        self.client.force_login(self.admin)
+        markup = self.client.get('/users/add', secure=True).content.decode()
+        self.assertNotIn('value="shared"', row(markup, 'radicale'))
+        self.assertIn('value="none"', row(markup, 'radicale'))
+        with self.assertRaises(ValidationError):
+            normalize_access({'radicale': 'shared'})
 
     def test_admin_page_groups_rows_by_launcher_category_with_app_names(self):
         self.client.force_login(self.admin)

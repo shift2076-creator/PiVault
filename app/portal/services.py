@@ -10,7 +10,7 @@ SERVICES = (
 )
 ADAPTERS = {}
 # Tools with no per-user account. Access is either shared or none; there is no account to create.
-OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos', 'radicale')
+OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos')
 # Every user gets these in the mode shown, with no choice on Add user. Only applies once the tool is configured.
 FIXED_MODES = {'books': 'shared', 'games': 'shared', 'videos': 'shared', 'wiki': 'shared', 'passwords': 'isolated'}
 
