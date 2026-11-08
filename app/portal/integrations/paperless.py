@@ -62,6 +62,9 @@ class PaperlessAdapter:
     def provision(self, *, user, password, mode):
         if mode not in self.modes:
             raise ValidationError('Documents does not support that access mode.')
+        if mode == 'shared':
+            # Shared users have no Paperless account; they reach the shared archive through search.
+            return None
         name = self.credential_username(user)
         is_admin = user.role == 'admin'
         client = self._client(self.admin_token)
