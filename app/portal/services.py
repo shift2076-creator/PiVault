@@ -11,6 +11,14 @@ SERVICES = (
 ADAPTERS = {}
 # Tools with no per-user account. Access is either shared or none; there is no account to create.
 OPEN_SERVICES = ('books', 'games', 'documents', 'wiki')
+# Launcher category and the app behind each row on Add user.
+CATEGORY_ORDER = ('Entertainment', 'Knowledge', 'Organization', 'Tools')
+SERVICE_DETAILS = {
+    'books': ('Entertainment', 'Calibre-Web'), 'games': ('Entertainment', 'Arcade'),
+    'music': ('Entertainment', 'Navidrome'), 'videos': ('Entertainment', 'Jellyfin'),
+    'documents': ('Knowledge', 'Paperless'), 'wiki': ('Knowledge', 'Kiwix'),
+    'passwords': ('Tools', 'Vaultwarden'),
+}
 
 
 def is_open(key):

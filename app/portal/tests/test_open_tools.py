@@ -34,6 +34,15 @@ class OpenToolsTests(TestCase):
         self.assertRegex(markup, r'<option value="shared" selected>Shared</option>')
         self.assertIn('name="service_passwords"', markup)
 
+    def test_admin_page_groups_rows_by_launcher_category_with_app_names(self):
+        self.client.force_login(self.admin)
+        markup = self.client.get('/users/add', secure=True).content.decode()
+        headings = [h for h in ('Entertainment', 'Knowledge', 'Tools') if f'<h3 class="category">{h}</h3>' in markup]
+        self.assertEqual(headings, ['Entertainment', 'Knowledge', 'Tools'])
+        self.assertLess(markup.index('>Entertainment<'), markup.index('>Knowledge<'))
+        for name in ('Calibre-Web', 'Arcade', 'Navidrome', 'Jellyfin', 'Paperless', 'Kiwix', 'Vaultwarden'):
+            self.assertIn(f'<span class="app">{name}</span>', markup)
+
     def test_admin_dropdown_for_open_tools_offers_only_shared_and_no_access(self):
         self.client.force_login(self.admin)
         markup = self.client.get('/users/add', secure=True).content.decode()

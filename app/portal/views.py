@@ -16,7 +16,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from django.views.decorators.debug import sensitive_post_parameters
 from .invitations import find_valid, issue, rate_limit
 from .models import Invitation, SiteSettings, User
-from .services import SERVICES, ADAPTERS, is_open, provision, rollback_accounts
+from .services import CATEGORY_ORDER, SERVICE_DETAILS, SERVICES, ADAPTERS, is_open, provision, rollback_accounts
 from .enrollment import enrollment_user, invitation_default, SetupConfigurationError
 from .integrations.native_http import NativeError
 from .setup_logging import begin, end, event
@@ -34,11 +34,15 @@ def page(request, mode, **context):
         options = [{'value': value, 'label': title} for value, title in (
             ('shared', 'Shared'), ('isolated', 'Per user' if key == 'passwords' else 'Isolated'), ('none', 'No access'),
         ) if value == 'none' or value in supported]
-        services.append({'key': key, 'label': label, 'selected': request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key),
+        category, subtitle = SERVICE_DETAILS.get(key, ('Tools', ''))
+        services.append({'key': key, 'label': label, 'category': category, 'subtitle': subtitle,
+                         'selected': request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key),
                          'options': options})
+    groups = [{'name': name, 'services': [s for s in services if s['category'] == name]} for name in CATEGORY_ORDER]
+    groups = [group for group in groups if group['services']]
     from .client_packages import client_rows
     root = root_certificate() if mode == 'system' else None
-    return render(request, 'users.html', {'mode': mode, 'services': services,
+    return render(request, 'users.html', {'mode': mode, 'services': services, 'groups': groups,
                   'client_rows': client_rows() if mode == 'system' else [],
                   'offline_mode': SiteSettings.is_offline() if mode in ('admin', 'system') else False,
                   'ca_ready': root is not None,
