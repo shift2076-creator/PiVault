@@ -41,7 +41,7 @@ A web app manifest and a root `/favicon.ico` need a Caddy route. They are not in
 
 ## Deploying
 
-- Stylesheet only, from Greenie: fetch the branch into the Greenie checkout, check the file's SHA-256, copy it to pivault with `scp`, install it with `sudo install -m 644`, and restart `pivault-homepage`. Keep a backup in `/srv/pi-server/backups/homepage/`, not in the config folder.
+- Stylesheet only, from the deploy machine: fetch the branch into its checkout, check the file's SHA-256, copy it to pivault with `scp`, install it with `sudo install -m 644`, and restart `pivault-homepage`. Keep a backup in `/srv/pi-server/backups/homepage/`, not in the config folder.
 - `custom.js` (the favicons and any script change): merge `homepage-addon.js` into the live `custom.js` with `installer/configuration.py` (`homepage_js`), check the merged file, then install it the same way.
 - The installer deploys `custom.js` only. Run it from `main`, and only after the branch is merged.
 

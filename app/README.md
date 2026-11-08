@@ -1,12 +1,12 @@
 # PiVault Users — vault enrollment and approved client downloads
 
-Download `PiVault-Users-Install.sh` to Greenie and run:
+Download `PiVault-Users-Install.sh` to the deploy machine and run:
 
 ```sh
 bash ~/Downloads/PiVault-Users-Install.sh
 ```
 
-The Bash file contains the source and uses one SSH connection to `snx@192.168.4.90`. It asks for the PiVault account password at most once and reuses that answer for SSH and sudo. A rejected password stops the run. Existing SSH host trust, Python 3 and SSH are required on Greenie. No Docker or sudo runs locally on Greenie.
+The Bash file contains the source and uses one SSH connection to `snx@192.168.4.90`. It asks for the PiVault account password at most once and reuses that answer for SSH and sudo. A rejected password stops the run. The deploy machine needs Python 3, SSH, existing SSH host trust for `192.168.4.90`, and either a key that `snx@192.168.4.90` accepts (`ssh -o BatchMode=yes snx@192.168.4.90 true` exits 0) or the account password. The installer does not use an SSH config alias; it connects with the machine's default identities. No Docker or sudo runs locally on the deploy machine.
 
 ## This update
 
