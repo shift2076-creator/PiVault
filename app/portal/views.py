@@ -25,6 +25,8 @@ from .tools import tool_links
 
 
 ACCESS_COLUMNS = (('shared', 'Shared'), ('isolated', 'Per user'), ('none', 'No access'))
+# Limits of a tool's access model, shown under its name on Add user.
+ACCESS_NOTES = {'photos': 'Per user is not private from Lychee administrators, who can see every album and photo.'}
 
 
 def page(request, mode, **context):
@@ -39,7 +41,7 @@ def page(request, mode, **context):
         offered = {fixed} if fixed else supported | {'none'}
         selected = fixed or (request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key))
         services.append({'key': key, 'label': label, 'category': category, 'subtitle': subtitle,
-                         'fixed': bool(fixed),
+                         'fixed': bool(fixed), 'note': ACCESS_NOTES.get(key, ''),
                          'cells': [{'value': value, 'label': title, 'available': value in offered, 'checked': value == selected}
                                    for value, title in ACCESS_COLUMNS]})
     groups = [{'name': name, 'services': [s for s in services if s['category'] == name]} for name in CATEGORY_ORDER]
