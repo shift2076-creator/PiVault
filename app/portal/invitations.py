@@ -37,6 +37,9 @@ def issue(name, role, services, issuer=None):
     if role not in ('admin', 'user'):
         raise ValidationError('Choose Admin or User.')
     services = normalize_access(services)
+    # Refused now, not at join: the joiner cannot change the admin's role or Music choice.
+    if role == 'admin' and services.get('music') == 'isolated':
+        raise ValidationError('Per-user Music folders are not available for admin accounts.')
     if services.get('passwords') == 'isolated' and len(name) > 50:
         raise ValidationError('Password Manager names must be 50 characters or fewer.')
     if services['videos'] != 'none' and videos_name_taken(name):
