@@ -15,6 +15,7 @@ def configure():
     from .integrations.vaultwarden import VaultwardenAdapter
     from .integrations.jellyfin import JellyfinAdapter
     from .integrations.navidrome import NavidromeAdapter
+    from .integrations.paperless import PaperlessAdapter
     for key, value in config.get('public_urls', {}).items():
         parsed = urlsplit(value)
         if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
@@ -28,6 +29,9 @@ def configure():
         ADAPTERS['music'] = NavidromeAdapter(music['origin'], music['admin_username'],
             music['admin_password'], library_ids=music.get('library_ids'),
             private_root=music.get('private_root'))
+    documents = config.get('paperless')
+    if documents:
+        ADAPTERS['documents'] = PaperlessAdapter(documents['origin'], documents['admin_token'])
     video = config.get('jellyfin')
     if video:
         ADAPTERS['videos'] = JellyfinAdapter(video['origin'], video['api_key'])
