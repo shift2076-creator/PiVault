@@ -212,6 +212,21 @@ class SettingsCertificateTests(DeviceTestCase):
         self.assertEqual(b''.join(response.streaming_content), b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
 
 
+class SettingsTrustTests(DeviceTestCase):
+    def test_settings_offers_the_root_download_only_once_it_is_published(self):
+        self.client.force_login(self.admin)
+        with override_settings(DATA_DIR=self.root):
+            response = self.client.get('/system', secure=True)
+            self.assertContains(response, 'Trust on this device')
+            self.assertContains(response, 'Not available yet')
+            self.assertNotContains(response, 'href="/system/ca.crt"')
+            (self.root / 'caddy-root.crt').write_bytes(b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
+            response = self.client.get('/system', secure=True)
+        self.assertNotContains(response, 'Not available yet')
+        self.assertContains(response, 'href="/system/ca.crt" download')
+        self.assertContains(response, 'Trust this CA to identify websites')
+
+
 class SystemPageTests(DeviceTestCase):
     def test_system_page_no_longer_links_to_devices(self):
         # The device sync entry lives in the Settings menu (stack/homepage-addon.js), not on the System page.

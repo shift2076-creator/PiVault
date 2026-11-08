@@ -55,6 +55,11 @@
     .actions {display:flex;justify-content:flex-end;gap:24px;margin-top:24px}
     .text-button {min-height:0;padding:0;background:none;color:var(--pv-secondary)}
     .text-button:hover {background:none;color:var(--pv-text)}
+    .download {display:inline-block;min-height:48px;padding:10px 20px;background:#52667e;color:var(--pv-text);line-height:28px}
+    .download:hover {background:#60758e}
+    details {margin:12px 0}
+    summary {cursor:pointer;color:var(--pv-text)}
+    details li {margin:6px 0}
     .client-updates {margin-top:48px}
     .client-row {display:grid;grid-template-columns:minmax(130px,1.5fr) repeat(2,minmax(80px,1fr)) minmax(160px,2fr);gap:16px;padding:16px 0;border-bottom:1px solid var(--pv-divider);align-items:center}
     .client-row small {display:block;color:var(--pv-secondary);margin-top:6px}
@@ -183,6 +188,57 @@
     {% if offline_mode %}<p><strong>On.</strong> <span class="secondary">Nightly jobs that need the internet are paused: release checks, approved app downloads and cinema downloads. Nothing reports internet errors.</span></p>
     {% else %}<p><strong>Off.</strong> <span class="secondary">Nightly jobs use the internet for release checks and downloads. Turn this on when the internet is gone for good.</span></p>{% endif %}
     <form action="/users/offline-mode" method="post">{% csrf_token %}<input type="hidden" name="offline" value="{% if offline_mode %}off{% else %}on{% endif %}"><button type="submit">{% if offline_mode %}Turn offline mode off{% else %}Turn offline mode on{% endif %}</button></form>
+  </section>
+  {% endif %}
+  {% if mode == 'system' %}
+  <section class="client-updates" id="trust-device"><h2>Trust on this device</h2>
+    <p class="secondary">Browsers show "connection is not private" until each browser on each phone or computer trusts PiVault's local certificate authority. The file is public and holds no private key.</p>
+    {% if ca_ready %}<p><a class="download" href="/system/ca.crt" download>Download pivault-root.crt</a></p>
+    {% else %}<p><strong>Not available yet.</strong> <span class="secondary">Run the PiVault installer to publish the certificate, then reload this page.</span></p>{% endif %}
+    <p class="secondary">After a fresh install, download the file again and trust it on each device, because a new install can create a new authority.</p>
+    <details><summary>Firefox on desktop</summary>
+      <ol>
+        <li>Open Settings, then Privacy &amp; Security, then Certificates, then View Certificates.</li>
+        <li>On the Authorities tab, choose Import, select pivault-root.crt, and tick "Trust this CA to identify websites".</li>
+        <li>Reload PiVault.</li>
+      </ol>
+    </details>
+    <details><summary>Chrome or Chromium on Linux</summary>
+      <ol>
+        <li>Open Settings, then Privacy and security, then Security, then Manage certificates.</li>
+        <li>On the Authorities tab, choose Import, select pivault-root.crt, and tick "Trust this certificate for identifying websites".</li>
+        <li>Reload PiVault.</li>
+      </ol>
+    </details>
+    <details><summary>Chrome or Edge on Windows</summary>
+      <ol>
+        <li>Open pivault-root.crt and choose Install Certificate.</li>
+        <li>Choose Current User, then Place all certificates in the following store, then Browse, then Trusted Root Certification Authorities, then Finish.</li>
+        <li>Restart the browser and reload PiVault.</li>
+      </ol>
+    </details>
+    <details><summary>Chrome or Safari on macOS</summary>
+      <ol>
+        <li>Open pivault-root.crt. Keychain Access adds it to the login keychain.</li>
+        <li>Open the certificate whose name starts with Caddy Local Authority, expand Trust, and set "When using this certificate" to Always Trust. Enter your password when asked.</li>
+        <li>Reload PiVault.</li>
+      </ol>
+    </details>
+    <details><summary>Android</summary>
+      <ol>
+        <li>Download the file on the phone.</li>
+        <li>Open Settings, then Security (or Security and privacy), then Encryption and credentials, then Install a certificate, then CA certificate. Menu names vary by phone.</li>
+        <li>Select pivault-root.crt from Downloads and confirm.</li>
+        <li>Reload PiVault.</li>
+      </ol>
+    </details>
+    <details><summary>iPhone or iPad</summary>
+      <ol>
+        <li>Open the download link in Safari and allow the configuration profile download.</li>
+        <li>Open Settings, then General, then VPN &amp; Device Management, and install the PiVault profile.</li>
+        <li>Open Settings, then General, then About, then Certificate Trust Settings, and turn on full trust for the Caddy root.</li>
+      </ol>
+    </details>
   </section>
   {% endif %}
   {% if mode == 'admin' %}

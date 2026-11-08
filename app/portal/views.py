@@ -20,6 +20,7 @@ from .services import SERVICES, ADAPTERS, provision, rollback_accounts
 from .enrollment import enrollment_user, invitation_default, SetupConfigurationError
 from .integrations.native_http import NativeError
 from .setup_logging import begin, end, event
+from .device_views import root_certificate
 
 
 def page(request, mode, **context):
@@ -38,6 +39,7 @@ def page(request, mode, **context):
     return render(request, 'users.html', {'mode': mode, 'services': services,
                   'client_rows': client_rows() if mode == 'admin' else [],
                   'offline_mode': SiteSettings.is_offline() if mode in ('admin', 'system') else False,
+                  'ca_ready': mode == 'system' and root_certificate() is not None,
                   'name': request.POST.get('name', ''),
                   'selected_role': request.POST.get('role', 'user'), **context}, status=status)
 
