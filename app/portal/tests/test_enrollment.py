@@ -305,3 +305,10 @@ class AddUserTests(TestCase):
         response = self.client.post('/users/add', {'name': 'Alex', 'role': 'user', 'service_videos': 'shared'}, secure=True)
         self.assertContains(response, 'already uses that name', status_code=400)
         self.assertFalse(Invitation.objects.exists())
+
+    def test_database_error_while_issuing_shows_setup_page_not_a_crash(self):
+        self.client.force_login(self.admin)
+        with patch('portal.views.issue', side_effect=DatabaseError('database is locked')):
+            response = self.client.post('/users/add', {'name': 'Alex', 'role': 'user'}, secure=True)
+        self.assertContains(response, 'could not be saved', status_code=503)
+        self.assertNotContains(response, 'database is locked', status_code=503)

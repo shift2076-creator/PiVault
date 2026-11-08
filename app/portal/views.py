@@ -196,6 +196,10 @@ def add_user(request):
     except ValidationError as error:
         event('invitation_rejected', stage='invitation', status=400, error=error, level=logging.WARNING)
         return page(request, 'admin', error=error_text(error), status_code=400)
+    except DatabaseError as error:
+        # SQLite can be busy during setup; show the admin page again instead of a server error.
+        event('invitation_failed', stage='invitation', status=503, error=error, level=logging.ERROR)
+        return page(request, 'admin', error='The invitation could not be saved. Try again.', status_code=503)
 
 
 @require_http_methods(['GET'])
