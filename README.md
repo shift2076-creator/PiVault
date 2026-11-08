@@ -18,7 +18,7 @@ An offline services hub on a Raspberry Pi 5: media, knowledge, organization and 
 - `app/settings.py`: all portal settings.
 - `app/urls.py`: every portal route.
 
-Inside `app/portal/`: views and logic at the top; `integrations/` (Vaultwarden, Jellyfin, Navidrome, Homebox), `static/portal/` (browser scripts), `templates/`, `tests/`, `management/commands/` and `migrations/`. Background docs are in `app/docs/`.
+Inside `app/portal/`: views and logic at the top; `integrations/` (Vaultwarden, Jellyfin, Navidrome), `static/portal/` (browser scripts), `templates/`, `tests/`, `management/commands/` and `migrations/`. Background docs are in `app/docs/`.
 - `installer/build.py`: produces `PiVault-Users-Install.sh`.
 - `installer/install.py`: what that installer runs on pivault.
 - `jobs/maintenance.py`: installed to `/srv/pi-server/users/maintenance.py`.

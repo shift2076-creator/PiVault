@@ -6,7 +6,7 @@ The signed five-minute enrollment plan binds the invitation, normalized email, s
 
 The server already receives the PiVault join password transiently for its normal login hash and configured native account creation. It does not persist that plaintext password or an export file. The Users database retains the native vault user/item IDs and the normal Django login password hash. The native vault receives encrypted keys, folder name and login fields. Infrastructure Admin credentials never enter the new user's personal vault.
 
-Provisioning other native accounts completes before vault population. Their credential usernames come from each adapter: Jellyfin uses the Admin-assigned display name; Homebox and Vaultwarden use email. Only selected adapters which really create credentials are included. HTTPS addresses come from protected server configuration, not browser-supplied form fields. This revision retains the established same-password account handoff; it does not introduce unique service passwords.
+Provisioning other native accounts completes before vault population. Their credential usernames come from each adapter: Jellyfin uses the Admin-assigned display name; Vaultwarden uses email. Only selected adapters which really create credentials are included. HTTPS addresses come from protected server configuration, not browser-supplied form fields. This revision retains the established same-password account handoff; it does not introduce unique service passwords.
 
 ## Native API contract
 

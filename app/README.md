@@ -21,7 +21,7 @@ The Bash file contains the source and uses one SSH connection to `snx@192.168.4.
 
 **PiVault never silently publishes an unapproved local client release and never installs an update on a device.** Firefox's signed package can retain Mozilla's update behavior: the completion page tells the user to turn automatic updates Off for that extension. Store-installed Chrome, Edge, Safari and iOS clients follow their browser/device update policies; PiVault approval does not override those policies.
 
-Other native tool integrations, service-wide access enforcement and all-service SSO remain unfinished. Unsupported service modes stay omitted. This update activates Vaultwarden enrollment; it does not invent logins for tools that have no configured account adapter. Jellyfin and Homebox adapters can be explicitly configured in the protected native configuration, but their live Pi integration has not been verified here. Existing native apps retain their current direct-access behavior.
+Other native tool integrations, service-wide access enforcement and all-service SSO remain unfinished. Unsupported service modes stay omitted. This update activates Vaultwarden enrollment; it does not invent logins for tools that have no configured account adapter. The Jellyfin adapter can be explicitly configured in the protected native configuration, but their live Pi integration has not been verified here. Existing native apps retain their current direct-access behavior.
 
 ## Installer behavior
 
