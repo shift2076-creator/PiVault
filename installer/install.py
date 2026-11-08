@@ -376,8 +376,11 @@ def install_portal():
         if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc':
             fingerprint.update(str(path.relative_to(app_source)).encode() + b'\0' + path.read_bytes())
     image = 'pivault-users:' + fingerprint.hexdigest()[:16]
+    # Radicale's folder is mounted only once its portal entry exists in native.json.
+    native_path = CONFIG / 'users/native.json'
+    native_now = json.loads(native_path.read_text()) if native_path.is_file() else {}
     candidate_document = compose_configuration(vault_plan['document'], image=image,
-        uid=uid, gid=gid, network_names=networks)
+        uid=uid, gid=gid, network_names=networks, radicale_config='radicale' in native_now)
 
     with tempfile.TemporaryDirectory(prefix='.pivault-users-', dir=COMPOSE.parent) as work:
         work = Path(work)

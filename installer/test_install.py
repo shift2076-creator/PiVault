@@ -116,6 +116,15 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(output['services']['pivault-users']['networks'], ['private'])
         self.assertTrue(output['services']['pivault-users']['read_only'])
 
+    def test_radicale_config_is_mounted_read_write_only_when_configured(self):
+        base = dict(image='pivault-users:test', uid=1000, gid=1000, network_names=[])
+        plain = config.compose_configuration({'services': {}}, **base)['services']['pivault-users']
+        self.assertFalse([v for v in plain['volumes'] if v.endswith(':/radicale-config')])
+        wired = config.compose_configuration({'services': {}}, radicale_config=True, **base)['services']['pivault-users']
+        self.assertIn(config.RADICALE_CONFIG_FOLDER + ':/radicale-config', wired['volumes'])
+        self.assertTrue(wired['read_only'])
+        self.assertEqual(wired['volumes'][-1], config.RADICALE_CONFIG_FOLDER + ':/radicale-config')
+
     def test_users_service_memory_limit_is_512m(self):
         output = config.compose_configuration({'services': {}}, image='pivault-users:test', uid=1000,
                                               gid=1000, network_names=[])

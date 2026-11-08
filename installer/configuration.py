@@ -12,6 +12,8 @@ PORTAL_HOST = '192.168.4.90'
 PORTAL_PORT = 8443
 PORTAL_SITE = f'https://{PORTAL_HOST}:{PORTAL_PORT}'
 SERVICE = 'pivault-users'
+# Radicale's config folder on the Pi. The portal writes its htpasswd login file here.
+RADICALE_CONFIG_FOLDER = '/home/snx/radicale/config'
 
 PORTAL = '''
     # BEGIN PIVAULT USERS INSTALLER
@@ -194,12 +196,20 @@ def homepage_js(original, addon):
     return clean + '\n\n' + JS_BEGIN + '\n' + addon.rstrip() + '\n' + JS_END + '\n'
 
 
-def compose_configuration(original, *, image, uid, gid, network_names):
+def compose_configuration(original, *, image, uid, gid, network_names, radicale_config=False):
     result = copy.deepcopy(original)
     services = result.setdefault('services', {})
     existing = services.get(SERVICE)
     if existing and existing.get('labels', {}).get('org.pivault.managed') != 'users-installer':
         raise ValueError('An unmanaged pivault-users Compose service already exists.')
+    volumes = [
+        '/srv/pi-server/config/users/data:/data',
+        '/srv/pi-server/config/notifications:/notifications',
+        '/srv/pi-server/config/users/native.json:/native.json:ro',
+    ]
+    if radicale_config:
+        # Radicale's login file is written by the portal, so its folder is mounted read-write.
+        volumes.append(RADICALE_CONFIG_FOLDER + ':/radicale-config')
     service = {
         'image': image, 'container_name': SERVICE, 'restart': 'unless-stopped',
         'user': f'{uid}:{gid}', 'read_only': True,
@@ -208,11 +218,7 @@ def compose_configuration(original, *, image, uid, gid, network_names):
         'mem_limit': '512m',
         'env_file': ['/srv/pi-server/config/users/users.env'],
         'environment': {'PIVAULT_NATIVE_CONFIG': '/native.json'},
-        'volumes': [
-            '/srv/pi-server/config/users/data:/data',
-            '/srv/pi-server/config/notifications:/notifications',
-            '/srv/pi-server/config/users/native.json:/native.json:ro',
-        ],
+        'volumes': volumes,
         'labels': {'org.pivault.managed': 'users-installer'},
     }
     if network_names:
