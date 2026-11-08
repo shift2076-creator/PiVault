@@ -7,7 +7,7 @@
    re-renders the launcher. The server enforces every permission; this file only decides what to show.
 
    Endpoints: /users/session, /users/add, /system, /devices, /notifications, /notifications/api,
-   /notifications/seen, /notifications/<id>, /search/apps, /search, /services/status, /services/<key>/<verb>. */
+   /notifications/seen, /notifications/<id>, /services/status, /services/<key>/<verb>. */
 
 
 /* Shared helpers, read by the modules below as window.piVault. */
@@ -291,83 +291,6 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
 })();
 
 
-/* Unified search: a field under the PiVault title, with a scope control beneath it. "All" searches every app
-   this user may search; each other segment searches one app. The form sends the apps for the chosen scope as
-   GET parameters, so results load without script. Segments appear only for apps this user may search.
-   "/" moves focus to the field. */
-(() => {
-  if (window.piVaultSearchLoaded) return;
-  window.piVaultSearchLoaded = true;
-  const {make, icon, ready} = window.piVault;
-  try { localStorage.removeItem('pivault-search-unticked'); } catch { /* Old per-browser choice; nothing else to clear. */ }
-  const SCOPES = [['All', null], ['Books', 'books'], ['Music', 'music'], ['Offline Wiki', 'wiki']];
-  const LENS = 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4';
-  let apps = [], bar = null, scope = SCOPES[0];
-
-  function mount() {
-    const host = document.getElementById('layout-groups');
-    if (!host || bar?.isConnected) return;
-    bar = make('form', {id: 'pv-search', method: 'get', action: '/search', role: 'search'});
-    const input = make('input', {type: 'search', name: 'q', required: true, minLength: 2, maxLength: 200,
-      autocomplete: 'off', placeholder: 'Search PiVault'});
-    input.setAttribute('aria-label', 'Search PiVault');
-    const kbd = make('kbd', {textContent: '/'});
-    kbd.setAttribute('aria-hidden', 'true');
-    const field = make('label', {className: 'pv-field'});
-    field.append(icon(LENS, 20, '1.8'), input, kbd);
-
-    const group = make('div', {className: 'pv-scopes'});
-    group.setAttribute('role', 'group');
-    group.setAttribute('aria-label', 'Search in');
-    for (const [label, key] of SCOPES) {
-      if (key !== null && !apps.some(app => app.key === key)) continue;
-      const choice = make('button', {type: 'button', className: 'pv-scope', textContent: label});
-      choice.setAttribute('aria-pressed', String(scope[0] === label));
-      choice.addEventListener('click', () => {
-        scope = [label, key];
-        group.querySelectorAll('.pv-scope').forEach(other => other.setAttribute('aria-pressed', String(other === choice)));
-      });
-      group.append(choice);
-    }
-    bar.append(field, group);
-
-    // The apps for the chosen scope travel as GET parameters; FormData reads them after this handler.
-    bar.addEventListener('submit', () => {
-      bar.querySelectorAll('input[name="app"]').forEach(node => node.remove());
-      const keys = scope[1] === null ? apps.map(app => app.key) : [scope[1]];
-      for (const key of keys) bar.append(make('input', {type: 'hidden', name: 'app', value: key}));
-    });
-
-    const title = document.getElementById('pv-title');
-    if (title) title.after(bar);
-    else host.prepend(bar);
-  }
-
-  // "/" focuses the search field unless the user is already typing somewhere.
-  document.addEventListener('keydown', event => {
-    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
-    const target = event.target;
-    if (target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
-    const input = bar?.querySelector('input[name="q"]');
-    if (!input) return;
-    event.preventDefault();
-    input.focus();
-  });
-
-  async function start() {
-    try {
-      const response = await fetch('/search/apps', {credentials: 'same-origin', cache: 'no-store'});
-      apps = response.ok ? ((await response.json()).apps || []) : [];
-    } catch {
-      apps = [];
-    }
-    if (!apps.length) return;  // Signed out, or nothing this account may search.
-    mount();
-    // Homepage can re-render the launcher; put the bar back if it disappears.
-    new MutationObserver(mount).observe(document.body, {childList: true, subtree: true});
-  }
-  ready(start);
-})();
 
 
 /* Favicons: the keyhole board in a rounded square, as an SVG and as PNG, ICO and Apple touch icon
