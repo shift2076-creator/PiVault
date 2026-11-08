@@ -92,21 +92,23 @@ class EnrollmentTests(TestCase):
         with patch.dict(ADAPTERS, {'books':SimpleNamespace(modes=('shared',))}):
             response=self.client.get('/users/add',secure=True)
         markup=response.content.decode()
-        self.assertIn('>Shared</span>',markup)
-        self.assertNotIn('<select id="service-books"',markup)
+        books=markup.split('data-service="books"',1)[1].split('</div>',1)[0]
+        self.assertRegex(books,r'value="shared"[^>]* checked disabled>')
+        self.assertNotIn('value="none"',books)
         with patch.dict(ADAPTERS, {'documents':SimpleNamespace(modes=('shared',))}):
             markup=self.client.get('/users/add',secure=True).content.decode()
-        select=re.search(r'<select id="service-documents".*?</select>',markup,re.S).group()
-        self.assertIn('value="shared"',select)
-        self.assertIn('value="none"',select)
-        self.assertNotIn('value="isolated"',select)
-        self.assertNotIn('disabled',select)
-        # Password Manager is always per user, shown as fixed text.
+        block=markup.split('data-service="documents"',1)[1].split('</div>',1)[0]
+        self.assertIn('value="shared"',block)
+        self.assertIn('value="none"',block)
+        self.assertNotIn('value="isolated"',block)
+        self.assertNotIn('disabled',block)
+        # Password Manager is always per user: one fixed, checked column and no other choice.
         with patch.dict(ADAPTERS, {'passwords':SimpleNamespace(modes=('isolated',))}):
             response=self.client.get('/users/add',secure=True)
         markup=response.content.decode()
-        self.assertNotIn('<select id="service-passwords"',markup)
-        self.assertIn('Per user',markup)
+        passwords=markup.split('data-service="passwords"',1)[1].split('</div>',1)[0]
+        self.assertRegex(passwords,r'value="isolated"[^>]* checked disabled>')
+        self.assertNotIn('value="none"',passwords)
 
     def test_service_failure_rolls_back_user_and_leaves_code_unused(self):
         invitation,code=issue('Alex','user',{},self.admin)

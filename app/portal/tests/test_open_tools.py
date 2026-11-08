@@ -11,6 +11,10 @@ from portal.services import provision
 migration = import_module('portal.migrations.0007_open_tools_shared')
 
 
+def row(markup, key):
+    return markup.split(f'data-service="{key}"', 1)[1].split('</div>', 1)[0]
+
+
 class OpenToolsTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_user(username='admin-id', email='admin@example.com',
@@ -28,22 +32,21 @@ class OpenToolsTests(TestCase):
             issue('Alex', 'user', {'documents': 'isolated'}, self.admin)
         self.assertFalse(Invitation.objects.exists())
 
-    def test_admin_page_shows_always_shared_tools_as_text_and_others_as_dropdowns(self):
+    def test_admin_page_shows_always_shared_tools_as_one_fixed_checked_column(self):
         from portal.services import ADAPTERS
         self.client.force_login(self.admin)
         with patch.dict(ADAPTERS, {'videos': SimpleNamespace(modes=('shared',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-        self.assertEqual(markup.count('fixed-access">Shared</span>'), 4)
         for key in ('books', 'games', 'videos', 'wiki'):
-            self.assertNotIn(f'name="service_{key}"', markup)
-        self.assertIn('name="service_documents"', markup)
-        self.assertRegex(markup, r'<option value="shared" selected>Shared</option>')
-        self.assertIn('name="service_passwords"', markup)
+            self.assertRegex(row(markup, key), r'value="shared"[^>]* checked disabled>')
+            self.assertNotIn('value="none"', row(markup, key))
+        self.assertRegex(row(markup, 'passwords'), r'value="none"')
+        self.assertNotIn('value="shared"', row(markup, 'passwords'))
 
-    def test_admin_dropdown_for_documents_offers_only_shared_and_no_access(self):
+    def test_admin_documents_row_offers_shared_and_no_access_only(self):
         self.client.force_login(self.admin)
         markup = self.client.get('/users/add', secure=True).content.decode()
-        block = markup.split('name="service_documents"', 1)[1].split('</select>', 1)[0]
+        block = row(markup, 'documents')
         self.assertIn('value="shared"', block)
         self.assertIn('value="none"', block)
         self.assertNotIn('value="isolated"', block)
@@ -55,35 +58,29 @@ class OpenToolsTests(TestCase):
     def test_per_user_is_offered_only_where_an_adapter_supports_it(self):
         from portal.services import ADAPTERS
         self.client.force_login(self.admin)
-        def select(markup, key):
-            return markup.split(f'name="service_{key}"', 1)[1].split('</select>', 1)[0]
         with patch.dict(ADAPTERS, {}, clear=True):
             markup = self.client.get('/users/add', secure=True).content.decode()
-            self.assertNotIn('value="isolated"', select(markup, 'photos'))
+            self.assertNotIn('value="isolated"', row(markup, 'photos'))
         with patch.dict(ADAPTERS, {'photos': SimpleNamespace(modes=('isolated',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-            self.assertIn('>Per user</option>', select(markup, 'photos'))
+            self.assertIn('value="isolated"', row(markup, 'photos'))
 
     def test_music_offers_per_user_only_when_private_folders_are_configured(self):
         from portal.services import ADAPTERS
         self.client.force_login(self.admin)
-        def select(markup, key):
-            return markup.split(f'name="service_{key}"', 1)[1].split('</select>', 1)[0]
         with patch.dict(ADAPTERS, {'music': SimpleNamespace(modes=('shared',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-            self.assertNotIn('value="isolated"', select(markup, 'music'))
+            self.assertNotIn('value="isolated"', row(markup, 'music'))
         with patch.dict(ADAPTERS, {'music': SimpleNamespace(modes=('shared', 'isolated'))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-            self.assertIn('>Per user</option>', select(markup, 'music'))
+            self.assertIn('value="isolated"', row(markup, 'music'))
 
     def test_documents_offer_per_user_and_no_access_once_paperless_accounts_are_configured(self):
         from portal.services import ADAPTERS
         self.client.force_login(self.admin)
-        def select(markup, key):
-            return markup.split(f'name="service_{key}"', 1)[1].split('</select>', 1)[0]
         with patch.dict(ADAPTERS, {'documents': SimpleNamespace(modes=('isolated',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-        block = select(markup, 'documents')
+        block = row(markup, 'documents')
         self.assertIn('value="isolated"', block)
         self.assertIn('value="none"', block)
         self.assertNotIn('value="shared"', block)
@@ -93,8 +90,8 @@ class OpenToolsTests(TestCase):
         self.client.force_login(self.admin)
         with patch.dict(ADAPTERS, {'passwords': SimpleNamespace(modes=('isolated',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-        self.assertNotIn('name="service_passwords"', markup)
-        self.assertIn('Per user', markup)
+        self.assertRegex(row(markup, 'passwords'), r'value="isolated"[^>]* checked disabled>')
+        self.assertNotIn('value="none"', row(markup, 'passwords'))
 
     def test_admin_page_groups_rows_by_launcher_category_with_app_names(self):
         self.client.force_login(self.admin)

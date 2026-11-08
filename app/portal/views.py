@@ -24,6 +24,9 @@ from .device_views import root_certificate, root_fingerprint
 from .tools import tool_links
 
 
+ACCESS_COLUMNS = (('shared', 'Shared'), ('isolated', 'Per user'), ('none', 'No access'))
+
+
 def page(request, mode, **context):
     status = context.pop('status_code', 200)
     context['has_accounts'] = User.objects.exists()
@@ -31,15 +34,14 @@ def page(request, mode, **context):
     for key, label in SERVICES:
         adapter = ADAPTERS.get(key)
         supported = set(adapter.modes) if adapter else ({'shared'} if is_open(key) else set())
-        options = [{'value': value, 'label': title} for value, title in (
-            ('shared', 'Shared'), ('isolated', 'Per user'), ('none', 'No access'),
-        ) if value == 'none' or value in supported]
         category, subtitle = SERVICE_DETAILS.get(key, ('Tools', ''))
         fixed = fixed_mode(key)
+        offered = {fixed} if fixed else supported | {'none'}
+        selected = fixed or (request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key))
         services.append({'key': key, 'label': label, 'category': category, 'subtitle': subtitle,
-                         'fixed': bool(fixed), 'fixed_label': {'shared': 'Shared', 'isolated': 'Per user'}.get(fixed, ''),
-                         'selected': fixed or (request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key)),
-                         'options': [] if fixed else options})
+                         'fixed': bool(fixed),
+                         'cells': [{'value': value, 'label': title, 'available': value in offered, 'checked': value == selected}
+                                   for value, title in ACCESS_COLUMNS]})
     groups = [{'name': name, 'services': [s for s in services if s['category'] == name]} for name in CATEGORY_ORDER]
     groups = [group for group in groups if group['services']]
     from .client_packages import client_rows

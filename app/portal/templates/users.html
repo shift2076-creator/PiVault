@@ -37,9 +37,11 @@
     a:hover {color:var(--pv-text)}
     a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible {outline:2px solid var(--pv-accent);outline-offset:4px}
     .submit {width:100%;margin-top:8px}
-    .service {display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:57px}
-    .service label {margin:0;color:var(--pv-text);font-size:18px}
-    .service .fixed-access {color:var(--pv-secondary);font-size:15px}
+    .service,.service-head {display:grid;grid-template-columns:minmax(0,1fr) repeat(3,84px);align-items:center;gap:16px;min-height:57px}
+    .service-head {min-height:0;font-size:13px;color:var(--pv-secondary);text-align:center}
+    .service-head span:first-child {text-align:left}
+    .service-name {display:block;color:var(--pv-text);font-size:18px}
+    .service input[type=radio] {width:20px;height:20px;min-height:0;padding:0;margin:0;justify-self:center;accent-color:var(--pv-accent)}
     .service .app {display:block;font-size:13px;color:var(--pv-secondary);margin-top:2px}
     .category {font-size:13px;color:var(--pv-secondary);text-transform:uppercase;letter-spacing:.08em;margin:24px 0 4px}
     .role {display:flex;margin:0;padding:0;border:1px solid var(--pv-divider);border-radius:.5em;overflow:hidden}
@@ -71,7 +73,8 @@
       .layout {grid-template-columns:1fr;gap:36px}
       .account {border-left:0;padding-left:0}
       body:not([data-mode="admin"]) .account {border-left:1px solid var(--pv-divider);padding-left:20px}
-      .service label {font-size:16px}
+      .service-name {font-size:16px}
+      .service,.service-head {grid-template-columns:minmax(0,1fr) repeat(3,64px)}
       .client-row {grid-template-columns:1fr 1fr}
     }
     /* Account creation and single-column form controls. */
@@ -102,17 +105,13 @@
     <div class="layout">
       <section {% if mode != 'admin' %}hidden{% endif %}>
         <h2>Service access</h2>
+        <div class="service-head" aria-hidden="true"><span></span><span>Shared</span><span>Per user</span><span>No access</span></div>
         {% for group in groups %}
         <h3 class="category">{{ group.name }}</h3>
         {% for service in group.services %}
-        <div class="service">
-          <label for="service-{{ service.key }}">{{ service.label }}<span class="app">{{ service.subtitle }}</span></label>
-          {% if service.fixed %}<span class="fixed-access">{{ service.fixed_label }}</span>
-          {% else %}<select id="service-{{ service.key }}" name="service_{{ service.key }}" {% if mode != 'admin' %}disabled{% endif %}>
-            {% for option in service.options %}
-            <option value="{{ option.value }}" {% if service.selected == option.value %}selected{% endif %}>{{ option.label }}</option>
-            {% endfor %}
-          </select>{% endif %}
+        <div class="service" data-service="{{ service.key }}">
+          <span class="service-name">{{ service.label }}<span class="app">{{ service.subtitle }}</span></span>
+          {% for cell in service.cells %}{% if cell.available %}<input type="radio" name="service_{{ service.key }}" value="{{ cell.value }}" aria-label="{{ service.label }}: {{ cell.label }}"{% if cell.checked %} checked{% endif %}{% if mode != 'admin' or service.fixed %} disabled{% endif %}>{% else %}<span></span>{% endif %}{% endfor %}
         </div>
         {% endfor %}
         {% endfor %}
