@@ -15,7 +15,7 @@ SERVICE = 'pivault-users'
 
 PORTAL = '''
     # BEGIN PIVAULT USERS INSTALLER
-    @pivault_users_installer path /join /join/* /users /users/* /notifications /notifications/* /search /search/* /system /system/* /devices /devices/* /services /services/* /internal /internal/* /favicon.ico /apple-touch-icon.png /manifest.webmanifest
+    @pivault_users_installer path /join /join/* /users /users/* /notifications /notifications/* /system /system/* /devices /devices/* /services /services/* /internal /internal/* /favicon.ico /apple-touch-icon.png /manifest.webmanifest
     handle @pivault_users_installer {
         @pivault_users_internal path /internal /internal/*
         respond @pivault_users_internal 404
@@ -269,7 +269,7 @@ def terminal_handler(config, host, path, port=443):
 
 def verify_routes(before, after, vault_host=None):
     for path in ('/join', '/users/add', '/users/sign-in', '/users/session', '/notifications', '/notifications/api',
-                 '/search', '/search/apps', '/system', '/devices'):
+                 '/system', '/devices'):
         value = terminal_handler(after, PORTAL_HOST, path, PORTAL_PORT)
         if not value or value.get('handler') != 'reverse_proxy' or value.get('upstreams') != [{'dial': 'pivault-users:8000'}]:
             raise ValueError('The candidate Caddy routes do not reach the portal before the existing handlers.')

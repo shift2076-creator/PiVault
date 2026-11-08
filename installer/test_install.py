@@ -42,7 +42,7 @@ def native_config(portal=False):
     routes = [{'handle': [homepage]}]
     if portal:
         routes.insert(0, {'match': [{'path': ['/join', '/join/*', '/users', '/users/*',
-            '/notifications', '/notifications/*', '/search', '/search/*', '/system', '/system/*', '/devices', '/devices/*', '/internal', '/internal/*']}],
+            '/notifications', '/notifications/*', '/system', '/system/*', '/devices', '/devices/*', '/internal', '/internal/*']}],
             'handle': [{'handler': 'subroute', 'routes': [
                 {'match': [{'path': ['/internal', '/internal/*']}], 'handle': [
                     {'handler': 'static_response', 'status_code': 404}]},
@@ -129,22 +129,12 @@ class ConfigurationTests(unittest.TestCase):
     def test_native_routing_verification_accepts_only_the_private_portal(self):
         config.verify_routes(native_config(), native_config(True))
 
-    def test_search_must_reach_the_portal(self):
-        bad = native_config(True)
-        paths = bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['match'][0]['path']
-        paths.remove('/search')
-        with self.assertRaisesRegex(ValueError, 'do not reach the portal'):
-            config.verify_routes(native_config(), bad)
-
     def test_system_must_reach_the_portal(self):
         bad = native_config(True)
         paths = bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['match'][0]['path']
         paths.remove('/system')
         with self.assertRaisesRegex(ValueError, 'do not reach the portal'):
             config.verify_routes(native_config(), bad)
-
-    def test_managed_route_includes_search(self):
-        self.assertIn(' /search /search/* ', config.portal_caddyfile(CADDYFILE))
 
     def test_managed_route_includes_devices(self):
         self.assertIn(' /devices /devices/* ', config.portal_caddyfile(CADDYFILE))
