@@ -102,12 +102,11 @@
         {% for service in services %}
         <div class="service">
           <label for="service-{{ service.key }}">{{ service.label }}</label>
-          {% if service.open %}<span class="open-access">Shared with all users</span>
-          {% else %}<select id="service-{{ service.key }}" name="service_{{ service.key }}" {% if mode != 'admin' %}disabled{% endif %}>
+          <select id="service-{{ service.key }}" name="service_{{ service.key }}" {% if mode != 'admin' %}disabled{% endif %}>
             {% for option in service.options %}
             <option value="{{ option.value }}" {% if service.selected == option.value %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
-          </select>{% endif %}
+          </select>
         </div>
         {% endfor %}
       </section>

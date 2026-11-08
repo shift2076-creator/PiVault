@@ -29,11 +29,8 @@ def page(request, mode, **context):
     context['has_accounts'] = User.objects.exists()
     services = []
     for key, label in SERVICES:
-        if is_open(key):
-            services.append({'key': key, 'label': label, 'open': True, 'selected': 'shared', 'options': []})
-            continue
         adapter = ADAPTERS.get(key)
-        supported = set(adapter.modes) if adapter else set()
+        supported = set(adapter.modes) if adapter else ({'shared'} if is_open(key) else set())
         options = [{'value': value, 'label': title} for value, title in (
             ('shared', 'Shared'), ('isolated', 'Per user' if key == 'passwords' else 'Isolated'), ('none', 'No access'),
         ) if value == 'none' or value in supported]

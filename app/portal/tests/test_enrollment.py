@@ -41,7 +41,7 @@ class EnrollmentTests(TestCase):
         self.assertEqual(user.display_name,'Alex')
         self.assertEqual(user.role,'user')
         self.assertEqual(user.service_access['videos'],'none')  # Posted choices are ignored.
-        self.assertEqual(user.service_access['books'],'shared')  # Open tools are shared with everyone.
+        self.assertEqual(user.service_access['books'],'shared')  # Open tools default to shared.
         self.assertTrue(user.check_password('A-long-new-passphrase-482!'))
         self.assertNotIn('A-long-new-passphrase-482!',user.password)
         invitation.refresh_from_db()

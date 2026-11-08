@@ -9,7 +9,7 @@ SERVICES = (
     ('passwords', 'Password Manager'),
 )
 ADAPTERS = {}
-# Tools with no per-user account. Every signed-in user has them, so the admin only sees them as shared.
+# Tools with no per-user account. Access is either shared or none; there is no account to create.
 OPEN_SERVICES = ('books', 'games', 'documents', 'wiki')
 
 
@@ -24,11 +24,13 @@ def normalize_access(values):
         raise ValidationError('Unknown service.')
     result = {}
     for key, label in SERVICES:
-        mode = values.get(key, 'none')
+        mode = values.get(key, 'shared' if is_open(key) else 'none')
         if mode not in ('shared', 'isolated', 'none'):
             raise ValidationError('Invalid service access.')
         if is_open(key):
-            result[key] = 'shared'
+            if mode not in ('shared', 'none'):
+                raise ValidationError(f'{label}: {mode} is not available.')
+            result[key] = mode
             continue
         adapter = ADAPTERS.get(key)
         if mode != 'none' and (not adapter or mode not in adapter.modes):

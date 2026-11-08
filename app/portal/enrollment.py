@@ -2,7 +2,7 @@
 import uuid
 from django.core.exceptions import ValidationError
 from .models import User
-from .services import ADAPTERS, SERVICES, normalize_access
+from .services import ADAPTERS, SERVICES, is_open, normalize_access
 
 
 class SetupConfigurationError(ValidationError):
@@ -32,7 +32,9 @@ def enrollment_user(invitation, email):
 
 def invitation_default(key):
     adapter = ADAPTERS.get(key)
-    return 'isolated' if key == 'passwords' and adapter and 'isolated' in adapter.modes else 'none'
+    if key == 'passwords' and adapter and 'isolated' in adapter.modes:
+        return 'isolated'
+    return 'shared' if is_open(key) else 'none'
 
 
 def plan_identity(invitation, user, manifest):

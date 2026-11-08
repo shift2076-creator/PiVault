@@ -92,9 +92,18 @@ class SearchTests(TestCase):
         provisioned = {key: object() for key in ('music', 'videos')}
         with patch.dict('portal.services.ADAPTERS', provisioned, clear=True):
             keys = [app['key'] for app in self.get('/search/apps').json()['apps']]
-        # No-access Music is hidden; Wiki, Books and Documents have no portal accounts,
-        # so every signed-in user shares them.
+        # No-access Music is hidden. Wiki, Books and Documents have no portal accounts,
+        # so they follow the shared choice, which is the default.
         self.assertEqual(keys, ['books', 'videos', 'documents', 'wiki'])
+
+    def test_open_apps_set_to_no_access_are_hidden_from_search(self):
+        self.user.service_access = {'books': 'none', 'wiki': 'shared', 'documents': 'none'}
+        self.user.save()
+        with patch.dict('portal.services.ADAPTERS', {}, clear=True):
+            keys = [app['key'] for app in self.get('/search/apps').json()['apps']]
+        self.assertNotIn('books', keys)
+        self.assertNotIn('documents', keys)
+        self.assertIn('wiki', keys)
 
     def test_retired_apps_in_an_old_config_are_ignored(self):
         search.configure({'search': {

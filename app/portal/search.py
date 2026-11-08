@@ -65,10 +65,10 @@ class Connector:
 
     def allowed(self, user):
         from .services import ADAPTERS
-        # Apps without per-user portal accounts (Kiwix, Calibre-Web, Paperless) are
-        # shared with every signed-in user; provisioned apps follow the user's access.
+        # Apps without per-user portal accounts (Kiwix, Calibre-Web, Paperless) follow
+        # the user's shared or no-access choice; provisioned apps follow the same choice.
         if self.key not in ADAPTERS:
-            return True
+            return user.service_access.get(self.key, 'shared') != 'none'
         return user.service_access.get(self.key, 'none') in self.modes
 
     def fetch(self, path, query=()):

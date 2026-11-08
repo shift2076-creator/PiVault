@@ -5,7 +5,7 @@ The launcher's search field opens `/search`, a portal page that queries each tic
 ## Who sees what
 
 - Only signed-in portal users can search.
-- Videos and Music have per-user portal accounts: a user sees their tickbox only with access to that app. Wiki, Books and Documents have no per-user portal accounts, so every signed-in user sees them.
+- Videos and Music have per-user portal accounts: a user sees their tickbox only with access to that app. Wiki, Books and Documents have no per-user portal accounts. Each is shared with every user by default; an admin can set it to No access for a user, which hides it from that user's search.
 - Unticked apps are never queried.
 - Each app is searched with one read-only search credential. Results are exactly what that credential can see, so give it only content every user with access to that app already shares.
 
