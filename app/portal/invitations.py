@@ -3,6 +3,7 @@ import hmac
 import re
 import secrets
 import string
+import unicodedata
 from datetime import timedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -30,7 +31,8 @@ def videos_name_taken(name):
 
 def issue(name, role, services, issuer=None):
     name = name.strip()
-    if not name or len(name) > 80 or any(ord(c) < 32 for c in name):
+    # Control (Cc) and format (Cf) characters, such as DEL or right-to-left overrides, can hide or disguise a name on screen.
+    if not name or len(name) > 80 or any(unicodedata.category(c) in ('Cc', 'Cf') for c in name):
         raise ValidationError('Enter a name of 1–80 characters.')
     if role not in ('admin', 'user'):
         raise ValidationError('Choose Admin or User.')

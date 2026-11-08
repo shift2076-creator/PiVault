@@ -321,3 +321,10 @@ class AddUserTests(TestCase):
         self.assertIn('"event":"invitation_issued"', line)
         self.assertNotIn(response.context['code'], line)
         self.assertNotIn('Alex Rivera', line)
+
+    def test_control_and_invisible_format_characters_in_names_are_rejected(self):
+        for bad in ('Al\x7fex', 'Al\x85ex', 'Alex‮', 'Alex​'):
+            with self.subTest(name=bad), self.assertRaises(ValidationError):
+                issue(bad, 'user', {}, self.admin)
+        issue('Zoë Ng', 'user', {}, self.admin)
+        self.assertEqual(Invitation.objects.count(), 1)
