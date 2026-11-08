@@ -89,12 +89,13 @@ class PaperlessProvisioningTests(SimpleTestCase):
         self.assertEqual(sorted(created['user_permissions']), sorted(USER_PERMISSIONS))
         self.assertIn(('POST', '/api/token/', {'username': 'alex@example.com', 'password': 'user-pw'}), state.calls)
 
-    def test_shared_creates_no_paperless_account(self):
+    def test_documents_are_per_user_only(self):
         state = FakePaperless()
-        receipt = make_adapter(state).provision(user=person('alex@example.com'), password='pw', mode='shared')
-        self.assertIsNone(receipt)
+        adapter = make_adapter(state)
+        self.assertEqual(adapter.modes, ('isolated',))
+        with self.assertRaises(ValidationError):
+            adapter.provision(user=person('alex@example.com'), password='pw', mode='shared')
         self.assertEqual(state.calls, [])
-        self.assertEqual(state.users, {})
 
     def test_admin_role_maps_to_superuser_without_extra_permissions(self):
         state = FakePaperless()

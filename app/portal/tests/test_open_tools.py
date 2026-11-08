@@ -76,6 +76,18 @@ class OpenToolsTests(TestCase):
             markup = self.client.get('/users/add', secure=True).content.decode()
             self.assertIn('>Per user</option>', select(markup, 'music'))
 
+    def test_documents_offer_per_user_and_no_access_once_paperless_accounts_are_configured(self):
+        from portal.services import ADAPTERS
+        self.client.force_login(self.admin)
+        def select(markup, key):
+            return markup.split(f'name="service_{key}"', 1)[1].split('</select>', 1)[0]
+        with patch.dict(ADAPTERS, {'documents': SimpleNamespace(modes=('isolated',))}):
+            markup = self.client.get('/users/add', secure=True).content.decode()
+        block = select(markup, 'documents')
+        self.assertIn('value="isolated"', block)
+        self.assertIn('value="none"', block)
+        self.assertNotIn('value="shared"', block)
+
     def test_password_manager_is_fixed_per_user(self):
         from portal.services import ADAPTERS
         self.client.force_login(self.admin)

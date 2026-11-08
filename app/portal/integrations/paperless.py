@@ -1,7 +1,7 @@
 """Paperless-ngx 3.3.3 per-user accounts through its native REST API.
 
-Each enrolled user gets an ordinary Paperless account with the standard document
-permissions. Paperless makes the uploader the owner of a new document, so private
+Documents are per user only: each enrolled user gets an ordinary Paperless account
+with the standard document permissions. Paperless makes the uploader the owner of a new document, so private
 documents stay private. The provisioning token belongs to a superuser and is only
 held in private server configuration. Accounts are verified by reading them back
 and by logging in with the exact password. Failed enrollments delete the new account.
@@ -29,7 +29,7 @@ class PaperlessCleanupRequired(ValidationError):
 
 
 class PaperlessAdapter:
-    modes = ('shared', 'isolated')
+    modes = ('isolated',)
 
     def __init__(self, base_url, admin_token, *, client_factory=JSONClient):
         if not isinstance(admin_token, str) or not admin_token.strip():
@@ -62,9 +62,6 @@ class PaperlessAdapter:
     def provision(self, *, user, password, mode):
         if mode not in self.modes:
             raise ValidationError('Documents does not support that access mode.')
-        if mode == 'shared':
-            # Shared users have no Paperless account; they reach the shared archive through search.
-            return None
         name = self.credential_username(user)
         is_admin = user.role == 'admin'
         client = self._client(self.admin_token)
