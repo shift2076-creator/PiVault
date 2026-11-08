@@ -574,7 +574,7 @@ def install_portal():
 
 def main():
     if os.geteuid() != 0:
-        raise InstallError('Run this through the Greenie installer, which authenticates sudo once.')
+        raise InstallError('Run this through the PiVault installer, which authenticates sudo once.')
     with open('/run/lock/pivault-users-install.lock', 'w') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

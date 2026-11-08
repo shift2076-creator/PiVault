@@ -77,17 +77,17 @@ def build(destination):
     relay = relay.replace("'__REMOTE_COMMAND__'", repr(command))
     relay = relay.replace("'__PAYLOAD_B64__'", repr(base64.b64encode(payload).decode()))
     content = '''#!/usr/bin/env bash
-# PiVault account portal installer. Run on Greenie.
+# PiVault account portal installer. Run on the deploy machine.
 # One SSH connection; at most one password prompt for both SSH and sudo.
 # Includes the application source; no separate download/unzip step.
 # Includes personal vault enrollment and approved local client downloads.
 # Other native service integrations and all-service SSO remain unfinished.
 if ! command -v python3 >/dev/null 2>&1; then
-  printf '%s\\n' 'python3 is required on Greenie.' >&2
+  printf '%s\\n' 'python3 is required on the deploy machine.' >&2
   exit 1
 fi
 if ! command -v ssh >/dev/null 2>&1; then
-  printf '%s\\n' 'ssh is required on Greenie.' >&2
+  printf '%s\\n' 'ssh is required on the deploy machine.' >&2
   exit 1
 fi
 python3 - <<'PIVAULT_INSTALL_PYTHON'
