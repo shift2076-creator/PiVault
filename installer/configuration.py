@@ -60,7 +60,6 @@ APP_SITES = [
     (8083, '    reverse_proxy calibre-web:8083\n'),
     (8084, '    reverse_proxy pivault-kiwix:8080\n'),
     (8085, '    reverse_proxy pivault-paperless:8000\n'),
-    (8089, '    reverse_proxy 172.18.0.1:8089\n'),
     (8096, '    reverse_proxy jellyfin:8096\n'),
     (8446, '    request_body {\n        max_size 2048MB\n    }\n'
            '    reverse_proxy lychee:8000 {\n        header_up X-Forwarded-Proto https\n    }\n'),
