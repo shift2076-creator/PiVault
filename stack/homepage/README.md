@@ -14,7 +14,7 @@ The device copies live in `/srv/pi-server/config/homepage/` on pivault, which Ho
 - Every rule is scoped to `body:has(#pivault-books)`, so nothing else on the page changes.
 - Title: an `h1#pv-title` created by `homepage-addon.js`, with the keyhole board mark as a `::before` sized to the text height. Text is 44px, centred.
 - Search: `#pv-search`, under the title with 20px between them. The `/` hint is hidden; the `/` keyboard shortcut still works.
-- Categories: full-width rows, 20px below the search for the first, 48px between categories. Entertainment, Knowledge and Organization are placed by the `id`s of their tiles (`pivault-books`, `pivault-documents`, `pivault-inventory`) in `services.yaml`.
+- Categories: full-width rows, 20px below the search for the first, 48px between categories. Entertainment and Knowledge are placed by the `id`s of their tiles (`pivault-books`, `pivault-documents`) in `services.yaml`.
 - Entries: a grid of 4 columns, 2 at 1199px and below, 1 at 767px and below. Gap is one third of `--pv-column-gap`. Tile horizontal padding is 12px.
 - Tiles: the panel behind each tile is always visible. Hovering removes its shadow and darkens its top edge (`#10161d`). The shadow is never clipped, and every ancestor of the entry list has `overflow: visible`.
 - Width: the content, toolbar and categories share a 1200px maximum.

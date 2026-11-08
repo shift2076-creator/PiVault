@@ -16,7 +16,7 @@ EXPECTED = {
     'jellyfin', 'navidrome', 'calibre-web', 'pivault-arcade', 'pivault-kiwix',
     'lychee', 'lychee-db',
     'pivault-paperless', 'pivault-vaultwarden',
-    'pivault-homepage', 'pivault-homebox', 'pivault-grocy', 'pivault-https',
+    'pivault-homepage', 'pivault-https',
 }
 
 
@@ -187,9 +187,9 @@ def main():
             root = Path(mount['source'])
             if not str(root).startswith('/srv/pi-server/config/') or not root.is_dir():
                 continue
-            for relative in ('app.db','navidrome.db','grocy.db','data/grocy.db','data/app.db',
+            for relative in ('app.db','navidrome.db','data/app.db',
                              'db.sqlite3','data/db.sqlite3','authentication.db','data/authentication.db',
-                             'jellyfin.db','data/jellyfin.db','homebox.db'):
+                             'jellyfin.db','data/jellyfin.db'):
                 result = schema(root/relative)
                 if result and result not in databases:
                     databases.append(result)

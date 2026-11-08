@@ -416,8 +416,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   const {make, ready} = window.piVault;
   // Launcher tile name -> key the server accepts. Contacts is a host service and has no dot.
   const KEYS = {'Books': 'books', 'Games': 'games', 'Music': 'music', 'Videos': 'videos',
-    'Documents': 'documents', 'Offline Wiki': 'offline-wiki', 'Inventory': 'inventory',
-    'Pantry': 'pantry', 'Photos': 'photos'};
+    'Documents': 'documents', 'Offline Wiki': 'offline-wiki', 'Photos': 'photos'};
   const WORDS = {running: 'running', attention: 'needs attention', stopped: 'stopped', unknown: 'status unavailable'};
   let services = {}, canControl = false, csrf = '', openLed = null;
   const busy = new Set();

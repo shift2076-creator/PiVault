@@ -109,10 +109,8 @@ services:
     - 192.168.4.90:8083:8083
     - 192.168.4.90:8084:8084
     - 192.168.4.90:8085:8085
-    - 192.168.4.90:8087:8087
     - 192.168.4.90:8089:8089
     - 192.168.4.90:8096:8096
-    - 192.168.4.90:9283:9283
     - 192.168.4.90:8000:8000
     - 192.168.4.90:5232:5232
     volumes:
@@ -139,27 +137,6 @@ services:
       timeout: 10s
       start_period: 60s
       retries: 3
-  homebox:
-    image: ghcr.io/sysadminsmedia/homebox:0.27.0
-    container_name: pivault-homebox
-    env_file:
-    - /srv/pi-server/config/homebox/homebox.env
-    environment:
-      TZ: America/New_York
-      HBOX_OPTIONS_ALLOW_REGISTRATION: 'false'
-    volumes:
-    - /srv/pi-server/config/homebox/data:/data
-    restart: unless-stopped
-  grocy:
-    image: lscr.io/linuxserver/grocy:4.7.1
-    container_name: pivault-grocy
-    environment:
-      PUID: '1000'
-      PGID: '1000'
-      TZ: America/New_York
-    volumes:
-    - /srv/pi-server/config/grocy:/config
-    restart: unless-stopped
   radicale:
     image: tomsquest/docker-radicale
     container_name: radicale

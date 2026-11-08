@@ -4,8 +4,8 @@
    The installer does not copy this file; the device copy is /srv/pi-server/config/homepage/custom.css.
 
    Scope: every rule applies only while the launcher contains the tile with id pivault-books.
-   The device's services.yaml must give three tiles these ids, which place each group in its column:
-     pivault-books (Entertainment), pivault-documents (Knowledge), pivault-inventory (Organization).
+   The device's services.yaml must give two tiles these ids, which place each group in its column:
+     pivault-books (Entertainment), pivault-documents (Knowledge).
 
    Homepage v2.6.0 class names used below (service-title, service-name, services-group, ...) come from
    src/components/services in gethomepage v2.6.0. !important appears only where Homepage's own Tailwind
@@ -89,7 +89,6 @@ body:has(#pivault-books) #layout-groups > .services-group:has(#pivault-books) {
   margin-top: 20px !important;
 }
 #layout-groups > .services-group:has(#pivault-documents) { grid-area: knowledge !important; }
-#layout-groups > .services-group:has(#pivault-inventory) { grid-area: organization !important; }
 
 
 /* 3. Title: one heading, created by stack/homepage-addon.js, with the PiVault mark. */
