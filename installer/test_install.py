@@ -587,6 +587,25 @@ class StageOutputTests(unittest.TestCase):
         self.assertIn('\033[41m', shown)
 
 
+class ToolListTests(unittest.TestCase):
+    # app/portal/tools.py lists the addresses on the Settings page. Each port must be served by Caddy:
+    # an app site from APP_SITES, the launcher (PORTAL_PORT) or the vault on 443.
+    def load_tools(self):
+        spec = importlib.util.spec_from_file_location('portal_tools', HERE.parent / 'app' / 'portal' / 'tools.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.TOOLS
+
+    def test_every_listed_tool_is_served_by_caddy(self):
+        served = config.APP_PORTS | {443, config.PORTAL_PORT}
+        tools = self.load_tools()
+        self.assertTrue(tools)
+        for name, port, path in tools:
+            with self.subTest(tool=name):
+                self.assertIn(port, served)
+                self.assertTrue(path.startswith('/'))
+
+
 class PackageTests(unittest.TestCase):
     def test_complete_payload_and_embedded_python_compile(self):
         with tempfile.TemporaryDirectory() as folder:
