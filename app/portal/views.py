@@ -32,7 +32,7 @@ def page(request, mode, **context):
         adapter = ADAPTERS.get(key)
         supported = set(adapter.modes) if adapter else ({'shared'} if is_open(key) else set())
         options = [{'value': value, 'label': title} for value, title in (
-            ('shared', 'Shared'), ('isolated', 'Per user' if key == 'passwords' else 'Isolated'), ('none', 'No access'),
+            ('shared', 'Shared'), ('isolated', 'Per user'), ('none', 'No access'),
         ) if value == 'none' or value in supported]
         category, subtitle = SERVICE_DETAILS.get(key, ('Tools', ''))
         services.append({'key': key, 'label': label, 'category': category, 'subtitle': subtitle,

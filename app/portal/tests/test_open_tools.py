@@ -1,5 +1,7 @@
 from importlib import import_module
 from django.apps import apps
+from types import SimpleNamespace
+from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from portal.invitations import issue
@@ -33,6 +35,23 @@ class OpenToolsTests(TestCase):
         self.assertNotIn('Shared with all users', markup)
         self.assertRegex(markup, r'<option value="shared" selected>Shared</option>')
         self.assertIn('name="service_passwords"', markup)
+
+    def test_every_service_has_a_launcher_category_and_app_name(self):
+        from portal.services import SERVICE_DETAILS, SERVICES
+        self.assertEqual({key for key, _ in SERVICES}, set(SERVICE_DETAILS))
+
+    def test_per_user_is_offered_only_where_an_adapter_supports_it(self):
+        from portal.services import ADAPTERS
+        self.client.force_login(self.admin)
+        def select(markup, key):
+            return markup.split(f'name="service_{key}"', 1)[1].split('</select>', 1)[0]
+        with patch.dict(ADAPTERS, {}, clear=True):
+            markup = self.client.get('/users/add', secure=True).content.decode()
+            self.assertNotIn('value="isolated"', select(markup, 'photos'))
+            self.assertNotIn('value="isolated"', select(markup, 'passwords'))
+        with patch.dict(ADAPTERS, {'passwords': SimpleNamespace(modes=('isolated',))}):
+            markup = self.client.get('/users/add', secure=True).content.decode()
+            self.assertIn('>Per user</option>', select(markup, 'passwords'))
 
     def test_admin_page_groups_rows_by_launcher_category_with_app_names(self):
         self.client.force_login(self.admin)
