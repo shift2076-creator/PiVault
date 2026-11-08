@@ -110,7 +110,7 @@
         <h3 class="category">{{ group.name }}</h3>
         {% for service in group.services %}
         <div class="service" data-service="{{ service.key }}">
-          <span class="service-name">{{ service.label }}<span class="app">{{ service.subtitle }}</span>{% if service.note %}<span class="app">{{ service.note }}</span>{% endif %}</span>
+          <span class="service-name">{{ service.label }}<span class="app">{{ service.subtitle }}</span></span>
           {% for cell in service.cells %}{% if cell.available %}<input type="radio" name="service_{{ service.key }}" value="{{ cell.value }}" aria-label="{{ service.label }}: {{ cell.label }}"{% if cell.checked %} checked{% endif %}{% if mode != 'admin' or service.fixed %} disabled{% endif %}>{% else %}<span></span>{% endif %}{% endfor %}
         </div>
         {% endfor %}

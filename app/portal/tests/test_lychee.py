@@ -116,4 +116,4 @@ class LycheeAddUserRowTests(TestCase):
         self.assertIn('value="isolated"', photos)
         self.assertIn('value="none"', photos)
         self.assertNotIn('value="shared"', photos)
-        self.assertIn('not private from Lychee administrators', photos)
+        self.assertNotIn('administrators', photos)
