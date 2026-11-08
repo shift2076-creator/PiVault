@@ -104,8 +104,13 @@ class LauncherAssetTests(unittest.TestCase):
         spec.loader.exec_module(module)
         self.assertEqual(module.splice(JS), JS)
 
-    def test_tools_group_with_only_the_hidden_password_manager_is_hidden(self):
-        self.assertIn('services-group:has(li.service[data-name="Password Manager"])', CSS)
+    def test_group_with_only_the_hidden_password_manager_tile_is_hidden(self):
+        # Hide a group only when it holds nothing but the Password Manager tile.
+        # Hiding any group that merely contains that tile also hid the Apps group.
+        self.assertIn(
+            '#layout-groups > .services-group:not(:has(li.service:not([data-name="Password Manager"])))',
+            CSS)
+        self.assertNotIn('services-group:has(li.service[data-name="Password Manager"])', CSS)
 
     def test_javascript_parses(self):
         node = shutil.which('node')
