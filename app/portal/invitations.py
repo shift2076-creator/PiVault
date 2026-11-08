@@ -8,12 +8,24 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from .models import Attempt, Invitation
+from .models import Attempt, Invitation, User
 from .services import normalize_access
 
 
 def code_digest(code):
     return hmac.new(settings.SECRET_KEY.encode(), code.strip().upper().encode(), hashlib.sha256).hexdigest()
+
+
+def videos_name_taken(name):
+    # Jellyfin uses the display name as the login and refuses a duplicate at join time,
+    # so a clash is settled here, while the admin can still pick another name.
+    wanted = name.casefold()
+    for display_name, access in User.objects.values_list('display_name', 'service_access'):
+        if display_name.casefold() == wanted and (access or {}).get('videos', 'none') != 'none':
+            return True
+    pending = Invitation.objects.filter(used_at=None, expires_at__gt=timezone.now()).values_list('name', 'services')
+    return any(pending_name.casefold() == wanted and (granted or {}).get('videos', 'none') != 'none'
+               for pending_name, granted in pending)
 
 
 def issue(name, role, services, issuer=None):
@@ -25,6 +37,8 @@ def issue(name, role, services, issuer=None):
     services = normalize_access(services)
     if services.get('passwords') == 'isolated' and len(name) > 50:
         raise ValidationError('Password Manager names must be 50 characters or fewer.')
+    if services['videos'] != 'none' and videos_name_taken(name):
+        raise ValidationError('A Videos account or invitation already uses that name. Choose a different name.')
     for _ in range(100):
         code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
         try:

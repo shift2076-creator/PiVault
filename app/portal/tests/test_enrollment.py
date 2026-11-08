@@ -1,15 +1,17 @@
 import re
 from datetime import timedelta
 from io import StringIO
+from types import SimpleNamespace
 from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import DatabaseError
 from django.test import Client, TestCase
 from django.utils import timezone
 from portal.invitations import issue
 from portal.models import Attempt, Invitation, User
-from portal.services import normalize_access
+from portal.services import ADAPTERS, normalize_access
 
 
 class EnrollmentTests(TestCase):
@@ -255,3 +257,51 @@ class VaultRepairPageTests(TestCase):
         self.assertEqual(script.status_code,200)
         self.assertEqual(script['Content-Type'],'application/javascript; charset=utf-8')
         self.assertIn("document.getElementById('unlock')",script.content.decode())
+
+
+class AddUserTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='admin-id', email='admin@example.com',
+            password='Existing-good-password-928!', display_name='Owner', role='admin')
+        videos = patch.dict(ADAPTERS, {'videos': SimpleNamespace(modes=('shared',))})
+        videos.start()
+        self.addCleanup(videos.stop)
+
+    def existing(self, display_name, access):
+        return User.objects.create_user(username='member-' + display_name.casefold(),
+            email=display_name.casefold() + '@example.com', password='Existing-good-password-928!',
+            display_name=display_name, role='user', service_access=access)
+
+    def test_videos_name_used_by_existing_account_is_rejected(self):
+        self.existing('Alex', {'videos': 'shared'})
+        with self.assertRaisesMessage(ValidationError, 'already uses that name'):
+            issue('alex', 'user', {'videos': 'shared'}, self.admin)
+        self.assertFalse(Invitation.objects.exists())
+
+    def test_videos_name_used_by_pending_invitation_is_rejected(self):
+        issue('Alex', 'user', {'videos': 'shared'}, self.admin)
+        with self.assertRaisesMessage(ValidationError, 'already uses that name'):
+            issue('ALEX', 'user', {'videos': 'shared'}, self.admin)
+        self.assertEqual(Invitation.objects.count(), 1)
+
+    def test_same_name_is_allowed_when_video_access_does_not_clash(self):
+        self.existing('Alex', {'videos': 'shared'})
+        issue('Alex', 'user', {}, self.admin)
+        self.existing('Sam', {})
+        issue('Sam', 'user', {'videos': 'shared'}, self.admin)
+        self.assertEqual(Invitation.objects.count(), 2)
+
+    def test_expired_and_used_invitations_do_not_block_a_name(self):
+        expired, _ = issue('Alex', 'user', {'videos': 'shared'}, self.admin)
+        Invitation.objects.filter(pk=expired.pk).update(expires_at=timezone.now() - timedelta(minutes=1))
+        used, _ = issue('Alex', 'user', {'videos': 'shared'}, self.admin)
+        Invitation.objects.filter(pk=used.pk).update(used_at=timezone.now())
+        issue('Alex', 'user', {'videos': 'shared'}, self.admin)
+        self.assertEqual(Invitation.objects.count(), 3)
+
+    def test_view_reports_videos_name_clash_without_issuing_a_code(self):
+        self.existing('Alex', {'videos': 'shared'})
+        self.client.force_login(self.admin)
+        response = self.client.post('/users/add', {'name': 'Alex', 'role': 'user', 'service_videos': 'shared'}, secure=True)
+        self.assertContains(response, 'already uses that name', status_code=400)
+        self.assertFalse(Invitation.objects.exists())
