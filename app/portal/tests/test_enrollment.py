@@ -312,3 +312,12 @@ class AddUserTests(TestCase):
             response = self.client.post('/users/add', {'name': 'Alex', 'role': 'user'}, secure=True)
         self.assertContains(response, 'could not be saved', status_code=503)
         self.assertNotContains(response, 'database is locked', status_code=503)
+
+    def test_issued_invitation_is_logged_without_its_code_or_name(self):
+        self.client.force_login(self.admin)
+        with self.assertLogs('portal.setup', level='INFO') as logs:
+            response = self.client.post('/users/add', {'name': 'Alex Rivera', 'role': 'user'}, secure=True)
+        line = ' '.join(logs.output)
+        self.assertIn('"event":"invitation_issued"', line)
+        self.assertNotIn(response.context['code'], line)
+        self.assertNotIn('Alex Rivera', line)

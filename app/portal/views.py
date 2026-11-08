@@ -187,6 +187,7 @@ def add_user(request):
             {key: request.POST.get(f'service_{key}', 'none') for key, _ in SERVICES},
             issuer=request.user,
         )
+        event('invitation_issued', stage='invitation', status=200)
         output = io.BytesIO()
         qrcode.make(settings.JOIN_URL, image_factory=qrcode.image.svg.SvgPathImage,
                     box_size=5, border=4).save(output)
