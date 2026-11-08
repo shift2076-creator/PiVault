@@ -237,6 +237,13 @@ class EnrollmentTests(TestCase):
 
 
 class BootstrapTests(TestCase):
+    def test_first_admin_invitation_gives_the_admin_shared_music(self):
+        with patch.dict(ADAPTERS, {'music': SimpleNamespace(modes=('shared', 'isolated'))}):
+            call_command('first_admin', 'Owner', stdout=StringIO())
+        invitation = Invitation.objects.get()
+        self.assertEqual(invitation.services['music'], 'shared')
+        self.assertEqual(invitation.role, 'admin')
+
     def test_first_admin_is_local_command_not_public_race(self):
         with self.assertLogs('portal.setup', level='WARNING'):
             response=self.client.post('/join',{'code':'AAAA','email':'owner@example.com','password':'First-good-passphrase-938!','password_confirm':'First-good-passphrase-938!'},secure=True)
