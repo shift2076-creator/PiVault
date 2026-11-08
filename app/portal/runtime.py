@@ -26,7 +26,8 @@ def configure():
     music = config.get('navidrome')
     if music:
         ADAPTERS['music'] = NavidromeAdapter(music['origin'], music['admin_username'],
-            music['admin_password'], library_ids=music.get('library_ids'))
+            music['admin_password'], library_ids=music.get('library_ids'),
+            private_root=music.get('private_root'))
     video = config.get('jellyfin')
     if video:
         ADAPTERS['videos'] = JellyfinAdapter(video['origin'], video['api_key'])
