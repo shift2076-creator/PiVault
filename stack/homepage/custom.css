@@ -190,8 +190,8 @@ body:has(#pivault-books) li.service[data-name="Password Manager"] {
   display: none !important;
 }
 
-/* The Tools group holds only the hidden Password Manager tile. Hide its heading too. */
-body:has(#pivault-books) #layout-groups > .services-group:has(li.service[data-name="Password Manager"]) {
+/* A group whose only tile is the hidden Password Manager tile is hidden with it. Groups that hold other tiles stay. */
+body:has(#pivault-books) #layout-groups > .services-group:not(:has(li.service:not([data-name="Password Manager"]))) {
   display: none !important;
 }
 
