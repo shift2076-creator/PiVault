@@ -20,7 +20,8 @@ from .services import SERVICES, ADAPTERS, provision, rollback_accounts
 from .enrollment import enrollment_user, invitation_default, SetupConfigurationError
 from .integrations.native_http import NativeError
 from .setup_logging import begin, end, event
-from .device_views import root_certificate
+from .device_views import root_certificate, root_fingerprint
+from .tools import tool_links
 
 
 def page(request, mode, **context):
@@ -36,10 +37,13 @@ def page(request, mode, **context):
         services.append({'key': key, 'label': label, 'selected': request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key),
                          'options': options})
     from .client_packages import client_rows
+    root = root_certificate() if mode == 'system' else None
     return render(request, 'users.html', {'mode': mode, 'services': services,
                   'client_rows': client_rows() if mode == 'admin' else [],
                   'offline_mode': SiteSettings.is_offline() if mode in ('admin', 'system') else False,
-                  'ca_ready': mode == 'system' and root_certificate() is not None,
+                  'ca_ready': root is not None,
+                  'ca_fingerprint': root_fingerprint(root) if root is not None else '',
+                  'tools': tool_links(request.get_host().split(':')[0]) if mode == 'system' else [],
                   'name': request.POST.get('name', ''),
                   'selected_role': request.POST.get('role', 'user'), **context}, status=status)
 

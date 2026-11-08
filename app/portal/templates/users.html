@@ -195,6 +195,7 @@
     <p class="secondary">Browsers show "connection is not private" until each browser on each phone or computer trusts PiVault's local certificate authority. The file is public and holds no private key.</p>
     {% if ca_ready %}<p><a class="download" href="/system/ca.crt" download>Download pivault-root.crt</a></p>
     {% else %}<p><strong>Not available yet.</strong> <span class="secondary">Run the PiVault installer to publish the certificate, then reload this page.</span></p>{% endif %}
+    {% if ca_fingerprint %}<p class="secondary">SHA-256 fingerprint: <code>{{ ca_fingerprint }}</code>. After you install it, the certificate viewer in your browser or system should show this same value. If it differs, do not trust the file.</p>{% endif %}
     <p class="secondary">After a fresh install, download the file again and trust it on each device, because a new install can create a new authority.</p>
     <details><summary>Firefox on desktop</summary>
       <ol>
@@ -239,6 +240,17 @@
         <li>Open Settings, then General, then About, then Certificate Trust Settings, and turn on full trust for the Caddy root.</li>
       </ol>
     </details>
+    <details><summary>Any other browser or device</summary>
+      <ol>
+        <li>Look in the browser's settings for "certificates" or "authorities", and find where it imports a certificate.</li>
+        <li>Import pivault-root.crt. If the browser asks what to trust it for, choose identifying websites.</li>
+        <li>If the browser has no such option, it uses the system store. Install the file through the operating system instead, using the steps for its system above.</li>
+        <li>Check the fingerprint above, then reload PiVault.</li>
+      </ol>
+    </details>
+    <h3>PiVault tools</h3>
+    <p class="secondary">One trusted root covers all of these. After trusting it, each should open without a warning.</p>
+    <ul class="tool-links">{% for name, url in tools %}<li><a href="{{ url }}">{{ name }}</a></li>{% endfor %}</ul>
   </section>
   {% endif %}
   {% if mode == 'admin' %}

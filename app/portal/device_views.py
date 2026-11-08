@@ -10,6 +10,7 @@ import hmac
 import json
 from pathlib import Path
 import re
+import ssl
 
 from django.conf import settings
 from django.core import signing
@@ -271,6 +272,17 @@ def root_certificate():
     # Only the public root certificate is copied into the data directory by the installer, never the CA key.
     path = Path(settings.DATA_DIR) / 'caddy-root.crt'
     return None if not path.is_file() or path.is_symlink() else path
+
+
+def root_fingerprint(path):
+    # SHA-256 of the DER certificate, as colon-separated uppercase pairs: the form browsers and OS viewers display.
+    # Returns '' when the file is not a readable PEM certificate, so the page can omit the line.
+    try:
+        der = ssl.PEM_cert_to_DER_cert(Path(path).read_text(encoding='ascii'))
+    except (OSError, ValueError, UnicodeDecodeError):
+        return ''
+    digest = hashlib.sha256(der).hexdigest().upper()
+    return ':'.join(digest[i:i + 2] for i in range(0, len(digest), 2))
 
 
 @admin_page

@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import importlib.util
 import json
@@ -7,7 +8,7 @@ import tempfile
 from unittest.mock import patch
 
 from django.core import signing
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
 from portal import device_views
@@ -212,6 +213,31 @@ class SettingsCertificateTests(DeviceTestCase):
         self.assertEqual(b''.join(response.streaming_content), b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
 
 
+def pem_fixture(der):
+    body = base64.b64encode(der).decode()
+    return '-----BEGIN CERTIFICATE-----\n' + body + '\n-----END CERTIFICATE-----\n'
+
+
+def colon_hex(der):
+    return ':'.join(f'{byte:02X}' for byte in hashlib.sha256(der).digest())
+
+
+class RootFingerprintTests(SimpleTestCase):
+    def test_fingerprint_is_the_sha256_of_the_certificate_bytes(self):
+        der = b'pivault-root-der-fixture'
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'caddy-root.crt'
+            path.write_text(pem_fixture(der), encoding='ascii')
+            self.assertEqual(device_views.root_fingerprint(path), colon_hex(der))
+
+    def test_unreadable_or_missing_file_has_no_fingerprint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            garbage = Path(tmp) / 'garbage.crt'
+            garbage.write_text('not a certificate\n', encoding='ascii')
+            self.assertEqual(device_views.root_fingerprint(garbage), '')
+            self.assertEqual(device_views.root_fingerprint(Path(tmp) / 'missing.crt'), '')
+
+
 class SettingsTrustTests(DeviceTestCase):
     def test_settings_offers_the_root_download_only_once_it_is_published(self):
         self.client.force_login(self.admin)
@@ -225,6 +251,25 @@ class SettingsTrustTests(DeviceTestCase):
         self.assertNotContains(response, 'Not available yet')
         self.assertContains(response, 'href="/system/ca.crt" download')
         self.assertContains(response, 'Trust this CA to identify websites')
+
+    def test_settings_shows_the_fingerprint_and_every_tool_address(self):
+        self.client.force_login(self.admin)
+        der = b'pivault-root-der-fixture'
+        with override_settings(DATA_DIR=self.root):
+            (self.root / 'caddy-root.crt').write_text(pem_fixture(der), encoding='ascii')
+            response = self.client.get('/system', secure=True)
+        self.assertContains(response, colon_hex(der))
+        self.assertContains(response, 'Any other browser or device')
+        # Port 443 is the browser default, so the Password Manager address has no port.
+        self.assertContains(response, 'href="https://testserver/"')
+        self.assertContains(response, 'href="https://testserver:8443/music/"')
+        self.assertContains(response, 'href="https://testserver:5232/"')
+
+    def test_tool_addresses_follow_the_host_the_admin_used(self):
+        self.client.force_login(self.admin)
+        response = self.client.get('/system', secure=True, HTTP_HOST='192.168.4.90:8443')
+        self.assertContains(response, 'href="https://192.168.4.90:8443/music/"')
+        self.assertContains(response, 'href="https://192.168.4.90/"')
 
 
 class SystemPageTests(DeviceTestCase):
