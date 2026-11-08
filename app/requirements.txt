@@ -4,3 +4,4 @@ gunicorn==23.0.0
 asgiref==3.12.1
 sqlparse==0.6.0
 packaging==26.3
+bcrypt==5.0.0
