@@ -35,8 +35,6 @@ def configure():
     video = config.get('jellyfin')
     if video:
         ADAPTERS['videos'] = JellyfinAdapter(video['origin'], video['api_key'])
-    from .search import configure as configure_search
-    configure_search(config)
 
 
 def credential_plan(user):
