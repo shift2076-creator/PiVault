@@ -30,6 +30,7 @@ urlpatterns = [
     path('users/session', views.session),
     path('users/add', views.add_user),
     path('system', views.system),
+    path('system/ca.crt', device_views.ca_certificate),
     path('users/offline-mode', views.offline_mode),
     path('users/complete', vault_views.complete),
     path('users/clients/<str:client>', vault_views.download),

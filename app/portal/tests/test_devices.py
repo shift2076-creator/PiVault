@@ -197,6 +197,21 @@ class CaCertificateTests(DeviceTestCase):
         self.assertEqual(b''.join(response.streaming_content), b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
 
 
+class SettingsCertificateTests(DeviceTestCase):
+    def test_settings_download_is_admin_only_and_matches_the_installed_root(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get('/system/ca.crt', secure=True).status_code, 403)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get('/system/ca.crt', secure=True).status_code, 404)
+        with override_settings(DATA_DIR=self.root):
+            (self.root / 'caddy-root.crt').write_bytes(b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
+            response = self.client.get('/system/ca.crt', secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/x-x509-ca-cert')
+        self.assertIn('attachment; filename="pivault-root.crt"', response['Content-Disposition'])
+        self.assertEqual(b''.join(response.streaming_content), b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
+
+
 class SystemPageTests(DeviceTestCase):
     def test_system_page_no_longer_links_to_devices(self):
         # The device sync entry lives in the Settings menu (stack/homepage-addon.js), not on the System page.
