@@ -17,6 +17,7 @@ def configure():
     from .integrations.navidrome import NavidromeAdapter
     from .integrations.paperless import PaperlessAdapter
     from .integrations.radicale import RadicaleAdapter
+    from .integrations.lychee import LycheeAdapter
     for key, value in config.get('public_urls', {}).items():
         parsed = urlsplit(value)
         if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
@@ -33,6 +34,9 @@ def configure():
     documents = config.get('paperless')
     if documents:
         ADAPTERS['documents'] = PaperlessAdapter(documents['origin'], documents['admin_token'])
+    photos = config.get('lychee')
+    if photos:
+        ADAPTERS['photos'] = LycheeAdapter(photos['origin'], photos['admin_token'])
     calendar = config.get('radicale')
     if calendar:
         ADAPTERS['radicale'] = RadicaleAdapter(calendar['users_file'])
