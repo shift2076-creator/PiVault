@@ -2,8 +2,13 @@
 
 The installer supplies a dedicated provisioning administrator. End users receive
 their own native account and signup password; existing accounts are never adopted.
-Only shared library access is supported. No database or password-format writes.
+Shared access uses explicitly configured libraries. Per-user access gives each
+non-admin account one private library under a configured root. No database or
+password-format writes.
 """
+import hashlib
+import os
+import re
 from urllib.parse import quote
 
 from django.core.exceptions import ValidationError
@@ -21,7 +26,7 @@ class NavidromeAdapter:
     modes = ('shared',)
 
     def __init__(self, base_url, admin_username, admin_password, *,
-                 library_ids=None, client_factory=JSONClient):
+                 library_ids=None, private_root=None, client_factory=JSONClient):
         if not isinstance(admin_username, str) or not admin_username.strip():
             raise ValueError('A Music provisioning administrator is required.')
         if not isinstance(admin_password, str) or not admin_password:
@@ -29,10 +34,19 @@ class NavidromeAdapter:
         if library_ids is not None and (not isinstance(library_ids, (list, tuple))
                 or not library_ids or any(type(i) is not int or i <= 0 for i in library_ids)):
             raise ValueError('Music library IDs must be a nonempty list of positive integers.')
+        if private_root is not None:
+            # Shared scope must be explicit, or private libraries would be shared and searched.
+            if library_ids is None:
+                raise ValueError('Per-user Music folders need explicit shared library IDs.')
+            if (not isinstance(private_root, str) or not private_root.startswith('/')
+                    or any(part in ('', '.', '..') for part in private_root.split('/')[1:])):
+                raise ValueError('The Music private folder root must be an absolute path.')
+            self.modes = ('shared', 'isolated')
         self.base_url = base_url
         self.admin_username = admin_username
         self.admin_password = admin_password
         self.library_ids = None if library_ids is None else frozenset(library_ids)
+        self.private_root = private_root
         self.client_factory = client_factory
 
     def credential_username(self, user):
@@ -59,44 +73,98 @@ class NavidromeAdapter:
             if error.status != 404:
                 raise
 
+    def _delete_library(self, library_id):
+        try:
+            self._admin_client().request('DELETE', '/api/library/' + str(library_id))
+        except NativeError as error:
+            if error.status != 404:
+                raise
+
+    def _rollback(self, native_id, library_id):
+        try:
+            if native_id is not None:
+                self._delete(native_id)
+        finally:
+            if library_id is not None:
+                self._delete_library(library_id)
+
+    def _private_folder(self, name):
+        # The folder is created by the portal (read-write mount); Navidrome reads it read-only.
+        if not os.path.isdir(self.private_root):
+            raise ValidationError('Music private folder storage is unavailable. An admin must resolve it before joining.')
+        slug = re.sub(r'[^a-z0-9._-]', '-', name)[:60].strip('.-') or 'account'
+        digest = hashlib.sha256(name.encode()).hexdigest()[:10]
+        folder = os.path.join(self.private_root, f'{slug}-{digest}')
+        try:
+            os.makedirs(folder, mode=0o750, exist_ok=True)
+            leftover = os.listdir(folder)
+        except OSError:
+            raise ValidationError('Music private folder storage is unavailable. An admin must resolve it before joining.') from None
+        if leftover:
+            raise ValidationError('A private Music folder already has files for that account. An admin must resolve it before joining.')
+        return folder
+
+    def _create_private_library(self, client, name, folder):
+        try:
+            result = client.request('POST', '/api/library', {'name': 'Private: ' + name, 'path': folder})
+        except NativeError as error:
+            if error.uncertain:
+                raise NavidromeCleanupRequired('library:' + name) from None
+            raise
+        if not isinstance(result, dict) or type(result.get('id')) is not int or result['id'] <= 0:
+            # The library may exist without a known ID, so an admin must remove it.
+            raise NavidromeCleanupRequired('library:' + name)
+        return result['id']
+
     def provision(self, *, user, password, mode):
         if mode not in self.modes:
             raise ValidationError('Music does not support that access mode.')
         name = self.credential_username(user)
+        is_admin = user.role == 'admin'
+        isolated = mode == 'isolated'
+        if isolated and is_admin:
+            # Navidrome admins see every library, so a private folder would not be private.
+            raise ValidationError('Per-user Music folders are not available for admin accounts.')
         client = self._admin_client()
         existing = client.request('GET', '/api/user')
         if not isinstance(existing, list) or any(not isinstance(v, dict) for v in existing):
             raise NativeError('Music')
         if any(str(v.get('userName', '')).casefold() == name.casefold() for v in existing):
             raise ValidationError('A Music account already uses that email. An admin must resolve it before joining.')
-        libraries = client.request('GET', '/api/library')
-        if (not isinstance(libraries, list) or not libraries
-                or any(not isinstance(v, dict) or type(v.get('id')) is not int
-                       or v['id'] <= 0 for v in libraries)):
-            raise ValidationError('Music has no usable shared library. An admin must configure it before joining.')
-        available = {v['id'] for v in libraries}
-        selected = available if self.library_ids is None else self.library_ids
-        if not selected.issubset(available):
-            raise ValidationError('A configured shared Music library is unavailable.')
-        is_admin = user.role == 'admin'
+        if isolated:
+            folder = self._private_folder(name)
+        else:
+            libraries = client.request('GET', '/api/library')
+            if (not isinstance(libraries, list) or not libraries
+                    or any(not isinstance(v, dict) or type(v.get('id')) is not int
+                           or v['id'] <= 0 for v in libraries)):
+                raise ValidationError('Music has no usable shared library. An admin must configure it before joining.')
+            available = {v['id'] for v in libraries}
+            selected = available if self.library_ids is None else self.library_ids
+            if not selected.issubset(available):
+                raise ValidationError('A configured shared Music library is unavailable.')
+        native_id = None
+        created_library = None
         try:
-            result = client.request('POST', '/api/user', {
-                'userName': name, 'name': user.display_name,
-                'email': user.email.strip().lower(), 'password': password,
-                'isAdmin': is_admin,
-            })
-        except NativeError as error:
-            if error.uncertain:
-                # A lost response does not establish ownership of any returned row.
-                raise NavidromeCleanupRequired('username:' + name) from None
-            raise
-        if (not isinstance(result, dict) or not isinstance(result.get('id'), str)
-                or not result['id']):
-            raise NavidromeCleanupRequired('username:' + name)
-        native_id = result['id']
-        path = '/api/user/' + quote(native_id, safe='')
-        receipt = CreatedAccount('music', native_id, lambda: self._delete(native_id))
-        try:
+            if isolated:
+                created_library = self._create_private_library(client, name, folder)
+                selected = {created_library}
+            try:
+                result = client.request('POST', '/api/user', {
+                    'userName': name, 'name': user.display_name,
+                    'email': user.email.strip().lower(), 'password': password,
+                    'isAdmin': is_admin,
+                })
+            except NativeError as error:
+                if error.uncertain:
+                    # A lost response does not establish ownership of any returned row.
+                    raise NavidromeCleanupRequired('username:' + name) from None
+                raise
+            if (not isinstance(result, dict) or not isinstance(result.get('id'), str)
+                    or not result['id']):
+                raise NavidromeCleanupRequired('username:' + name)
+            native_id = result['id']
+            path = '/api/user/' + quote(native_id, safe='')
             if not is_admin:
                 client.request('PUT', path + '/library', {'libraryIds': sorted(selected)})
             actual = client.request('GET', path)
@@ -118,8 +186,9 @@ class NavidromeAdapter:
                 raise NativeError('Music', uncertain=True)
         except Exception:
             try:
-                receipt.rollback()
+                self._rollback(native_id, created_library)
             except Exception:
-                raise NavidromeCleanupRequired(native_id) from None
+                raise NavidromeCleanupRequired(
+                    native_id if native_id is not None else 'library:' + str(created_library)) from None
             raise
-        return receipt
+        return CreatedAccount('music', native_id, lambda: self._rollback(native_id, created_library))

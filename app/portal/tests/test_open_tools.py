@@ -64,6 +64,18 @@ class OpenToolsTests(TestCase):
             markup = self.client.get('/users/add', secure=True).content.decode()
             self.assertIn('>Per user</option>', select(markup, 'photos'))
 
+    def test_music_offers_per_user_only_when_private_folders_are_configured(self):
+        from portal.services import ADAPTERS
+        self.client.force_login(self.admin)
+        def select(markup, key):
+            return markup.split(f'name="service_{key}"', 1)[1].split('</select>', 1)[0]
+        with patch.dict(ADAPTERS, {'music': SimpleNamespace(modes=('shared',))}):
+            markup = self.client.get('/users/add', secure=True).content.decode()
+            self.assertNotIn('value="isolated"', select(markup, 'music'))
+        with patch.dict(ADAPTERS, {'music': SimpleNamespace(modes=('shared', 'isolated'))}):
+            markup = self.client.get('/users/add', secure=True).content.decode()
+            self.assertIn('>Per user</option>', select(markup, 'music'))
+
     def test_password_manager_is_fixed_per_user(self):
         from portal.services import ADAPTERS
         self.client.force_login(self.admin)
