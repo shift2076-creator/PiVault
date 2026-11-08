@@ -86,7 +86,6 @@ body:has(#pivault-books) #layout-groups .services-group div:has(.services-list) 
 body:has(#pivault-books) #layout-groups > .services-group:has(#pivault-books) {
   margin-top: 20px !important;
 }
-#layout-groups > .services-group:has(#pivault-documents) { grid-area: knowledge !important; }
 
 
 /* 3. Title: one heading, created by stack/homepage-addon.js, with the PiVault mark. */
@@ -179,6 +178,11 @@ body:has(#pivault-books) #layout-groups .services-list {
   body:has(#pivault-books) #layout-groups .services-list {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+
+/* One flat list: no category headings and no rules. All tiles sit in the entertainment row. */
+body:has(#pivault-books) #layout-groups .services-group > button {
+  display: none !important;
 }
 
 /* The Password Manager tile is shown in the Settings menu instead (see stack/homepage-addon.js). */

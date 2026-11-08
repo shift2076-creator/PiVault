@@ -51,6 +51,10 @@ class LauncherAssetTests(unittest.TestCase):
         for selector in ('#pv-toolbar', '#pv-settings'):
             self.assertIn(selector, CSS, selector)
 
+    def test_home_page_is_one_flat_list_without_headings_or_rules(self):
+        self.assertIn('.services-group > button {\n  display: none !important;', CSS)
+        self.assertNotIn('#pivault-documents) { grid-area: knowledge', CSS)
+
     def test_categories_are_rows_and_entries_sit_in_columns(self):
         self.assertIn('"entertainment"', CSS)
         self.assertIn('repeat(4, minmax(0, 1fr))', CSS)
