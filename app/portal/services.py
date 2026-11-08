@@ -6,25 +6,26 @@ from .setup_logging import event
 SERVICES = (
     ('books', 'Books'), ('games', 'Games'), ('music', 'Music'), ('videos', 'Videos'),
     ('documents', 'Documents'), ('wiki', 'Offline Wiki'),
-    ('passwords', 'Password Manager'), ('photos', 'Photos'), ('contacts', 'Contacts'),
-    ('radicale', 'Radicale'),
+    ('passwords', 'Password Manager'), ('photos', 'Photos'), ('radicale', 'Radicale'),
 )
 ADAPTERS = {}
 # Tools with no per-user account. Access is either shared or none; there is no account to create.
-OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos', 'contacts', 'radicale')
-# Every user has these, with no choice on Add user. Only applies once the tool is configured.
-ALWAYS_SHARED = ('books', 'games', 'videos', 'wiki')
+OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos', 'radicale')
+# Every user gets these in the mode shown, with no choice on Add user. Only applies once the tool is configured.
+FIXED_MODES = {'books': 'shared', 'games': 'shared', 'videos': 'shared', 'wiki': 'shared', 'passwords': 'isolated'}
 
 
-def always_shared(key):
-    return key in ALWAYS_SHARED and (key in ADAPTERS or is_open(key))
+def fixed_mode(key):
+    if key in FIXED_MODES and (key in ADAPTERS or is_open(key)):
+        return FIXED_MODES[key]
+    return None
 # Mirrors the launcher's services.yaml on pivault: group and tile description for each row on Add user.
 CATEGORY_ORDER = ('Entertainment', 'Knowledge', 'Home Tools', 'Tools')
 SERVICE_DETAILS = {
     'books': ('Entertainment', 'Calibre-Web'), 'games': ('Entertainment', 'RetroAssembly'),
     'music': ('Entertainment', 'Navidrome'), 'videos': ('Entertainment', 'Jellyfin'),
     'documents': ('Knowledge', 'Paperless-ngx'), 'wiki': ('Knowledge', 'Kiwix'),
-    'photos': ('Home Tools', 'Lychee'), 'contacts': ('Home Tools', 'Contacts'),
+    'photos': ('Home Tools', 'Lychee'),
     'radicale': ('Home Tools', 'CalDAV and CardDAV'),
     'passwords': ('Tools', 'Vaultwarden'),
 }
@@ -44,8 +45,11 @@ def normalize_access(values):
         mode = values.get(key, 'shared' if is_open(key) else 'none')
         if mode not in ('shared', 'isolated', 'none'):
             raise ValidationError('Invalid service access.')
-        if always_shared(key):
-            result[key] = 'shared'
+        fixed = fixed_mode(key)
+        if fixed:
+            if mode not in ('none', fixed):
+                raise ValidationError(f'{label}: {mode} is not available.')
+            result[key] = fixed
             continue
         if is_open(key):
             if mode not in ('shared', 'none'):

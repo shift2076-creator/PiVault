@@ -60,10 +60,17 @@ class OpenToolsTests(TestCase):
         with patch.dict(ADAPTERS, {}, clear=True):
             markup = self.client.get('/users/add', secure=True).content.decode()
             self.assertNotIn('value="isolated"', select(markup, 'photos'))
-            self.assertNotIn('value="isolated"', select(markup, 'passwords'))
+        with patch.dict(ADAPTERS, {'photos': SimpleNamespace(modes=('isolated',))}):
+            markup = self.client.get('/users/add', secure=True).content.decode()
+            self.assertIn('>Per user</option>', select(markup, 'photos'))
+
+    def test_password_manager_is_fixed_per_user(self):
+        from portal.services import ADAPTERS
+        self.client.force_login(self.admin)
         with patch.dict(ADAPTERS, {'passwords': SimpleNamespace(modes=('isolated',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-            self.assertIn('>Per user</option>', select(markup, 'passwords'))
+        self.assertNotIn('name="service_passwords"', markup)
+        self.assertIn('Per user', markup)
 
     def test_admin_page_groups_rows_by_launcher_category_with_app_names(self):
         self.client.force_login(self.admin)

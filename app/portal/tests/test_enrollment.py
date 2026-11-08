@@ -101,12 +101,12 @@ class EnrollmentTests(TestCase):
         self.assertIn('value="none"',select)
         self.assertNotIn('value="isolated"',select)
         self.assertNotIn('disabled',select)
-        # A service with native isolation keeps that mode.
+        # Password Manager is always per user, shown as fixed text.
         with patch.dict(ADAPTERS, {'passwords':SimpleNamespace(modes=('isolated',))}):
             response=self.client.get('/users/add',secure=True)
-        select=re.search(r'<select id="service-passwords".*?</select>',response.content.decode(),re.S).group()
-        self.assertIn('value="isolated"',select)
-        self.assertNotIn('value="shared"',select)
+        markup=response.content.decode()
+        self.assertNotIn('<select id="service-passwords"',markup)
+        self.assertIn('Per user',markup)
 
     def test_service_failure_rolls_back_user_and_leaves_code_unused(self):
         invitation,code=issue('Alex','user',{},self.admin)

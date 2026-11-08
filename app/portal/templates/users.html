@@ -107,7 +107,7 @@
         {% for service in group.services %}
         <div class="service">
           <label for="service-{{ service.key }}">{{ service.label }}<span class="app">{{ service.subtitle }}</span></label>
-          {% if service.fixed %}<span class="fixed-access">Shared with all users</span>
+          {% if service.fixed %}<span class="fixed-access">{{ service.fixed_label }}</span>
           {% else %}<select id="service-{{ service.key }}" name="service_{{ service.key }}" {% if mode != 'admin' %}disabled{% endif %}>
             {% for option in service.options %}
             <option value="{{ option.value }}" {% if service.selected == option.value %}selected{% endif %}>{{ option.label }}</option>
