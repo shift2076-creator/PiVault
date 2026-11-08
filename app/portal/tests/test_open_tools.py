@@ -33,7 +33,7 @@ class OpenToolsTests(TestCase):
         self.client.force_login(self.admin)
         with patch.dict(ADAPTERS, {'videos': SimpleNamespace(modes=('shared',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-        self.assertEqual(markup.count('Shared with all users'), 4)
+        self.assertEqual(markup.count('fixed-access">Shared</span>'), 4)
         for key in ('books', 'games', 'videos', 'wiki'):
             self.assertNotIn(f'name="service_{key}"', markup)
         self.assertIn('name="service_documents"', markup)

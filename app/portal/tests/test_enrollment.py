@@ -92,7 +92,7 @@ class EnrollmentTests(TestCase):
         with patch.dict(ADAPTERS, {'books':SimpleNamespace(modes=('shared',))}):
             response=self.client.get('/users/add',secure=True)
         markup=response.content.decode()
-        self.assertIn('Shared with all users',markup)
+        self.assertIn('>Shared</span>',markup)
         self.assertNotIn('<select id="service-books"',markup)
         with patch.dict(ADAPTERS, {'documents':SimpleNamespace(modes=('shared',))}):
             markup=self.client.get('/users/add',secure=True).content.decode()

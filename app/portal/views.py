@@ -37,7 +37,7 @@ def page(request, mode, **context):
         category, subtitle = SERVICE_DETAILS.get(key, ('Tools', ''))
         fixed = fixed_mode(key)
         services.append({'key': key, 'label': label, 'category': category, 'subtitle': subtitle,
-                         'fixed': bool(fixed), 'fixed_label': {'shared': 'Shared with all users', 'isolated': 'Per user'}.get(fixed, ''),
+                         'fixed': bool(fixed), 'fixed_label': {'shared': 'Shared', 'isolated': 'Per user'}.get(fixed, ''),
                          'selected': fixed or (request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key)),
                          'options': [] if fixed else options})
     groups = [{'name': name, 'services': [s for s in services if s['category'] == name]} for name in CATEGORY_ORDER]
