@@ -93,8 +93,9 @@ class EnrollmentTests(TestCase):
             response=self.client.get('/users/add',secure=True)
         markup=response.content.decode()
         books=markup.split('data-service="books"',1)[1].split('</div>',1)[0]
-        self.assertRegex(books,r'value="shared"[^>]* checked disabled>')
-        self.assertNotIn('value="none"',books)
+        self.assertRegex(books,r'value="shared"[^>]* checked>')
+        self.assertIn('value="none"',books)
+        self.assertNotIn('disabled',books)
         with patch.dict(ADAPTERS, {'documents':SimpleNamespace(modes=('shared',))}):
             markup=self.client.get('/users/add',secure=True).content.decode()
         block=markup.split('data-service="documents"',1)[1].split('</div>',1)[0]

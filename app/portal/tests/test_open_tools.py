@@ -20,26 +20,35 @@ class OpenToolsTests(TestCase):
         self.admin = User.objects.create_user(username='admin-id', email='admin@example.com',
             password='Existing-good-password-928!', display_name='Owner', role='admin')
 
-    def test_always_shared_tools_are_stored_shared_whatever_is_posted(self):
+    def test_open_tools_store_the_posted_choice_including_no_access(self):
         issue('Alex', 'user', {'books': 'none', 'wiki': 'none', 'documents': 'none'}, self.admin)
         services = Invitation.objects.get().services
-        self.assertEqual(services['books'], 'shared')
-        self.assertEqual(services['wiki'], 'shared')
+        self.assertEqual(services['books'], 'none')
+        self.assertEqual(services['wiki'], 'none')
         self.assertEqual(services['documents'], 'none')
+
+    def test_shared_by_default_tools_start_on_shared_when_not_posted(self):
+        issue('Alex', 'user', {}, self.admin)
+        services = Invitation.objects.get().services
+        self.assertEqual(services['books'], 'shared')
+        self.assertEqual(services['games'], 'shared')
+        self.assertEqual(services['wiki'], 'shared')
 
     def test_open_tools_reject_modes_without_an_account_adapter(self):
         with self.assertRaisesMessage(ValidationError, 'Documents: isolated is not available.'):
             issue('Alex', 'user', {'documents': 'isolated'}, self.admin)
         self.assertFalse(Invitation.objects.exists())
 
-    def test_admin_page_shows_always_shared_tools_as_one_fixed_checked_column(self):
+    def test_admin_page_offers_shared_and_no_access_for_shared_by_default_tools(self):
         from portal.services import ADAPTERS
         self.client.force_login(self.admin)
         with patch.dict(ADAPTERS, {'videos': SimpleNamespace(modes=('shared',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
         for key in ('books', 'games', 'videos', 'wiki'):
-            self.assertRegex(row(markup, key), r'value="shared"[^>]* checked disabled>')
-            self.assertNotIn('value="none"', row(markup, key))
+            block = row(markup, key)
+            self.assertRegex(block, r'value="shared"[^>]* checked>')
+            self.assertIn('value="none"', block)
+            self.assertNotIn('disabled', block)
         self.assertRegex(row(markup, 'passwords'), r'value="none"')
         self.assertNotIn('value="shared"', row(markup, 'passwords'))
 

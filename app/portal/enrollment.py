@@ -2,7 +2,7 @@
 import uuid
 from django.core.exceptions import ValidationError
 from .models import User
-from .services import ADAPTERS, SERVICES, is_open, normalize_access
+from .services import ADAPTERS, SERVICES, default_mode, normalize_access
 
 
 class SetupConfigurationError(ValidationError):
@@ -34,7 +34,7 @@ def invitation_default(key):
     adapter = ADAPTERS.get(key)
     if key == 'passwords' and adapter and 'isolated' in adapter.modes:
         return 'isolated'
-    return 'shared' if is_open(key) else 'none'
+    return default_mode(key)
 
 
 def plan_identity(invitation, user, manifest):

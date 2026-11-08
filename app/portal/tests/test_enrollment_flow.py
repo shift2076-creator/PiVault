@@ -80,13 +80,14 @@ class EnrollmentFlowTests(TestCase):
             self.adapters[key].rollback.assert_not_called()
 
     def test_a_declined_service_is_never_provisioned(self):
-        _, code = issue('Alex', 'user', {'music': 'none', 'documents': 'none', 'photos': 'none',
-                                          'radicale': 'none'}, self.admin)
+        _, code = issue('Alex', 'user', {'music': 'none', 'videos': 'none', 'documents': 'none',
+                                          'photos': 'none', 'radicale': 'none'}, self.admin)
         self.assertEqual(self.enroll(code).status_code, 302)
-        # Videos and Password Manager are fixed on Add user, so they are provisioned whatever is posted.
-        self.assertEqual(self.calls, ['videos', 'passwords'])
+        # Password Manager is always per user, so it is provisioned whatever is posted.
+        self.assertEqual(self.calls, ['passwords'])
         user = User.objects.get(email='alex@example.com')
         self.assertEqual(user.service_access['music'], 'none')
+        self.assertEqual(user.service_access['videos'], 'none')
         self.assertEqual(user.service_access['radicale'], 'none')
 
     def test_failure_partway_rolls_back_earlier_accounts_and_releases_the_code(self):

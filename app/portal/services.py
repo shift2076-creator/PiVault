@@ -11,14 +11,22 @@ SERVICES = (
 ADAPTERS = {}
 # Tools with no per-user account. Access is either shared or none; there is no account to create.
 OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos')
-# Every user gets these in the mode shown, with no choice on Add user. Only applies once the tool is configured.
-FIXED_MODES = {'books': 'shared', 'games': 'shared', 'videos': 'shared', 'wiki': 'shared', 'passwords': 'isolated'}
+# Password Manager is always per user, with no choice on Add user. Only applies once the tool is configured.
+FIXED_MODES = {'passwords': 'isolated'}
+# Tools that start on Shared in a new invitation. Admins can still choose No access for them on Add user.
+SHARED_BY_DEFAULT = ('books', 'games', 'videos', 'wiki')
 
 
 def fixed_mode(key):
     if key in FIXED_MODES and (key in ADAPTERS or is_open(key)):
         return FIXED_MODES[key]
     return None
+
+
+def default_mode(key):
+    if is_open(key) or (key in SHARED_BY_DEFAULT and key in ADAPTERS):
+        return 'shared'
+    return 'none'
 # Mirrors the launcher's services.yaml on pivault: group and tile description for each row on Add user.
 CATEGORY_ORDER = ('Entertainment', 'Knowledge', 'Home Tools', 'Tools')
 SERVICE_DETAILS = {
@@ -42,7 +50,7 @@ def normalize_access(values):
         raise ValidationError('Unknown service.')
     result = {}
     for key, label in SERVICES:
-        mode = values.get(key, 'shared' if is_open(key) else 'none')
+        mode = values.get(key, default_mode(key))
         if mode not in ('shared', 'isolated', 'none'):
             raise ValidationError('Invalid service access.')
         fixed = fixed_mode(key)
