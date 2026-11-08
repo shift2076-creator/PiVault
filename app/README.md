@@ -39,7 +39,7 @@ The first successful installation prints a 30-minute first-Admin invitation for 
 
 ## Account and notification behavior
 
-Admin assigns name, role and service access. Four-character case-insensitive invitation codes expire after 30 minutes, are single-use and stored as keyed digests. Join and Sign in use HTTPS, CSRF protection, secure server sessions, persistent rate limits and Django password hashing.
+Admin assigns name, role and service access. Names may not contain control or invisible format characters. When an invitation grants Videos, its name must not match (case-insensitively) an existing Videos account or another open invitation, because Jellyfin uses the name as its login. Four-character case-insensitive invitation codes expire after 30 minutes, are single-use and stored as keyed digests. Join and Sign in use HTTPS, CSRF protection, secure server sessions, persistent rate limits and Django password hashing.
 
 The vault adapter refuses an existing same-email vault. Failed enrollment leaves the PiVault invitation unused and removes only native accounts newly created by that attempt. Ambiguous creation or failed cleanup creates an Admin notification. Password changes and later vault synchronization are not part of this revision.
 
