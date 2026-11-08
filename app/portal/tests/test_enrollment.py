@@ -35,12 +35,13 @@ class EnrollmentTests(TestCase):
 
     def test_code_case_admin_name_and_role_are_enforced(self):
         invitation,code = issue('Alex', 'user', {}, self.admin)
-        response = self.enroll(code.lower(), name='Unapproved',role='admin',service_books='shared')
+        response = self.enroll(code.lower(), name='Unapproved',role='admin',service_videos='shared')
         self.assertEqual(response.status_code,302)
         user = User.objects.get(email='alex@example.com')
         self.assertEqual(user.display_name,'Alex')
         self.assertEqual(user.role,'user')
-        self.assertEqual(user.service_access['books'],'none')
+        self.assertEqual(user.service_access['videos'],'none')  # Posted choices are ignored.
+        self.assertEqual(user.service_access['books'],'shared')  # Open tools are shared with everyone.
         self.assertTrue(user.check_password('A-long-new-passphrase-482!'))
         self.assertNotIn('A-long-new-passphrase-482!',user.password)
         invitation.refresh_from_db()
@@ -80,7 +81,7 @@ class EnrollmentTests(TestCase):
     def test_unconfigured_isolation_is_rejected_server_side(self):
         self.client.force_login(self.admin)
         with self.assertLogs('portal.setup', level='WARNING'):
-            response=self.client.post('/users/add',{'name':'Alex','role':'user','service_wiki':'isolated'},secure=True)
+            response=self.client.post('/users/add',{'name':'Alex','role':'user','service_music':'isolated'},secure=True)
         self.assertContains(response,'integration is not configured',status_code=400)
         self.assertFalse(Invitation.objects.exists())
 

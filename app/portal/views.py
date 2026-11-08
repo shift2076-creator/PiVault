@@ -16,7 +16,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from django.views.decorators.debug import sensitive_post_parameters
 from .invitations import find_valid, issue, rate_limit
 from .models import Invitation, SiteSettings, User
-from .services import SERVICES, ADAPTERS, provision, rollback_accounts
+from .services import SERVICES, ADAPTERS, is_open, provision, rollback_accounts
 from .enrollment import enrollment_user, invitation_default, SetupConfigurationError
 from .integrations.native_http import NativeError
 from .setup_logging import begin, end, event
@@ -29,6 +29,9 @@ def page(request, mode, **context):
     context['has_accounts'] = User.objects.exists()
     services = []
     for key, label in SERVICES:
+        if is_open(key):
+            services.append({'key': key, 'label': label, 'open': True, 'selected': 'shared', 'options': []})
+            continue
         adapter = ADAPTERS.get(key)
         supported = set(adapter.modes) if adapter else set()
         options = [{'value': value, 'label': title} for value, title in (
@@ -237,7 +240,7 @@ def gate(request):
     if service:
         adapter = ADAPTERS.get(service)
         mode = request.user.service_access.get(service, 'none')
-        if mode == 'none' or not adapter or mode not in adapter.modes:
+        if mode == 'none' or (not is_open(service) and (not adapter or mode not in adapter.modes)):
             return HttpResponse(status=403)
     response = HttpResponse(status=204)
     response['X-PiVault-User'] = str(request.user.pk)

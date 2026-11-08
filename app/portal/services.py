@@ -9,6 +9,12 @@ SERVICES = (
     ('passwords', 'Password Manager'),
 )
 ADAPTERS = {}
+# Tools with no per-user account. Every signed-in user has them, so the admin only sees them as shared.
+OPEN_SERVICES = ('books', 'games', 'documents', 'wiki')
+
+
+def is_open(key):
+    return key in OPEN_SERVICES and key not in ADAPTERS
 
 
 def normalize_access(values):
@@ -21,6 +27,9 @@ def normalize_access(values):
         mode = values.get(key, 'none')
         if mode not in ('shared', 'isolated', 'none'):
             raise ValidationError('Invalid service access.')
+        if is_open(key):
+            result[key] = 'shared'
+            continue
         adapter = ADAPTERS.get(key)
         if mode != 'none' and (not adapter or mode not in adapter.modes):
             raise ValidationError(f'{label}: {mode} integration is not configured.')
@@ -40,6 +49,8 @@ def provision(user, password, vault_bundle=None):
             if mode == 'none':
                 event('service_skipped', service=key, mode=mode)
                 continue
+            if is_open(key):
+                continue  # Open tools have no account to create.
             event('service_started', service=key, mode=mode)
             adapter = ADAPTERS.get(key)
             if not adapter or mode not in adapter.modes:
