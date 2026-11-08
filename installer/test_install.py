@@ -463,7 +463,8 @@ class InstallationTransactionTests(unittest.TestCase):
             output = io.StringIO()
             with contextlib.ExitStack() as stack:
                 replacements = {'ROOT': root, 'CONFIG': config_dir, 'COMPOSE': compose,
-                    'SOURCE': source, 'MODEL': model, 'SYSTEMD_DIR': systemd_dir}
+                    'SOURCE': source, 'MODEL': model, 'SYSTEMD_DIR': systemd_dir,
+                    'LOG_DIR': root / 'Downloads'}
                 for key, value in replacements.items():
                     stack.enter_context(patch.object(install, key, value))
                 stack.enter_context(patch.object(install.os, 'geteuid', return_value=0))
@@ -513,6 +514,77 @@ class InstallationTransactionTests(unittest.TestCase):
 
     def test_enabled_video_timer_moves_to_consolidated_schedule(self):
         self.exercise(False, cinema_enabled=True)
+
+
+class StageOutputTests(unittest.TestCase):
+    def stage(self, script, *, timeout=30):
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as folder, open(Path(folder, 'stage.log'), 'w+', encoding='utf-8') as log:
+            with patch.object(install, 'STAGE_LOG', log), contextlib.redirect_stdout(output):
+                try:
+                    install.run_stage('Fixture stage', [sys.executable, '-c', textwrap.dedent(script)],
+                                      timeout=timeout, progress=False)
+                    error = None
+                except install.InstallError as found:
+                    error = found
+            log.seek(0)
+            return output.getvalue(), log.read(), error
+
+    def test_routine_output_becomes_one_green_bar_and_stays_in_the_log(self):
+        shown, saved, error = self.stage('''
+            print('2026-11-08 09:06:05,771 INFO {"event":"request_started"}')
+            print('2026-11-08 09:06:05,776 INFO {"event":"policy_selected"}')
+        ''')
+        self.assertIsNone(error)
+        self.assertIn('\033[42m', shown)
+        self.assertIn('Fixture stage: passed', shown)
+        self.assertNotIn('INFO', shown)
+        self.assertIn('INFO {"event":"policy_selected"}', saved)
+
+    def test_warnings_are_printed_after_a_yellow_bar(self):
+        shown, _, error = self.stage('''
+            print('2026-11-08 09:06:05,771 INFO routine')
+            print('WARNING: Running pip as the root user')
+        ''')
+        self.assertIsNone(error)
+        self.assertLess(shown.index('\033[43m'), shown.index('WARNING: Running pip as the root user'))
+        self.assertNotIn('INFO routine', shown)
+
+    def test_a_logged_error_in_a_passing_stage_is_yellow_not_red(self):
+        shown, _, error = self.stage('''print('ERROR: logged on purpose by a passing test')''')
+        self.assertIsNone(error)
+        self.assertIn('\033[43m', shown)
+        self.assertNotIn('\033[41m', shown)
+
+    def test_failed_test_is_printed_in_red_with_its_traceback_and_stops_the_install(self):
+        shown, saved, error = self.stage('''
+            import sys
+            print('2026-11-08 09:06:05,771 INFO routine')
+            print('ERROR: test_apple_icon (portal.tests.test_icons.PublicIconTests)')
+            print('----------------------------------------------------------------------')
+            print('Traceback (most recent call last):')
+            print('FileNotFoundError: No such file or directory')
+            print('')
+            print('Ran 4 tests')
+            sys.exit(1)
+        ''')
+        self.assertIsInstance(error, install.InstallError)
+        self.assertIn('failed during installation (exit 1).', str(error))
+        self.assertIn('\033[41m', shown)
+        self.assertIn('FileNotFoundError: No such file or directory', shown)
+        self.assertNotIn('INFO routine', shown)
+        self.assertNotIn('Ran 4 tests', shown)
+        self.assertIn('INFO routine', saved)
+        self.assertIn('Ran 4 tests', saved)
+
+    def test_a_stage_that_hangs_is_stopped_and_shown_in_red(self):
+        shown, _, error = self.stage('''
+            import time
+            time.sleep(30)
+        ''', timeout=1)
+        self.assertIsInstance(error, install.InstallError)
+        self.assertIn('could not complete (timed out)', str(error))
+        self.assertIn('\033[41m', shown)
 
 
 class PackageTests(unittest.TestCase):

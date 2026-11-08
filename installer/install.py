@@ -10,12 +10,14 @@ import json
 import os
 from pathlib import Path
 import pwd
+import re
 import secrets
 import shutil
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -46,13 +48,125 @@ def say(message):
     print(message, flush=True)
 
 
-def run(args, *, cwd=None, data=None, stream=False, timeout=180):
+# Full output of this installation, written to one log file on the Pi. Opened by main().
+STAGE_LOG = None
+LOG_DIR = Path('/home/snx/Downloads')
+# Background colours for the stage bar. ANSI codes reach the terminal through the SSH relay.
+COLOURS = {'green': '42', 'yellow': '43', 'red': '41'}
+WARNING = re.compile(r'\bWARNING\b')
+ERROR = re.compile(r'\b(ERROR|CRITICAL|FAILED|FAIL)\b|Traceback \(most recent call last\)')
+BLOCK_START = re.compile(r'^(ERROR|FAIL): |Traceback \(most recent call last\)')
+
+
+def open_install_log():
+    global STAGE_LOG
+    owner = pwd.getpwnam('snx')
+    LOG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chown(LOG_DIR, owner.pw_uid, owner.pw_gid)
+    path = LOG_DIR / ('pivault-install-' + datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S') + '.log')
+    STAGE_LOG = open(path, 'x', encoding='utf-8')
+    os.chmod(path, 0o600)
+    os.chown(path, owner.pw_uid, owner.pw_gid)
+    say('Full installation output: ' + str(path))
+
+
+def close_install_log():
+    global STAGE_LOG
+    if STAGE_LOG is not None:
+        STAGE_LOG.close()
+        STAGE_LOG = None
+
+
+def duration(seconds):
+    total = int(seconds)
+    return f'{total // 60}m {total % 60:02d}s'
+
+
+def show_timer(title, started, count, done, enabled):
+    # One line, rewritten once a second, so a long stage shows that it is still working.
+    if not enabled:
+        return
+    while not done.wait(1.0):
+        text = f'{title}: running for {duration(time.monotonic() - started)}, {count[0]} lines'
+        sys.stdout.write('\r' + text.ljust(78)[:78])
+        sys.stdout.flush()
+
+
+def run_stage(title, args, *, cwd=None, timeout=180, progress=True):
+    """Run one long command as a stage.
+
+    The full output goes to the installation log. The terminal shows a timer while the stage runs, then one
+    green, yellow or red bar, then only the warning and error lines. Red means the command failed.
+    """
+    if STAGE_LOG is not None:
+        STAGE_LOG.write(f'== {title} ==\n')
+    started = time.monotonic()
+    count = [0]
+    done = threading.Event()
+    timed_out = threading.Event()
+    kept = []
+    flagged = False
+    in_block = False
+    try:
+        process = subprocess.Popen(args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding='utf-8', errors='replace', bufsize=1)
+    except OSError as error:
+        raise InstallError(f'{args[0]} could not complete ({type(error).__name__}).') from None
+    watchdog = threading.Timer(timeout, lambda: (timed_out.set(), process.kill()))
+    watchdog.start()
+    timer = threading.Thread(target=show_timer, args=(title, started, count, done, progress), daemon=True)
+    timer.start()
+    try:
+        for raw in process.stdout:
+            line = raw.rstrip('\n')
+            count[0] += 1
+            if STAGE_LOG is not None:
+                STAGE_LOG.write(line + '\n')
+            if BLOCK_START.search(line):
+                # An error or failed test: keep its traceback, up to the blank line that ends it.
+                in_block, flagged = True, True
+                kept.append(line)
+            elif in_block and line.strip() and not line.startswith('===='):
+                kept.append(line)
+            else:
+                in_block = False
+                if WARNING.search(line) or ERROR.search(line):
+                    flagged = True
+                    kept.append(line)
+    finally:
+        watchdog.cancel()
+        if process.poll() is None:
+            process.kill()
+        code = process.wait()
+        process.stdout.close()
+        done.set()
+        timer.join()
+    failed = timed_out.is_set() or code != 0
+    colour = 'red' if failed else 'yellow' if flagged else 'green'
+    if progress:
+        sys.stdout.write('\r' + ' ' * 78 + '\r')
+    if STAGE_LOG is not None:
+        STAGE_LOG.write(f'== {title}: {colour}, exit {code} ==\n')
+    # ANSI: set background colour, erase the line (fills it to the edge), reset.
+    say(f'\033[{COLOURS[colour]}m\033[K\033[0m')
+    verdict = 'failed' if failed else 'passed, with warnings or logged errors below' if flagged else 'passed'
+    say(f'{title}: {verdict} in {duration(time.monotonic() - started)}.')
+    for line in kept:
+        say(line)
+    if timed_out.is_set():
+        raise InstallError(f'{args[0]} could not complete (timed out).')
+    if code:
+        raise InstallError(f'{args[0]} failed during installation (exit {code}).')
+
+
+def run(args, *, cwd=None, data=None, stage=None, timeout=180):
     if cwd is None and args[:2] == ['docker', 'compose']:
         cwd = COMPOSE.parent
+    if stage:
+        return run_stage(stage, args, cwd=cwd, timeout=timeout)
     try:
         value = subprocess.run(args, cwd=cwd, input=data, text=True,
-            stdout=None if stream else subprocess.PIPE,
-            stderr=None if stream else subprocess.PIPE, timeout=timeout)
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as error:
         raise InstallError(f'{args[0]} could not complete ({type(error).__name__}).') from None
     if value.returncode:
@@ -281,14 +395,14 @@ def install_portal():
         verify_routes(original_json, adapt(candidate_caddy),
                       vault_host=vault_plan['host'] if vault_plan['protect_admin'] else None)
         say('Building and testing the portal image before changing the live configuration…')
-        run(['docker', 'build', '--tag', image, str(app_source)], stream=True, timeout=1200)
+        run(['docker', 'build', '--tag', image, str(app_source)], stage='Portal image build', timeout=1200)
         test_command = ['docker', 'run', '--rm', '--network', 'none', '--read-only',
             '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
             '--user', f'{uid}:{gid}', '--tmpfs', '/tmp:rw,noexec,nosuid,size=128m',
             '-e', 'PIVAULT_SECRET_KEY=installer-test-key-not-a-production-secret',
             '-e', 'PIVAULT_DATA=/tmp/pivault-check', image,
             'python', 'manage.py', 'test', 'portal', '--verbosity', '0']
-        run(test_command, stream=True, timeout=180)
+        run(test_command, stage='Portal tests in the image', timeout=180)
 
         data_dir = CONFIG / 'users/data'
         env = CONFIG / 'users/users.env'
@@ -360,10 +474,10 @@ def install_portal():
                     write_file(path, value)
             if vault_plan['needs_restart']:
                 vault_changed = True
-                run(live + ['up', '-d', '--no-deps', vault_plan['service']], stream=True)
+                run(live + ['up', '-d', '--no-deps', vault_plan['service']], stage='Vault service')
             run(live + ['run', '--rm', '--no-deps', SERVICE, 'python', 'manage.py',
-                        'migrate', '--noinput'], stream=True)
-            run(live + ['up', '-d', '--no-deps', SERVICE], stream=True)
+                        'migrate', '--noinput'], stage='Portal database migration')
+            run(live + ['up', '-d', '--no-deps', SERVICE], stage='Portal start')
             wait_healthy()
             # Prove the private native administration credential works before exposing enrollment.
             for attempt in range(12):
@@ -466,7 +580,11 @@ def main():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise InstallError('Another PiVault Users installation is running.') from None
-        install_portal()
+        open_install_log()
+        try:
+            install_portal()
+        finally:
+            close_install_log()
 
 
 if __name__ == '__main__':
