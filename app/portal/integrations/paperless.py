@@ -62,18 +62,20 @@ class PaperlessAdapter:
     def provision(self, *, user, password, mode):
         if mode not in self.modes:
             raise ValidationError('Documents does not support that access mode.')
+        if user.role == 'admin':
+            # Paperless superusers see every document, so an admin account could not keep its documents private.
+            raise ValidationError('Per-user Documents are not available for admin accounts.')
         name = self.credential_username(user)
-        is_admin = user.role == 'admin'
         client = self._client(self.admin_token)
         if name.casefold() in self._existing_usernames(client):
             raise ValidationError('A Documents account already uses that email. An admin must resolve it before joining.')
-        expected = set() if is_admin else set(USER_PERMISSIONS)
+        expected = set(USER_PERMISSIONS)
         native_id = None
         try:
             try:
                 result = client.request('POST', '/api/users/', {
                     'username': name, 'email': name, 'password': password,
-                    'is_active': True, 'is_staff': False, 'is_superuser': is_admin,
+                    'is_active': True, 'is_staff': False, 'is_superuser': False,
                     'user_permissions': sorted(expected),
                 })
             except NativeError as error:
@@ -87,7 +89,7 @@ class PaperlessAdapter:
             actual = client.request('GET', '/api/users/' + native_id + '/')
             granted = {str(p) for p in actual.get('user_permissions', [])} if isinstance(actual, dict) else None
             if (not isinstance(actual, dict) or str(actual.get('id')) != native_id
-                    or actual.get('username') != name or actual.get('is_superuser') is not is_admin
+                    or actual.get('username') != name or actual.get('is_superuser') is not False
                     or granted != expected):
                 raise NativeError('Documents', uncertain=True)
             # Verify the exact password through the same token endpoint the app uses.

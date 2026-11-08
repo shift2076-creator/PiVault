@@ -13,6 +13,13 @@ from .models import Attempt, Invitation, User
 from .services import normalize_access
 
 
+# Per-user private storage an admin account cannot keep private: admins see everything in these apps.
+ADMIN_REFUSED = {
+    'music': 'Per-user Music folders are not available for admin accounts.',
+    'documents': 'Per-user Documents are not available for admin accounts.',
+}
+
+
 def code_digest(code):
     return hmac.new(settings.SECRET_KEY.encode(), code.strip().upper().encode(), hashlib.sha256).hexdigest()
 
@@ -37,9 +44,11 @@ def issue(name, role, services, issuer=None):
     if role not in ('admin', 'user'):
         raise ValidationError('Choose Admin or User.')
     services = normalize_access(services)
-    # Refused now, not at join: the joiner cannot change the admin's role or Music choice.
-    if role == 'admin' and services.get('music') == 'isolated':
-        raise ValidationError('Per-user Music folders are not available for admin accounts.')
+    # Refused now, not at join: the joiner cannot change the admin's role or these choices.
+    if role == 'admin':
+        for key, message in ADMIN_REFUSED.items():
+            if services.get(key) == 'isolated':
+                raise ValidationError(message)
     if services.get('passwords') == 'isolated' and len(name) > 50:
         raise ValidationError('Password Manager names must be 50 characters or fewer.')
     if services['videos'] != 'none' and videos_name_taken(name):
