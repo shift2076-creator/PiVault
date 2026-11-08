@@ -15,7 +15,6 @@ TOOLS = (
     ('Photos', 8446, '/'),
     ('Videos', 8096, '/'),
     ('Arcade', 8000, '/'),
-    ('Contacts', 8089, '/'),
     ('Calendar and contacts sync (Radicale)', 5232, '/'),
 )
 
