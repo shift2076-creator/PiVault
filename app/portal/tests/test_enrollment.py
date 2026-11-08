@@ -92,7 +92,11 @@ class EnrollmentTests(TestCase):
         with patch.dict(ADAPTERS, {'books':SimpleNamespace(modes=('shared',))}):
             response=self.client.get('/users/add',secure=True)
         markup=response.content.decode()
-        select=re.search(r'<select id="service-books".*?</select>',markup,re.S).group()
+        self.assertIn('Shared with all users',markup)
+        self.assertNotIn('<select id="service-books"',markup)
+        with patch.dict(ADAPTERS, {'documents':SimpleNamespace(modes=('shared',))}):
+            markup=self.client.get('/users/add',secure=True).content.decode()
+        select=re.search(r'<select id="service-documents".*?</select>',markup,re.S).group()
         self.assertIn('value="shared"',select)
         self.assertIn('value="none"',select)
         self.assertNotIn('value="isolated"',select)
@@ -285,12 +289,13 @@ class AddUserTests(TestCase):
             issue('ALEX', 'user', {'videos': 'shared'}, self.admin)
         self.assertEqual(Invitation.objects.count(), 1)
 
-    def test_same_name_is_allowed_when_video_access_does_not_clash(self):
+    def test_same_name_is_blocked_because_every_user_gets_videos(self):
         self.existing('Alex', {'videos': 'shared'})
-        issue('Alex', 'user', {}, self.admin)
+        with self.assertRaises(ValidationError):
+            issue('Alex', 'user', {}, self.admin)
         self.existing('Sam', {})
-        issue('Sam', 'user', {'videos': 'shared'}, self.admin)
-        self.assertEqual(Invitation.objects.count(), 2)
+        issue('Sam', 'user', {}, self.admin)
+        self.assertEqual(Invitation.objects.count(), 1)
 
     def test_expired_and_used_invitations_do_not_block_a_name(self):
         expired, _ = issue('Alex', 'user', {'videos': 'shared'}, self.admin)

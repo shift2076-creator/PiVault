@@ -39,6 +39,7 @@
     .submit {width:100%;margin-top:8px}
     .service {display:flex;justify-content:space-between;align-items:center;gap:16px;min-height:57px}
     .service label {margin:0;color:var(--pv-text);font-size:18px}
+    .service .fixed-access {color:var(--pv-secondary);font-size:15px}
     .service .app {display:block;font-size:13px;color:var(--pv-secondary);margin-top:2px}
     .category {font-size:13px;color:var(--pv-secondary);text-transform:uppercase;letter-spacing:.08em;margin:24px 0 4px}
     .role {display:flex;margin:0;padding:0;border:1px solid var(--pv-divider);border-radius:.5em;overflow:hidden}
@@ -106,11 +107,12 @@
         {% for service in group.services %}
         <div class="service">
           <label for="service-{{ service.key }}">{{ service.label }}<span class="app">{{ service.subtitle }}</span></label>
-          <select id="service-{{ service.key }}" name="service_{{ service.key }}" {% if mode != 'admin' %}disabled{% endif %}>
+          {% if service.fixed %}<span class="fixed-access">Shared with all users</span>
+          {% else %}<select id="service-{{ service.key }}" name="service_{{ service.key }}" {% if mode != 'admin' %}disabled{% endif %}>
             {% for option in service.options %}
             <option value="{{ option.value }}" {% if service.selected == option.value %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
-          </select>
+          </select>{% endif %}
         </div>
         {% endfor %}
         {% endfor %}

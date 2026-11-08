@@ -12,6 +12,12 @@ SERVICES = (
 ADAPTERS = {}
 # Tools with no per-user account. Access is either shared or none; there is no account to create.
 OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos', 'contacts', 'radicale')
+# Every user has these, with no choice on Add user. Only applies once the tool is configured.
+ALWAYS_SHARED = ('books', 'games', 'videos', 'wiki')
+
+
+def always_shared(key):
+    return key in ALWAYS_SHARED and (key in ADAPTERS or is_open(key))
 # Mirrors the launcher's services.yaml on pivault: group and tile description for each row on Add user.
 CATEGORY_ORDER = ('Entertainment', 'Knowledge', 'Home Tools', 'Tools')
 SERVICE_DETAILS = {
@@ -38,6 +44,9 @@ def normalize_access(values):
         mode = values.get(key, 'shared' if is_open(key) else 'none')
         if mode not in ('shared', 'isolated', 'none'):
             raise ValidationError('Invalid service access.')
+        if always_shared(key):
+            result[key] = 'shared'
+            continue
         if is_open(key):
             if mode not in ('shared', 'none'):
                 raise ValidationError(f'{label}: {mode} is not available.')

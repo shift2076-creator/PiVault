@@ -16,25 +16,37 @@ class OpenToolsTests(TestCase):
         self.admin = User.objects.create_user(username='admin-id', email='admin@example.com',
             password='Existing-good-password-928!', display_name='Owner', role='admin')
 
-    def test_open_tools_keep_the_admin_choice_on_new_invitations(self):
-        issue('Alex', 'user', {'books': 'none', 'wiki': 'shared'}, self.admin)
+    def test_always_shared_tools_are_stored_shared_whatever_is_posted(self):
+        issue('Alex', 'user', {'books': 'none', 'wiki': 'none', 'documents': 'none'}, self.admin)
         services = Invitation.objects.get().services
-        self.assertEqual(services['books'], 'none')
+        self.assertEqual(services['books'], 'shared')
         self.assertEqual(services['wiki'], 'shared')
+        self.assertEqual(services['documents'], 'none')
 
     def test_open_tools_reject_modes_without_an_account_adapter(self):
-        with self.assertRaisesMessage(ValidationError, 'Books: isolated is not available.'):
-            issue('Alex', 'user', {'books': 'isolated'}, self.admin)
+        with self.assertRaisesMessage(ValidationError, 'Documents: isolated is not available.'):
+            issue('Alex', 'user', {'documents': 'isolated'}, self.admin)
         self.assertFalse(Invitation.objects.exists())
 
-    def test_admin_page_shows_open_tools_as_dropdowns_defaulting_to_shared(self):
+    def test_admin_page_shows_always_shared_tools_as_text_and_others_as_dropdowns(self):
+        from portal.services import ADAPTERS
         self.client.force_login(self.admin)
-        markup = self.client.get('/users/add', secure=True).content.decode()
-        self.assertIn('name="service_books"', markup)
-        self.assertIn('name="service_wiki"', markup)
-        self.assertNotIn('Shared with all users', markup)
+        with patch.dict(ADAPTERS, {'videos': SimpleNamespace(modes=('shared',))}):
+            markup = self.client.get('/users/add', secure=True).content.decode()
+        self.assertEqual(markup.count('Shared with all users'), 4)
+        for key in ('books', 'games', 'videos', 'wiki'):
+            self.assertNotIn(f'name="service_{key}"', markup)
+        self.assertIn('name="service_documents"', markup)
         self.assertRegex(markup, r'<option value="shared" selected>Shared</option>')
         self.assertIn('name="service_passwords"', markup)
+
+    def test_admin_dropdown_for_documents_offers_only_shared_and_no_access(self):
+        self.client.force_login(self.admin)
+        markup = self.client.get('/users/add', secure=True).content.decode()
+        block = markup.split('name="service_documents"', 1)[1].split('</select>', 1)[0]
+        self.assertIn('value="shared"', block)
+        self.assertIn('value="none"', block)
+        self.assertNotIn('value="isolated"', block)
 
     def test_every_service_has_a_launcher_category_and_app_name(self):
         from portal.services import SERVICE_DETAILS, SERVICES
@@ -62,14 +74,6 @@ class OpenToolsTests(TestCase):
         for name in ('Calibre-Web', 'RetroAssembly', 'Navidrome', 'Jellyfin', 'Paperless-ngx', 'Kiwix', 'Lychee', 'Vaultwarden'):
             self.assertIn(f'<span class="app">{name}</span>', markup)
 
-    def test_admin_dropdown_for_open_tools_offers_only_shared_and_no_access(self):
-        self.client.force_login(self.admin)
-        markup = self.client.get('/users/add', secure=True).content.decode()
-        block = markup.split('name="service_books"', 1)[1].split('</select>', 1)[0]
-        self.assertIn('value="shared"', block)
-        self.assertIn('value="none"', block)
-        self.assertNotIn('value="isolated"', block)
-
     def test_provisioning_open_tools_creates_no_accounts(self):
         user = User(username='sam', email='sam@example.com', display_name='Sam', role='user',
                     service_access={'books': 'shared', 'wiki': 'shared', 'games': 'none', 'passwords': 'none'})
@@ -77,10 +81,10 @@ class OpenToolsTests(TestCase):
 
     def test_gate_follows_the_open_tool_choice(self):
         user = User.objects.create_user(username='sam', email='sam@example.com', password='x',
-            display_name='Sam', role='user', service_access={'books': 'shared', 'wiki': 'none'})
+            display_name='Sam', role='user', service_access={'books': 'shared', 'documents': 'none'})
         self.client.force_login(user)
         self.assertEqual(self.client.get('/internal/gate?service=books', secure=True).status_code, 204)
-        self.assertEqual(self.client.get('/internal/gate?service=wiki', secure=True).status_code, 403)
+        self.assertEqual(self.client.get('/internal/gate?service=documents', secure=True).status_code, 403)
         self.assertEqual(self.client.get('/internal/gate?service=games', secure=True).status_code, 403)
 
     def test_migration_shares_open_tools_with_existing_users(self):

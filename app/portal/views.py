@@ -16,7 +16,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from django.views.decorators.debug import sensitive_post_parameters
 from .invitations import find_valid, issue, rate_limit
 from .models import Invitation, SiteSettings, User
-from .services import CATEGORY_ORDER, SERVICE_DETAILS, SERVICES, ADAPTERS, is_open, provision, rollback_accounts
+from .services import CATEGORY_ORDER, SERVICE_DETAILS, SERVICES, ADAPTERS, always_shared, is_open, provision, rollback_accounts
 from .enrollment import enrollment_user, invitation_default, SetupConfigurationError
 from .integrations.native_http import NativeError
 from .setup_logging import begin, end, event
@@ -35,9 +35,10 @@ def page(request, mode, **context):
             ('shared', 'Shared'), ('isolated', 'Per user'), ('none', 'No access'),
         ) if value == 'none' or value in supported]
         category, subtitle = SERVICE_DETAILS.get(key, ('Tools', ''))
-        services.append({'key': key, 'label': label, 'category': category, 'subtitle': subtitle,
-                         'selected': request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key),
-                         'options': options})
+        fixed = always_shared(key)
+        services.append({'key': key, 'label': label, 'category': category, 'subtitle': subtitle, 'fixed': fixed,
+                         'selected': 'shared' if fixed else (request.POST.get(f'service_{key}', 'none') if request.method == 'POST' else invitation_default(key)),
+                         'options': [] if fixed else options})
     groups = [{'name': name, 'services': [s for s in services if s['category'] == name]} for name in CATEGORY_ORDER]
     groups = [group for group in groups if group['services']]
     from .client_packages import client_rows
