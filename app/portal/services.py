@@ -12,14 +12,15 @@ SERVICES = (
 ADAPTERS = {}
 # Tools with no per-user account. Access is either shared or none; there is no account to create.
 OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos', 'contacts', 'radicale')
-# Launcher category and the app behind each row on Add user.
-CATEGORY_ORDER = ('Entertainment', 'Knowledge', 'Organization', 'Tools')
+# Mirrors the launcher's services.yaml on pivault: group and tile description for each row on Add user.
+CATEGORY_ORDER = ('Entertainment', 'Knowledge', 'Home Tools', 'Tools')
 SERVICE_DETAILS = {
-    'books': ('Entertainment', 'Calibre-Web'), 'games': ('Entertainment', 'Arcade'),
+    'books': ('Entertainment', 'Calibre-Web'), 'games': ('Entertainment', 'RetroAssembly'),
     'music': ('Entertainment', 'Navidrome'), 'videos': ('Entertainment', 'Jellyfin'),
-    'documents': ('Knowledge', 'Paperless'), 'wiki': ('Knowledge', 'Kiwix'),
-    'passwords': ('Tools', 'Vaultwarden'), 'photos': ('Entertainment', 'Lychee'),
-    'contacts': ('Organization', 'Contacts editor'), 'radicale': ('Organization', 'Radicale'),
+    'documents': ('Knowledge', 'Paperless-ngx'), 'wiki': ('Knowledge', 'Kiwix'),
+    'photos': ('Home Tools', 'Lychee'), 'contacts': ('Home Tools', 'Contacts'),
+    'radicale': ('Home Tools', 'CalDAV and CardDAV'),
+    'passwords': ('Tools', 'Vaultwarden'),
 }
 
 
