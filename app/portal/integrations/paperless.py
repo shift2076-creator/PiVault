@@ -13,12 +13,13 @@ from django.core.exceptions import ValidationError
 from .native_http import CreatedAccount, JSONClient, NativeError
 
 
+# Paperless looks permissions up by bare Django codename (for example view_document), not app.codename.
 USER_PERMISSIONS = (
-    'documents.view_document', 'documents.add_document',
-    'documents.change_document', 'documents.delete_document',
-    'documents.view_tag', 'documents.view_correspondent', 'documents.view_documenttype',
-    'documents.view_storagepath', 'documents.view_customfield', 'documents.view_uisettings',
-    'documents.change_uisettings',
+    'view_document', 'add_document',
+    'change_document', 'delete_document',
+    'view_tag', 'view_correspondent', 'view_documenttype',
+    'view_storagepath', 'view_customfield', 'view_uisettings',
+    'change_uisettings',
 )
 
 

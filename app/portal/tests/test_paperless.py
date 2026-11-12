@@ -104,6 +104,11 @@ class PaperlessProvisioningTests(SimpleTestCase):
         self.assertFalse(created['is_superuser'])
         self.assertEqual(set(created['user_permissions']), set(USER_PERMISSIONS))
 
+    def test_permissions_are_bare_codenames_paperless_accepts(self):
+        # Paperless rejects app-qualified names such as documents.view_document with a 400.
+        for codename in USER_PERMISSIONS:
+            self.assertNotIn('.', codename)
+
     def test_existing_account_is_never_adopted(self):
         state = FakePaperless()
         state.users['1'] = {'id': 1, 'username': 'alex@example.com', 'password': 'other', 'is_superuser': False,
