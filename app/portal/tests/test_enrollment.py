@@ -306,13 +306,9 @@ class AddUserTests(TestCase):
             issue('ALEX', 'user', {'videos': 'shared'}, self.admin)
         self.assertEqual(Invitation.objects.count(), 1)
 
-    def test_admin_invitation_cannot_take_per_user_music(self):
-        # Refused when issued: the joiner cannot change the role or Music choice at join time.
+    def test_admin_invitation_may_take_per_user_music(self):
         with patch.dict(ADAPTERS, {'music': SimpleNamespace(modes=('shared', 'isolated'))}):
-            with self.assertRaisesMessage(ValidationError, 'not available for admin accounts'):
-                issue('Boss', 'admin', {'music': 'isolated'}, self.admin)
-            self.assertFalse(Invitation.objects.exists())
-            issue('Boss', 'user', {'music': 'isolated'}, self.admin)
+            issue('Boss', 'admin', {'music': 'isolated'}, self.admin)
         self.assertEqual(Invitation.objects.get().services['music'], 'isolated')
 
     def test_admin_invitation_may_take_per_user_documents(self):

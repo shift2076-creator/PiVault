@@ -46,7 +46,7 @@ class JellyfinAdapter:
             policy=value.get('Policy')
             if not isinstance(policy,dict):
                 raise NativeError('Videos',uncertain=True)
-            policy={**policy,'IsAdministrator':user.role=='admin','EnableAllFolders':True}
+            policy={**policy,'IsAdministrator':False,'EnableAllFolders':True}
             self.client.request('POST',path+'/Policy',policy)
         except Exception as error:
             try:

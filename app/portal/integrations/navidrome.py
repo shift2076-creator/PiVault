@@ -120,11 +120,9 @@ class NavidromeAdapter:
         if mode not in self.modes:
             raise ValidationError('Music does not support that access mode.')
         name = self.credential_username(user)
-        is_admin = user.role == 'admin'
+        # Sub-accounts are never Navidrome administrators; only the main PiVault account is an admin.
+        is_admin = False
         isolated = mode == 'isolated'
-        if isolated and is_admin:
-            # Navidrome admins see every library, so a private folder would not be private.
-            raise ValidationError('Per-user Music folders are not available for admin accounts.')
         client = self._admin_client()
         existing = client.request('GET', '/api/user')
         if not isinstance(existing, list) or any(not isinstance(v, dict) for v in existing):

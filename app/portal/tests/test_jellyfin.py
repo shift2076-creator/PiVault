@@ -25,10 +25,10 @@ class JellyfinTests(SimpleTestCase):
             'EnableContentDeletion':False,'IsAdministrator':False,'EnableAllFolders':True}))
         self.assertEqual(receipt.native_id,'native-1')
 
-    def test_admin_role_maps_to_native_admin(self):
+    def test_admin_role_never_becomes_a_jellyfin_administrator(self):
         adapter,client=self.adapter([[],{'Id':'admin-1','Policy':{}},None])
         adapter.provision(user=SimpleNamespace(display_name='Owner',role='admin'),password='pw',mode='shared')
-        self.assertTrue(client.request.call_args.args[2]['IsAdministrator'])
+        self.assertFalse(client.request.call_args.args[2]['IsAdministrator'])
 
     def test_existing_account_is_never_overwritten(self):
         adapter,client=self.adapter([[{'Id':'existing','Name':'ALEX'}]])

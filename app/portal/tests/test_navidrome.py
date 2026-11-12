@@ -159,13 +159,11 @@ class NavidromePrivateAccessTests(SimpleTestCase):
         self.assertEqual(state.user_libraries[receipt.native_id], {50})
         self.assertEqual(state.users[receipt.native_id]['password'], 'user-pw')
 
-    def test_admin_accounts_are_refused_before_anything_is_created(self):
+    def test_admin_role_gets_a_normal_navidrome_account(self):
         state = FakeNavidrome({1: ('Music', '/music')})
         adapter = make_adapter(state, private_root=self.root)
-        with self.assertRaises(ValidationError):
-            adapter.provision(user=person('boss@example.com', role='admin'), password='pw', mode='isolated')
-        self.assertEqual(posted(state, '/api/library'), [])
-        self.assertEqual(posted(state, '/api/user'), [])
+        receipt = adapter.provision(user=person('boss@example.com', role='admin'), password='pw', mode='isolated')
+        self.assertFalse(state.users[receipt.native_id]['isAdmin'])
 
     def test_non_empty_private_folder_is_never_reused(self):
         state = FakeNavidrome({1: ('Music', '/music')})
