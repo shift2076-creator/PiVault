@@ -315,12 +315,9 @@ class AddUserTests(TestCase):
             issue('Boss', 'user', {'music': 'isolated'}, self.admin)
         self.assertEqual(Invitation.objects.get().services['music'], 'isolated')
 
-    def test_admin_invitation_cannot_take_per_user_documents(self):
+    def test_admin_invitation_may_take_per_user_documents(self):
         with patch.dict(ADAPTERS, {'documents': SimpleNamespace(modes=('isolated',))}):
-            with self.assertRaisesMessage(ValidationError, 'not available for admin accounts'):
-                issue('Boss', 'admin', {'documents': 'isolated'}, self.admin)
-            self.assertFalse(Invitation.objects.exists())
-            issue('Boss', 'user', {'documents': 'isolated'}, self.admin)
+            issue('Boss', 'admin', {'documents': 'isolated'}, self.admin)
         self.assertEqual(Invitation.objects.get().services['documents'], 'isolated')
 
     def test_same_name_is_blocked_because_every_user_gets_videos(self):

@@ -62,9 +62,6 @@ class PaperlessAdapter:
     def provision(self, *, user, password, mode):
         if mode not in self.modes:
             raise ValidationError('Documents does not support that access mode.')
-        if user.role == 'admin':
-            # Paperless superusers see every document, so an admin account could not keep its documents private.
-            raise ValidationError('Per-user Documents are not available for admin accounts.')
         name = self.credential_username(user)
         client = self._client(self.admin_token)
         if name.casefold() in self._existing_usernames(client):

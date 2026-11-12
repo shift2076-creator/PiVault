@@ -16,7 +16,6 @@ from .services import normalize_access
 # Per-user private storage an admin account cannot keep private: admins see everything in these apps.
 ADMIN_REFUSED = {
     'music': 'Per-user Music folders are not available for admin accounts.',
-    'documents': 'Per-user Documents are not available for admin accounts.',
 }
 
 

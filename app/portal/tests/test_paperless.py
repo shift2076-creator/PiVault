@@ -97,13 +97,12 @@ class PaperlessProvisioningTests(SimpleTestCase):
             adapter.provision(user=person('alex@example.com'), password='pw', mode='shared')
         self.assertEqual(state.calls, [])
 
-    def test_admin_role_is_refused_before_anything_is_created(self):
-        # Paperless superusers see every document, so an admin account could not keep documents private.
+    def test_admin_role_gets_a_normal_account_with_document_permissions(self):
         state = FakePaperless()
-        with self.assertRaisesMessage(ValidationError, 'not available for admin accounts'):
-            make_adapter(state).provision(user=person('boss@example.com', role='admin'), password='pw', mode='isolated')
-        self.assertEqual(state.users, {})
-        self.assertEqual(state.calls, [])
+        receipt = make_adapter(state).provision(user=person('boss@example.com', role='admin'), password='pw', mode='isolated')
+        created = state.users[receipt.native_id]
+        self.assertFalse(created['is_superuser'])
+        self.assertEqual(set(created['user_permissions']), set(USER_PERMISSIONS))
 
     def test_existing_account_is_never_adopted(self):
         state = FakePaperless()
