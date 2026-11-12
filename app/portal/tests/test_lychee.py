@@ -68,19 +68,14 @@ class LycheeAdapterTests(TestCase):
         self.assertEqual(created['username'], 'sam@example.com')
         self.assertIs(created['may_administrate'], False)
 
-    def test_password_is_verified_by_logging_in_as_the_new_user(self):
+    def test_provision_does_not_log_in_as_the_new_user(self):
+        # Lychee's login route answers 419 to API clients, so the adapter cannot verify the password this way.
         self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='isolated')
-        self.assertIn(('POST', '/api/v2/Auth::login', None), self.fake.calls)
+        self.assertNotIn(('POST', '/api/v2/Auth::login', None), self.fake.calls)
 
     def test_rollback_deletes_only_the_new_account(self):
         receipt = self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='isolated')
         receipt.rollback()
-        self.assertEqual([r['id'] for r in self.fake.rows], [1])
-
-    def test_failed_login_check_deletes_the_new_account(self):
-        self.fake.fail_login = True
-        with self.assertRaises(NativeError):
-            self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='isolated')
         self.assertEqual([r['id'] for r in self.fake.rows], [1])
 
     def test_duplicate_username_is_rejected_before_creating(self):

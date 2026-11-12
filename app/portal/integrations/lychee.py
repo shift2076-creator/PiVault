@@ -78,8 +78,6 @@ class LycheeAdapter:
             actual = [row for row in _rows(client.request('GET', '/api/v2/UserManagement')) if row.get('id') == native_id]
             if len(actual) != 1 or actual[0].get('username') != name or actual[0].get('may_administrate') is not False:
                 raise NativeError('Photos', uncertain=True)
-            # Verify the exact password through the same login the app uses.
-            self._client().request('POST', '/api/v2/Auth::login', {'username': name, 'password': password})
         except Exception:
             if native_id is not None:
                 try:
