@@ -56,6 +56,10 @@ class JellyfinTests(SimpleTestCase):
             adapter.provision(user=SimpleNamespace(display_name='Alex',role='user'),password='pw',mode='isolated')
         client.request.assert_not_called()
 
+    def test_sends_api_key_in_the_authorization_header_jellyfin_12_expects(self):
+        adapter=JellyfinAdapter('http://jellyfin:8096','test-api-key')
+        self.assertEqual(adapter.client.headers,{'Authorization':'MediaBrowser Token="test-api-key"'})
+
     def test_http_error_body_is_not_exposed(self):
         client=JSONClient('Videos','http://jellyfin:8096',{'X-Emby-Token':'DO_NOT_REPORT'})
         client.opener=Mock()

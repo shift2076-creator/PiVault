@@ -18,7 +18,8 @@ class JellyfinAdapter:
     def __init__(self, base_url, api_key, client=None):
         if not api_key or '\r' in api_key or '\n' in api_key:
             raise ValueError('A Jellyfin API credential is required.')
-        self.client=client or JSONClient('Videos',base_url,{'X-Emby-Token':api_key})
+        # Jellyfin 12.2 declares API keys as the Authorization header and rejects X-Emby-Token with 401.
+        self.client=client or JSONClient('Videos',base_url,{'Authorization':f'MediaBrowser Token="{api_key}"'})
 
     def provision(self, *, user, password, mode):
         if mode not in self.modes:
