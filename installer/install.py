@@ -380,7 +380,8 @@ def install_portal():
     native_path = CONFIG / 'users/native.json'
     native_now = json.loads(native_path.read_text()) if native_path.is_file() else {}
     candidate_document = compose_configuration(vault_plan['document'], image=image,
-        uid=uid, gid=gid, network_names=networks, radicale_config='radicale' in native_now)
+        uid=uid, gid=gid, network_names=networks, radicale_config='radicale' in native_now,
+        music_private=bool((native_now.get('navidrome') or {}).get('private_root')))
 
     with tempfile.TemporaryDirectory(prefix='.pivault-users-', dir=COMPOSE.parent) as work:
         work = Path(work)

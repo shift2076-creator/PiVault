@@ -14,6 +14,7 @@ PORTAL_SITE = f'https://{PORTAL_HOST}:{PORTAL_PORT}'
 SERVICE = 'pivault-users'
 # Radicale's config folder on the Pi. The portal writes its htpasswd login file here.
 RADICALE_CONFIG_FOLDER = '/home/snx/radicale/config'
+MUSIC_PRIVATE_FOLDER = '/srv/disk3/music-private'
 
 PORTAL = '''
     # BEGIN PIVAULT USERS INSTALLER
@@ -195,7 +196,7 @@ def homepage_js(original, addon):
     return clean + '\n\n' + JS_BEGIN + '\n' + addon.rstrip() + '\n' + JS_END + '\n'
 
 
-def compose_configuration(original, *, image, uid, gid, network_names, radicale_config=False):
+def compose_configuration(original, *, image, uid, gid, network_names, radicale_config=False, music_private=False):
     result = copy.deepcopy(original)
     services = result.setdefault('services', {})
     existing = services.get(SERVICE)
@@ -209,6 +210,9 @@ def compose_configuration(original, *, image, uid, gid, network_names, radicale_
     if radicale_config:
         # Radicale's login file is written by the portal, so its folder is mounted read-write.
         volumes.append(RADICALE_CONFIG_FOLDER + ':/radicale-config')
+    if music_private:
+        # Per-user Music folders are created by the portal, so the private root is mounted read-write.
+        volumes.append(MUSIC_PRIVATE_FOLDER + ':/music-private')
     service = {
         'image': image, 'container_name': SERVICE, 'restart': 'unless-stopped',
         'user': f'{uid}:{gid}', 'read_only': True,
