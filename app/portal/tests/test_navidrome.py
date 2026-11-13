@@ -122,12 +122,14 @@ class NavidromeSharedAccessTests(SimpleTestCase):
             adapter.provision(user=person('alex@example.com'), password='pw', mode='isolated')
         self.assertEqual(state.calls, [])
 
-    def test_shared_access_never_receives_private_libraries(self):
+    def test_shared_access_creates_no_per_person_account(self):
         with tempfile.TemporaryDirectory() as root:
             state = FakeNavidrome({1: ('Music', '/music'), 2: ('Private: other', root + '/other-1234')})
             adapter = make_adapter(state, private_root=root, library_ids=[1])
             receipt = adapter.provision(user=person('alex@example.com'), password='pw', mode='shared')
-            self.assertEqual(state.user_libraries[receipt.native_id], {1})
+            # The one shared login is copied into each vault instead, so nothing is created and nothing is returned.
+            self.assertIsNone(receipt)
+            self.assertEqual(state.calls, [])
 
     def test_private_root_requires_explicit_shared_library_ids(self):
         state = FakeNavidrome({1: ('Music', '/music')})

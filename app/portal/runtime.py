@@ -48,8 +48,14 @@ def configure():
 def credential_plan(user):
     from .services import SERVICES, ADAPTERS
     result = {'pivault': {'name': 'PiVault', 'username': user.email, 'uri': PUBLIC_URLS['pivault']}}
+    from .services import SHARED_LOGIN
     for key, label in SERVICES:
-        if user.service_access.get(key, 'none') == 'none':
+        mode = user.service_access.get(key, 'none')
+        if mode == 'none':
+            continue
+        if mode == 'shared' and key in SHARED_LOGIN:
+            # The login itself comes from the admin's sealed copy; only its name is fixed here.
+            result[key] = {'name': 'PiVault ' + label, 'shared': True}
             continue
         adapter = ADAPTERS.get(key)
         method = getattr(adapter, 'credential_username', None)

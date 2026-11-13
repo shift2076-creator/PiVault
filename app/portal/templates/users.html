@@ -56,6 +56,10 @@
     .code {font-size:48px;letter-spacing:4px;line-height:1.2;margin:16px 0;color:var(--pv-accent)}
     .secondary {color:var(--pv-secondary);margin:6px 0;overflow-wrap:anywhere}
     .qr {width:128px;height:128px;background:white;flex-shrink:0}
+    .shared-copy {border-top:1px solid var(--pv-divider);margin-top:24px;padding-top:16px;display:grid;gap:10px}
+    .shared-copy h3 {margin:0}
+    .shared-copy label {display:block}
+    .shared-copy select {width:100%;min-height:48px;padding:10px;background:#0f1a24;color:var(--pv-text);border:1px solid var(--pv-divider)}
     .error {color:var(--pv-text);border-left:2px solid var(--pv-accent);padding:8px 14px;margin:0 0 24px}
     .actions {display:flex;justify-content:flex-end;gap:24px;margin-top:24px}
     .text-button {min-height:0;padding:0;background:none;color:var(--pv-secondary)}
@@ -176,6 +180,19 @@
             </div>
             <img class="qr" src="data:image/svg+xml;base64,{{ qr }}" alt="QR code for the PiVault join address" width="128" height="128">
           </div>
+          {% if shared_key %}
+          <div id="shared-copy" class="shared-copy" data-email="{{ request.user.email }}" data-code="{{ code }}" data-key="{{ shared_key }}">
+            <h3>Shared logins</h3>
+            <p class="secondary">Music, Videos, Books and Games each use one shared login. Unlock your vault here, pick the entry for each, and attach them to this code. Your master password stays in this browser. The new person must scan the QR code, because it carries the key for the shared logins. The code must be used within 30 minutes.</p>
+            <div id="shared-unlock">
+              <label for="shared-master">Your master password</label>
+              <input id="shared-master" type="password" autocomplete="off">
+              <button id="shared-open" type="button">Unlock my vault</button>
+            </div>
+            <div id="shared-pick" hidden></div>
+            <p id="shared-status" class="secondary" role="status"></p>
+          </div>
+          {% endif %}
         </section>
         {% endif %}
       </section>
@@ -272,5 +289,6 @@
 {% if request.user.is_authenticated and request.user.role == 'admin' %}<script src="/notifications/bell.js" defer></script>{% endif %}
 {% if mode != 'admin' and mode != 'system' %}<script src="/users/account-form.js" defer></script>{% endif %}
 {% if mode == 'join' %}<script src="/users/vault.js" defer></script>{% endif %}
+{% if shared_key %}<script src="/users/vault.js" defer></script><script src="/users/shared-copy.js" defer></script>{% endif %}
 </body>
 </html>

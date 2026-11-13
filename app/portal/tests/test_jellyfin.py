@@ -4,7 +4,7 @@ from unittest.mock import Mock,patch
 from urllib.error import HTTPError
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase,TestCase
-from portal.integrations.jellyfin import JellyfinAdapter,JellyfinCleanupRequired
+from portal.integrations.jellyfin import JellyfinAdapter
 from portal.integrations.native_http import CreatedAccount,JSONClient,NativeError
 from portal.services import ADAPTERS,provision
 
@@ -15,39 +15,11 @@ class JellyfinTests(SimpleTestCase):
         client.request.side_effect=responses
         return JellyfinAdapter('http://jellyfin:8096','test-api-key',client),client
 
-    def test_creates_named_user_with_exact_password_and_regular_role(self):
-        adapter,client=self.adapter([[],{'Id':'native-1','Policy':{'EnableContentDeletion':False}},None])
-        user=SimpleNamespace(display_name='Alex',role='user')
-        receipt=adapter.provision(user=user,password='same-user-password',mode='shared')
-        calls=client.request.call_args_list
-        self.assertEqual(calls[1].args,('POST','/Users/New',{'Name':'Alex','Password':'same-user-password'}))
-        self.assertEqual(calls[2].args,('POST','/Users/native-1/Policy',{
-            'EnableContentDeletion':False,'IsAdministrator':False,'EnableAllFolders':True}))
-        self.assertEqual(receipt.native_id,'native-1')
-
-    def test_admin_role_never_becomes_a_jellyfin_administrator(self):
-        adapter,client=self.adapter([[],{'Id':'admin-1','Policy':{}},None])
-        adapter.provision(user=SimpleNamespace(display_name='Owner',role='admin'),password='pw',mode='shared')
-        self.assertFalse(client.request.call_args.args[2]['IsAdministrator'])
-
-    def test_existing_account_is_never_overwritten(self):
-        adapter,client=self.adapter([[{'Id':'existing','Name':'ALEX'}]])
-        with self.assertRaises(ValidationError):
-            adapter.provision(user=SimpleNamespace(display_name='Alex',role='user'),password='pw',mode='shared')
-        self.assertEqual(client.request.call_count,1)
-
-    def test_policy_failure_removes_only_newly_created_account(self):
-        adapter,client=self.adapter([[],{'Id':'new-1','Policy':{}},NativeError('Videos',403),None])
-        with self.assertRaises(NativeError):
-            adapter.provision(user=SimpleNamespace(display_name='Alex',role='user'),password='pw',mode='shared')
-        self.assertEqual(client.request.call_args.args,('DELETE','/Users/new-1'))
-
-    def test_failed_cleanup_reports_native_id_without_credentials(self):
-        adapter,client=self.adapter([[],{'Id':'new-1','Policy':{}},NativeError('Videos',403),NativeError('Videos',503)])
-        with self.assertRaises(JellyfinCleanupRequired) as caught:
-            adapter.provision(user=SimpleNamespace(display_name='Alex',role='user'),password='DO_NOT_REPORT',mode='shared')
-        self.assertEqual(caught.exception.cleanup_failures,[{'service':'videos','native_id':'new-1'}])
-        self.assertNotIn('DO_NOT_REPORT',str(caught.exception))
+    def test_shared_mode_creates_no_per_person_account(self):
+        adapter,client=self.adapter([])
+        receipt=adapter.provision(user=SimpleNamespace(display_name='Alex',role='user'),password='pw',mode='shared')
+        self.assertIsNone(receipt)
+        client.request.assert_not_called()
 
     def test_isolation_is_not_advertised_or_accepted(self):
         adapter,client=self.adapter([])
@@ -72,19 +44,6 @@ class JellyfinTests(SimpleTestCase):
     def test_credentials_cannot_be_encoded_in_upstream_url(self):
         with self.assertRaises(ValueError):
             JSONClient('Videos','http://user:password@jellyfin:8096')
-
-    def test_lost_creation_response_requires_admin_review(self):
-        adapter,client=self.adapter([[],NativeError('Videos',uncertain=True)])
-        with self.assertRaises(JellyfinCleanupRequired) as caught:
-            adapter.provision(user=SimpleNamespace(display_name='Alex',role='user'),password='pw',mode='shared')
-        self.assertEqual(caught.exception.cleanup_failures,[{'service':'videos','native_id':'name:Alex'}])
-        self.assertEqual(client.request.call_count,2)
-
-    def test_malformed_creation_response_never_silently_retries(self):
-        adapter,client=self.adapter([[],{}])
-        with self.assertRaises(JellyfinCleanupRequired):
-            adapter.provision(user=SimpleNamespace(display_name='Alex',role='user'),password='pw',mode='shared')
-        self.assertEqual(client.request.call_count,2)
 
 
 class CompensationTests(SimpleTestCase):

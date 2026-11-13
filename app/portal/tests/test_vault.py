@@ -119,7 +119,8 @@ class VaultEnrollmentTests(TestCase):
         self.adapters.start(); self.addCleanup(self.adapters.stop)
         self.urls = patch.dict(PUBLIC_URLS, {'passwords': 'https://192.168.4.90'})
         self.urls.start(); self.addCleanup(self.urls.stop)
-        self.invitation, self.code = issue('Alex', 'user', {'passwords': 'isolated'}, self.admin)
+        # Books and Games default to Shared and would need a sealed copy; these tests cover the vault alone.
+        self.invitation, self.code = issue('Alex', 'user', {'passwords': 'isolated', 'books': 'none', 'games': 'none'}, self.admin)
 
     def created(self, **values):
         values['user'].vault_user_id = 'new-vault'

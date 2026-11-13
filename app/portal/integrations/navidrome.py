@@ -125,6 +125,9 @@ class NavidromeAdapter:
     def provision(self, *, user, password, mode):
         if mode not in self.modes:
             raise ValidationError('Music does not support that access mode.')
+        if mode == 'shared':
+            # One shared login serves everyone; the vault copy supplies it, so no per-person account is made.
+            return None
         name = self.credential_username(user)
         # Sub-accounts are never Navidrome administrators; only the main PiVault account is an admin.
         is_admin = False

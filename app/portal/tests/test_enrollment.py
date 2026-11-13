@@ -294,18 +294,6 @@ class AddUserTests(TestCase):
             email=display_name.casefold() + '@example.com', password='Existing-good-password-928!',
             display_name=display_name, role='user', service_access=access)
 
-    def test_videos_name_used_by_existing_account_is_rejected(self):
-        self.existing('Alex', {'videos': 'shared'})
-        with self.assertRaisesMessage(ValidationError, 'already uses that name'):
-            issue('alex', 'user', {'videos': 'shared'}, self.admin)
-        self.assertFalse(Invitation.objects.exists())
-
-    def test_videos_name_used_by_pending_invitation_is_rejected(self):
-        issue('Alex', 'user', {'videos': 'shared'}, self.admin)
-        with self.assertRaisesMessage(ValidationError, 'already uses that name'):
-            issue('ALEX', 'user', {'videos': 'shared'}, self.admin)
-        self.assertEqual(Invitation.objects.count(), 1)
-
     def test_admin_invitation_may_take_per_user_music(self):
         with patch.dict(ADAPTERS, {'music': SimpleNamespace(modes=('shared', 'isolated'))}):
             issue('Boss', 'admin', {'music': 'isolated'}, self.admin)
@@ -316,13 +304,11 @@ class AddUserTests(TestCase):
             issue('Boss', 'admin', {'documents': 'isolated'}, self.admin)
         self.assertEqual(Invitation.objects.get().services['documents'], 'isolated')
 
-    def test_same_name_is_blocked_because_every_user_gets_videos(self):
-        self.existing('Alex', {'videos': 'shared'})
-        with self.assertRaises(ValidationError):
-            issue('Alex', 'user', {}, self.admin)
-        self.existing('Sam', {})
-        issue('Sam', 'user', {}, self.admin)
-        self.assertEqual(Invitation.objects.count(), 1)
+    def test_same_name_is_allowed_because_videos_is_one_shared_login(self):
+        # Shared services no longer create a per-person account, so two people with the same name do not clash.
+        issue('Alex', 'user', {'videos': 'shared'}, self.admin)
+        issue('Alex', 'user', {'videos': 'shared'}, self.admin)
+        self.assertEqual(Invitation.objects.count(), 2)
 
     def test_expired_and_used_invitations_do_not_block_a_name(self):
         expired, _ = issue('Alex', 'user', {'videos': 'shared'}, self.admin)
@@ -331,13 +317,6 @@ class AddUserTests(TestCase):
         Invitation.objects.filter(pk=used.pk).update(used_at=timezone.now())
         issue('Alex', 'user', {'videos': 'shared'}, self.admin)
         self.assertEqual(Invitation.objects.count(), 3)
-
-    def test_view_reports_videos_name_clash_without_issuing_a_code(self):
-        self.existing('Alex', {'videos': 'shared'})
-        self.client.force_login(self.admin)
-        response = self.client.post('/users/add', {'name': 'Alex', 'role': 'user', 'service_videos': 'shared'}, secure=True)
-        self.assertContains(response, 'already uses that name', status_code=400)
-        self.assertFalse(Invitation.objects.exists())
 
     def test_database_error_while_issuing_shows_setup_page_not_a_crash(self):
         self.client.force_login(self.admin)

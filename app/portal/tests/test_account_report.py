@@ -51,10 +51,10 @@ class AccountReportTests(TestCase):
     def setUp(self):
         self.alice = User.objects.create(
             username='alice', email='alice@example.com', display_name='Alice', role='user',
-            service_access={'music': 'shared', 'books': 'shared', 'photos': 'none'})
+            service_access={'radicale': 'isolated', 'photos': 'isolated', 'books': 'shared', 'music': 'shared'})
         self.bob = User.objects.create(
             username='bob', email='bob@example.com', display_name='Bob', role='user',
-            service_access={'music': 'none'})
+            service_access={'radicale': 'none'})
 
     def run_report(self, adapters):
         with mock.patch.dict(ADAPTERS, adapters, clear=True):
@@ -64,44 +64,49 @@ class AccountReportTests(TestCase):
         return next(s for s in report['services'] if s['key'] == key)
 
     def test_lists_native_accounts_and_flags_a_user_without_one(self):
-        report = self.run_report({'music': FakeAccounts(names=['someone-else'])})
-        self.assertEqual(self.section(report, 'music')['accounts'], ['someone-else'])
+        report = self.run_report({'radicale': FakeAccounts(names=['someone-else'])})
+        self.assertEqual(self.section(report, 'radicale')['accounts'], ['someone-else'])
         self.assertEqual(report['problems'], [
-            'MISSING  Music: PiVault user alice@example.com expects an account named alice@example.com',
-            'UNMATCHED  Music: account someone-else matches no PiVault user',
+            'MISSING  Radicale: PiVault user alice@example.com expects an account named alice@example.com',
+            'UNMATCHED  Radicale: account someone-else matches no PiVault user',
         ])
 
     def test_matching_account_produces_no_problem(self):
-        report = self.run_report({'music': FakeAccounts(names=['Alice@Example.com'])})
+        report = self.run_report({'radicale': FakeAccounts(names=['Alice@Example.com'])})
+        self.assertEqual(report['problems'], [])
+
+    def test_shared_login_services_are_listed_but_not_cross_checked(self):
+        report = self.run_report({'music': FakeAccounts(names=['shared-music-login'])})
+        self.assertEqual(self.section(report, 'music')['accounts'], ['shared-music-login'])
         self.assertEqual(report['problems'], [])
 
     def test_leftover_test_account_is_reported_as_unmatched(self):
-        report = self.run_report({'music': FakeAccounts(names=['alice@example.com', 'test-fixture'])})
-        self.assertEqual(report['problems'], ['UNMATCHED  Music: account test-fixture matches no PiVault user'])
+        report = self.run_report({'radicale': FakeAccounts(names=['alice@example.com', 'test-fixture'])})
+        self.assertEqual(report['problems'], ['UNMATCHED  Radicale: account test-fixture matches no PiVault user'])
 
     def test_one_unreadable_service_does_not_stop_the_others(self):
         report = self.run_report({
-            'music': FakeAccounts(error=ValidationError('Music is down.')),
-            'books': FakeAccounts(names=[]),
+            'radicale': FakeAccounts(error=ValidationError('Radicale is down.')),
+            'photos': FakeAccounts(names=[]),
         })
-        self.assertEqual(self.section(report, 'music')['error'], 'Music is down.')
-        # The Books check still ran after Music failed, and found alice has no Books account.
+        self.assertEqual(self.section(report, 'radicale')['error'], 'Radicale is down.')
+        # The Photos check still ran after Radicale failed, and found alice has no Photos account.
         self.assertEqual(report['problems'], [
-            'MISSING  Books: PiVault user alice@example.com expects an account named alice@example.com',
+            'MISSING  Photos: PiVault user alice@example.com expects an account named alice@example.com',
         ])
-        self.assertIn('COULD NOT READ (Music is down.)', format_report(report))
+        self.assertIn('COULD NOT READ (Radicale is down.)', format_report(report))
 
     def test_open_services_without_an_adapter_are_not_missing_accounts(self):
         report = self.run_report({})
         self.assertEqual(self.section(report, 'books')['note'], 'no per-user accounts')
-        self.assertEqual(self.section(report, 'music')['note'], 'not configured')
+        self.assertEqual(self.section(report, 'radicale')['note'], 'not configured')
         self.assertEqual(report['problems'], [])
 
     def test_text_report_names_users_and_services(self):
-        report = self.run_report({'music': FakeAccounts(names=['alice@example.com'])})
+        report = self.run_report({'radicale': FakeAccounts(names=['alice@example.com'])})
         text = format_report(report)
-        self.assertIn('alice@example.com  [user]  books=shared, music=shared', text)
-        self.assertIn('Music (music): 1 account(s)', text)
+        self.assertIn('alice@example.com  [user]  books=shared, music=shared, photos=isolated, radicale=isolated', text)
+        self.assertIn('Radicale (radicale): 1 account(s)', text)
         self.assertIn('Cross-check: 0 problem(s)', text)
 
 

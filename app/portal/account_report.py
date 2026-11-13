@@ -3,7 +3,7 @@
 Prints account names only. Passwords, tokens, keys and password hashes are never read into the report.
 """
 from .models import User
-from .services import ADAPTERS, SERVICES, is_open
+from .services import ADAPTERS, SERVICES, SHARED_LOGIN, is_open
 
 
 def _norm(name):
@@ -39,6 +39,9 @@ def build_report():
     for section in services:
         key, label = section['key'], section['label']
         if key not in ADAPTERS or section['error'] is not None:
+            continue
+        if key in SHARED_LOGIN:
+            # One shared login serves everyone, and its name lives in the admin's vault, so there is nothing to match.
             continue
         adapter = ADAPTERS[key]
         native = {_norm(name) for name in section['accounts']}

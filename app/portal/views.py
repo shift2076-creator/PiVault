@@ -1,6 +1,7 @@
 import base64
 import io
 import logging
+import secrets
 import qrcode
 import qrcode.image.svg
 from django.conf import settings
@@ -16,7 +17,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from django.views.decorators.debug import sensitive_post_parameters
 from .invitations import find_valid, issue, rate_limit
 from .models import Invitation, SiteSettings, User
-from .services import CATEGORY_ORDER, SERVICE_DETAILS, SERVICES, ADAPTERS, fixed_mode, is_open, provision, rollback_accounts
+from .services import CATEGORY_ORDER, SERVICE_DETAILS, SERVICES, SHARED_LOGIN, ADAPTERS, fixed_mode, is_open, provision, rollback_accounts
 from .enrollment import enrollment_user, invitation_default, SetupConfigurationError
 from .integrations.native_http import NativeError
 from .setup_logging import begin, end, event
@@ -196,12 +197,17 @@ def add_user(request):
             issuer=request.user,
         )
         event('invitation_issued', stage='invitation', status=200)
+        # The key for the shared logins rides only in the QR's fragment. The server keeps it for this response, never stores it.
+        shared_key = ''
+        if invitation.services.get('passwords') == 'isolated' and any(
+                invitation.services.get(key) == 'shared' for key in SHARED_LOGIN):
+            shared_key = secrets.token_urlsafe(32)
         output = io.BytesIO()
-        qrcode.make(settings.JOIN_URL, image_factory=qrcode.image.svg.SvgPathImage,
-                    box_size=5, border=4).save(output)
+        qrcode.make(settings.JOIN_URL + ('#k=' + shared_key if shared_key else ''),
+                    image_factory=qrcode.image.svg.SvgPathImage, box_size=5, border=4).save(output)
         qr = base64.b64encode(output.getvalue()).decode()
         return page(request, 'admin', invitation=invitation, code=code,
-                    join_url=settings.JOIN_URL, qr=qr)
+                    join_url=settings.JOIN_URL, qr=qr, shared_key=shared_key)
     except ValidationError as error:
         event('invitation_rejected', stage='invitation', status=400, error=error, level=logging.WARNING)
         return page(request, 'admin', error=error_text(error), status_code=400)

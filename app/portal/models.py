@@ -21,6 +21,8 @@ class Invitation(models.Model):
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT)
     expires_at = models.DateTimeField(db_index=True)
     used_at = models.DateTimeField(null=True)
+    # Shared logins sealed in the admin's browser with a key that only the QR fragment carries. The server cannot open it.
+    shared_sealed = models.TextField(blank=True, default='')
 
 
 class Attempt(models.Model):

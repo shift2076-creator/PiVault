@@ -15,6 +15,9 @@ OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos')
 FIXED_MODES = {'passwords': 'isolated'}
 # Tools that start on Shared in a new invitation. Admins can still choose No access for them on Add user.
 SHARED_BY_DEFAULT = ('books', 'games', 'videos', 'wiki')
+# Shared services use one login for everyone. The admin's vault holds it, and joining copies it into each new vault.
+# Nothing is created per person for these; Music and Videos stop making per-person accounts.
+SHARED_LOGIN = ('books', 'games', 'music', 'videos')
 
 
 def fixed_mode(key):

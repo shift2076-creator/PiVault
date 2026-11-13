@@ -10,6 +10,7 @@ urlpatterns = [
     path('users/vault.js', views.script('vault-crypto.js')),
     path('users/complete.js', views.script('complete.js')),
     path('users/vault-repair.js', views.script('vault-repair.js')),
+    path('users/shared-copy.js', views.script('shared-copy.js')),
     # Browser icons and the web app manifest. Public, so browsers can fetch them without a session.
     path('favicon.ico', views.static_file('favicon.ico', 'image/x-icon')),
     path('apple-touch-icon.png', views.static_file('apple-touch-icon.png', 'image/png')),
@@ -29,6 +30,8 @@ urlpatterns = [
     path('users/sign-out', views.sign_out),
     path('users/session', views.session),
     path('users/add', views.add_user),
+    path('users/add/shared', vault_views.attach_shared),
+    path('users/vault-proxy/<str:action>', vault_views.vault_proxy),
     path('system', views.system),
     path('system/ca.crt', device_views.ca_certificate),
     path('users/offline-mode', views.offline_mode),
