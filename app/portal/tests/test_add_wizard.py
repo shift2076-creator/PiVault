@@ -4,7 +4,7 @@ from portal.models import User
 
 
 class AddUserWizardTests(TestCase):
-    """The admin Add user page is a six-step wizard. The server flow is unchanged; these tests pin the markup it depends on."""
+    """The admin Add user page is a five-step wizard: Person, Access (creates the invitation), Shared logins, Invite, Phone. These tests pin the markup it depends on."""
 
     def setUp(self):
         self.admin = User.objects.create_user(username='admin-id', email='admin@example.com',
@@ -15,17 +15,22 @@ class AddUserWizardTests(TestCase):
         markup = self.client.get('/users/add', secure=True).content.decode()
         self.assertIn('class="wizard-steps"', markup)
         self.assertIn('class="wizard-nav"', markup)
-        for step in ('1', '2', '3', '4', '5', '6'):
+        for step in ('1', '2', '3', '4', '5'):
             self.assertIn(f'data-wizard-step="{step}"', markup)
-        for pane in ('1', '2', '3'):
+        self.assertNotIn('data-wizard-step="6"', markup)
+        self.assertNotIn('Create accounts', markup)
+        for pane in ('1', '2'):
             self.assertIn(f'data-pane="{pane}"', markup)
+        # The review and the Create invitation button belong to step 2 (Access), not to a separate step.
+        self.assertIn('<div class="review" data-pane="2"', markup)
+        self.assertIn('<button class="submit" type="submit" data-pane="2"', markup)
 
     def test_invitation_page_has_the_invite_and_phone_panes(self):
         response = self.client.post('/users/add', {'name': 'Sam Rivera', 'role': 'user'}, secure=True)
         self.assertEqual(response.status_code, 200)
         markup = response.content.decode()
+        self.assertIn('data-pane="4"', markup)
         self.assertIn('data-pane="5"', markup)
-        self.assertIn('data-pane="6"', markup)
         self.assertIn('class="invitation"', markup)
 
     def test_admin_page_loads_the_wizard_script(self):

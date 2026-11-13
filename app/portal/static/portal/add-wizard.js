@@ -1,7 +1,7 @@
-/* Admin only: Add user as six steps, one screen at a time.
-   The server flow is unchanged. Step 3 posts the form; the reloaded page starts at step 4 (or 5 when
-   no shared logins are needed) with the invitation. Only visibility changes here, and the review text
-   is built with textContent, never with HTML. */
+/* Admin only: Add user as five steps, one screen at a time.
+   Step 2 (Access) holds the review and the Create invitation button; submitting it posts the form, and the
+   reloaded page starts at step 3 (or 4 when no shared logins are needed) with the invitation. Only visibility
+   changes here, and the review text is built with textContent, never with HTML. */
 (() => {
   'use strict';
   if (document.body.dataset.mode !== 'admin') return;
@@ -18,10 +18,10 @@
   const next = controls.querySelector('[data-wizard-next]');
   const restart = controls.querySelector('[data-wizard-restart]');
   const invited = Boolean(invitation);
-  const steps = invited ? (sharedCopy ? [4, 5, 6] : [5, 6]) : [1, 2, 3];
+  const steps = invited ? (sharedCopy ? [3, 4, 5] : [4, 5]) : [1, 2];
   const CHOICES = { shared: 'Shared', isolated: 'Per user', none: 'No access' };
-  // A validation error on the first submit comes back with the form filled in; show it at step 3, where it was raised.
-  let index = !invited && account.querySelector(':scope > .error') ? 2 : 0;
+  // A validation error on the submit comes back with the form filled in; show it at step 2, where it was raised.
+  let index = !invited && account.querySelector(':scope > .error') ? 1 : 0;
 
   document.body.classList.add('wizard-on');
   nav.hidden = false;
@@ -56,12 +56,11 @@
     for (const el of document.querySelectorAll('[data-pane]')) {
       el.hidden = el.dataset.pane !== String(step);
     }
-    account.hidden = step === 2;
     if (invitation) invitation.hidden = !invited;
-    // All six steps stay in the bar. Step 4 is marked as not needed when the invitation has no shared logins.
+    // Every step stays in the bar. Shared logins (step 3) is marked as not needed when the invitation has none.
     for (const item of nav.querySelectorAll('[data-wizard-step]')) {
       const n = Number(item.dataset.wizardStep);
-      const skipped = n === 4 && invited && !sharedCopy;
+      const skipped = n === 3 && invited && !sharedCopy;
       item.classList.toggle('skipped', skipped);
       item.classList.toggle('done', !skipped && n < step);
       item.classList.toggle('upcoming', !skipped && n > step);
@@ -69,14 +68,14 @@
       else item.removeAttribute('aria-current');
     }
     back.hidden = index === 0;
-    // Step 3 has its own Create button, inside the form.
-    next.hidden = step === 3 || index === steps.length - 1;
+    // Step 2 has its own Create invitation button, inside the form.
+    next.hidden = index === steps.length - 1;
     restart.hidden = !invited || index !== steps.length - 1;
   }
 
   function go(to) {
     index = to;
-    if (steps[index] === 3) buildReview();
+    if (steps[index] === 2) buildReview();
     render();
   }
 
@@ -90,9 +89,9 @@
 
   back.addEventListener('click', () => go(index - 1));
 
-  // Pressing Enter in a field submits the form. Only step 3 may submit; elsewhere Enter means "continue".
+  // Pressing Enter in a field submits the form. Only step 2 may submit; elsewhere Enter means "continue".
   form.addEventListener('submit', event => {
-    if (!invited && steps[index] === 3) return;
+    if (!invited && steps[index] === 2) return;
     event.preventDefault();
     if (!invited && !next.hidden) next.click();
   });
