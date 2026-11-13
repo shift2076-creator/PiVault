@@ -35,7 +35,7 @@ class OpenToolsTests(TestCase):
         self.assertEqual(services['wiki'], 'shared')
 
     def test_open_tools_reject_modes_without_an_account_adapter(self):
-        with self.assertRaisesMessage(ValidationError, 'Documents: isolated is not available.'):
+        with self.assertRaisesMessage(ValidationError, 'Documents: isolated integration is not configured.'):
             issue('Alex', 'user', {'documents': 'isolated'}, self.admin)
         self.assertFalse(Invitation.objects.exists())
 
@@ -52,12 +52,14 @@ class OpenToolsTests(TestCase):
         self.assertRegex(row(markup, 'passwords'), r'value="none"')
         self.assertNotIn('value="shared"', row(markup, 'passwords'))
 
-    def test_admin_documents_row_offers_shared_and_no_access_only(self):
+    def test_admin_documents_row_offers_no_access_until_paperless_is_configured(self):
+        from portal.services import ADAPTERS
         self.client.force_login(self.admin)
-        markup = self.client.get('/users/add', secure=True).content.decode()
+        with patch.dict(ADAPTERS, {}, clear=True):
+            markup = self.client.get('/users/add', secure=True).content.decode()
         block = row(markup, 'documents')
-        self.assertIn('value="shared"', block)
         self.assertIn('value="none"', block)
+        self.assertNotIn('value="shared"', block)
         self.assertNotIn('value="isolated"', block)
 
     def test_every_service_has_a_launcher_category_and_app_name(self):
@@ -69,10 +71,11 @@ class OpenToolsTests(TestCase):
         self.client.force_login(self.admin)
         with patch.dict(ADAPTERS, {}, clear=True):
             markup = self.client.get('/users/add', secure=True).content.decode()
-            self.assertNotIn('value="isolated"', row(markup, 'photos'))
-        with patch.dict(ADAPTERS, {'photos': SimpleNamespace(modes=('isolated',))}):
+            self.assertNotIn('value="shared"', row(markup, 'photos'))
+        with patch.dict(ADAPTERS, {'photos': SimpleNamespace(modes=('shared',))}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-            self.assertIn('value="isolated"', row(markup, 'photos'))
+            self.assertIn('value="shared"', row(markup, 'photos'))
+            self.assertNotIn('value="isolated"', row(markup, 'photos'))
 
     def test_music_offers_per_user_only_when_private_folders_are_configured(self):
         from portal.services import ADAPTERS

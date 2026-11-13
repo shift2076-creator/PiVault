@@ -10,14 +10,14 @@ SERVICES = (
 )
 ADAPTERS = {}
 # Tools with no per-user account. Access is either shared or none; there is no account to create.
-OPEN_SERVICES = ('books', 'games', 'documents', 'wiki', 'photos')
+OPEN_SERVICES = ('books', 'games', 'wiki')
 # Password Manager is always per user, with no choice on Add user. Only applies once the tool is configured.
 FIXED_MODES = {'passwords': 'isolated'}
 # Tools that start on Shared in a new invitation. Admins can still choose No access for them on Add user.
 SHARED_BY_DEFAULT = ('books', 'games', 'videos', 'wiki')
 # Shared services use one login for everyone. The admin's vault holds it, and joining copies it into each new vault.
-# Nothing is created per person for these; Music and Videos stop making per-person accounts.
-SHARED_LOGIN = ('books', 'games', 'music', 'videos')
+# Nothing is created per person for these. Videos, Photos and Radicale are shared or none; Music is shared or per user.
+SHARED_LOGIN = ('books', 'games', 'music', 'videos', 'photos', 'radicale')
 
 
 def fixed_mode(key):
@@ -27,7 +27,8 @@ def fixed_mode(key):
 
 
 def default_mode(key):
-    if is_open(key) or (key in SHARED_BY_DEFAULT and key in ADAPTERS):
+    # Only the listed tools start on Shared. Documents and Photos start on No access, even when unconfigured.
+    if key in SHARED_BY_DEFAULT and (is_open(key) or key in ADAPTERS):
         return 'shared'
     return 'none'
 # Mirrors the launcher's services.yaml on pivault: group and tile description for each row on Add user.

@@ -28,7 +28,7 @@ Failed registration or cipher creation compensates by deleting only this attempt
 
 ## Shared logins
 
-Books, Games, Music and Videos each use one login, held as an entry in the Admin's own Vaultwarden. Nothing is created per person in these four services. Joining copies the chosen entry into each new person's vault. Documents, Photos and Radicale stay per person, and the Paperless superuser is never shared.
+Books, Games, Videos, Photos and Radicale each use one shared login, held as an entry in the Admin's own Vaultwarden. Nothing is created per person for them. Music is shared or per user, and its shared login is held the same way. Joining copies the chosen entry into each new person's vault. Documents and the Password Manager are always per person, and the Paperless superuser is never shared.
 
 1. Issuing an invitation generates a random 32-byte secret. The server places it only in the QR code's URL fragment (`#k=`) and does not store it.
 2. The Admin's browser unlocks the Admin's vault through a relay at `/users/vault-proxy/{prelogin,token,sync}`. The relay serves only Admin sessions, forwards only those three Vaultwarden calls, and sends only the named fields. The master password stays in the browser. The password hash goes to Vaultwarden as its login requires.

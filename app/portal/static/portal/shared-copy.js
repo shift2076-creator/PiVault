@@ -5,7 +5,8 @@
   'use strict';
   const root = document.getElementById('shared-copy');
   if (!root) return;
-  const SLOTS = [['books', 'Books'], ['games', 'Games'], ['music', 'Music'], ['videos', 'Videos']];
+  const SLOTS = [['books', 'Books'], ['games', 'Games'], ['music', 'Music'], ['videos', 'Videos'],
+    ['photos', 'Photos'], ['radicale', 'Calendar and contacts']];
   const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
   const csrf = csrfInput ? csrfInput.value : '';
   const status = document.getElementById('shared-status');

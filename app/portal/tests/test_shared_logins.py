@@ -14,7 +14,7 @@ from django.test import TestCase
 from portal.invitations import attach_shared, issue
 from portal.models import Invitation, User
 from portal.runtime import PUBLIC_URLS, credential_plan
-from portal.services import ADAPTERS, SHARED_LOGIN
+from portal.services import ADAPTERS, SERVICES, SHARED_LOGIN
 
 # A well-formed sealed value: "2." + iv(16) | cipher(16) | mac(32), all base64.
 SEALED = '2.' + 'A' * 22 + '==|' + 'B' * 22 + '==|' + 'C' * 43 + '='
@@ -28,7 +28,7 @@ class SharedPlanTests(TestCase):
     def setUp(self):
         self.user = User(email='alex@example.com', display_name='Alex', role='user', service_access={
             'passwords': 'isolated', 'books': 'shared', 'games': 'shared', 'music': 'shared', 'videos': 'shared',
-            'documents': 'isolated'})
+            'photos': 'shared', 'radicale': 'shared', 'documents': 'isolated'})
         self.adapters = patch.dict(ADAPTERS, {
             'passwords': stub(credential_username=lambda user: user.email),
             'documents': stub(credential_username=lambda user: user.email),
@@ -44,9 +44,7 @@ class SharedPlanTests(TestCase):
     def test_each_shared_login_is_a_fixed_name_with_no_per_person_fields(self):
         plan = credential_plan(self.user)
         for key in SHARED_LOGIN:
-            self.assertEqual(plan[key], {'name': 'PiVault ' + {'books': 'Books', 'games': 'Games',
-                                                             'music': 'Music', 'videos': 'Videos'}[key],
-                                         'shared': True}, key)
+            self.assertEqual(plan[key], {'name': 'PiVault ' + dict(SERVICES)[key], 'shared': True}, key)
 
     def test_shared_logins_do_not_need_a_client_address(self):
         # Books and Games have no adapter, so the admin's sealed copy is their only source of an address.

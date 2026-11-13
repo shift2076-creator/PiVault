@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from portal.integrations.lychee import LycheeAdapter, LycheeCleanupRequired
+from portal.integrations.lychee import LycheeAdapter
 from portal.integrations.native_http import NativeError
 from portal.models import User
 
@@ -14,13 +14,10 @@ TOKEN = 'admin-token-for-tests'
 class FakeLychee:
     """Stands in for Lychee's admin API. Records every call and its bearer token."""
 
-    def __init__(self, rows=None, fail_login=False, fail_create=None):
+    def __init__(self, rows=None, fail=False):
         self.rows = [dict(r) for r in (rows or [])]
-        self.passwords = {}
+        self.fail = fail
         self.calls = []
-        self.next_id = 7
-        self.fail_login = fail_login
-        self.fail_create = fail_create
 
     def factory(self):
         fake = self
@@ -31,84 +28,46 @@ class FakeLychee:
 
             def request(self, method, path, data=None):
                 fake.calls.append((method, path, self.headers.get('Authorization')))
-                if method == 'GET' and path == '/api/v2/UserManagement':
-                    return {'data': [dict(r) for r in fake.rows]}
-                if method == 'POST' and path == '/api/v2/UserManagement':
-                    if fake.fail_create:
-                        raise fake.fail_create
-                    uid = fake.next_id
-                    fake.next_id += 1
-                    fake.passwords[data['username']] = data['password']
-                    fake.rows.append({'id': uid, 'username': data['username'], 'may_administrate': False})
-                    return {'data': {'id': uid, 'username': data['username']}}
-                if method == 'DELETE' and path == '/api/v2/UserManagement':
-                    fake.rows = [r for r in fake.rows if r['id'] != data['id']]
-                    return None
-                if method == 'POST' and path == '/api/v2/Auth::login':
-                    if fake.fail_login or fake.passwords.get(data['username']) != data['password']:
-                        raise NativeError('Photos', status=401)
-                    return None
-                raise AssertionError(f'unexpected {method} {path}')
+                if fake.fail:
+                    raise NativeError('Photos')
+                return {'data': [dict(r) for r in fake.rows]}
 
         return Client
 
 
 class LycheeAdapterTests(TestCase):
+    """Photos is shared or none: one Lychee account for everyone, never a per-person account."""
+
     def setUp(self):
-        self.fake = FakeLychee(rows=[{'id': 1, 'username': 'owner', 'may_administrate': True}])
-        self.adapter = LycheeAdapter('http://lychee:8000', TOKEN, client_factory=self.fake.factory())
-        self.user = SimpleNamespace(email='Sam@Example.com', role='user')
+        self.fake = FakeLychee(rows=[{'id': 1, 'username': 'shared-photos@example.com', 'may_administrate': False}])
+        self.adapter = LycheeAdapter('https://photos.example', TOKEN, client_factory=self.fake.factory())
+        self.user = SimpleNamespace(email='Sam@Example.com', display_name='Sam', role='user')
 
-    def test_provision_creates_a_non_admin_account_with_the_admin_token(self):
-        receipt = self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='isolated')
-        self.assertEqual(receipt.service, 'photos')
-        self.assertEqual(receipt.native_id, '7')
-        self.assertIn(('POST', '/api/v2/UserManagement', 'Bearer ' + TOKEN), self.fake.calls)
-        created = [r for r in self.fake.rows if r['id'] == 7][0]
-        self.assertEqual(created['username'], 'sam@example.com')
-        self.assertIs(created['may_administrate'], False)
+    def test_list_accounts_uses_the_admin_token_and_returns_usernames(self):
+        self.assertEqual(self.adapter.list_accounts(), ['shared-photos@example.com'])
+        self.assertEqual(self.fake.calls, [('GET', '/api/v2/UserManagement', 'Bearer ' + TOKEN)])
 
-    def test_provision_does_not_log_in_as_the_new_user(self):
-        # Lychee's login route answers 419 to API clients, so the adapter cannot verify the password this way.
-        self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='isolated')
-        self.assertNotIn(('POST', '/api/v2/Auth::login', None), self.fake.calls)
+    def test_shared_provision_creates_no_account(self):
+        self.assertIsNone(self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='shared'))
+        self.assertEqual(self.fake.calls, [])
 
-    def test_rollback_deletes_only_the_new_account(self):
-        receipt = self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='isolated')
-        receipt.rollback()
-        self.assertEqual([r['id'] for r in self.fake.rows], [1])
-
-    def test_duplicate_username_is_rejected_before_creating(self):
-        self.fake.rows.append({'id': 3, 'username': 'sam@example.com', 'may_administrate': False})
-        with self.assertRaisesMessage(ValidationError, 'already uses that email'):
+    def test_per_user_mode_is_refused(self):
+        with self.assertRaisesMessage(ValidationError, 'shared or none'):
             self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='isolated')
-        self.assertFalse([c for c in self.fake.calls if c[0] == 'POST'])
+        self.assertEqual(self.fake.calls, [])
 
-    def test_lost_create_response_leaves_cleanup_for_an_admin(self):
-        self.fake.fail_create = NativeError('Photos', status=503, uncertain=True)
-        with self.assertRaises(LycheeCleanupRequired):
-            self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='isolated')
+    def test_unreadable_account_list_is_reported(self):
+        self.fake.fail = True
+        with self.assertRaises(NativeError):
+            self.adapter.list_accounts()
 
-    def test_only_per_user_mode_is_supported(self):
-        with self.assertRaisesMessage(ValidationError, 'does not support that access mode'):
-            self.adapter.provision(user=self.user, password='Sam-passphrase-42', mode='shared')
-
-    def test_admin_token_is_required(self):
-        with self.assertRaises(ValueError):
-            LycheeAdapter('http://lychee:8000', '  ')
-
-
-class LycheeAddUserRowTests(TestCase):
-    def test_photos_offers_per_user_once_configured_and_never_shared(self):
+    def test_photos_row_offers_shared_or_none_once_configured(self):
         from portal.services import ADAPTERS
         admin = User.objects.create_user(username='admin-id', email='admin@example.com',
             password='Existing-good-password-928!', display_name='Owner', role='admin')
         self.client.force_login(admin)
-        adapter = LycheeAdapter('http://lychee:8000', TOKEN, client_factory=FakeLychee().factory())
-        with patch.dict(ADAPTERS, {'photos': adapter}):
+        with patch.dict(ADAPTERS, {'photos': self.adapter}):
             markup = self.client.get('/users/add', secure=True).content.decode()
-        photos = markup.split('data-service="photos"', 1)[1].split('</div>', 1)[0]
-        self.assertIn('value="isolated"', photos)
-        self.assertIn('value="none"', photos)
-        self.assertNotIn('value="shared"', photos)
-        self.assertNotIn('administrators', photos)
+        row = markup.split('data-service="photos"', 1)[1].split('</div>', 1)[0]
+        self.assertIn('value="shared"', row)
+        self.assertNotIn('value="isolated"', row)
