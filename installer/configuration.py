@@ -363,6 +363,16 @@ def terminal_handler(config, host, path, port=443):
     return None
 
 
+def _launcher_route(handler):
+    # The launcher gate's Host header moves from the old 8443 address to the root. Nothing else may change.
+    if not handler:
+        return handler
+    value = copy.deepcopy(handler)
+    request = value.get('headers', {}).get('request', {}).get('set', {})
+    request.pop('Host', None)
+    return value
+
+
 def verify_routes(before, after, vault_host=None):
     for path in ('/join', '/users/add', '/users/sign-in', '/users/session', '/notifications', '/notifications/api',
                  '/system', '/devices'):
@@ -376,8 +386,8 @@ def verify_routes(before, after, vault_host=None):
         value = terminal_handler(after, PORTAL_HOST, path, PORTAL_PORT)
         if not value or value.get('handler') != 'static_response' or value.get('status_code') != 404:
             raise ValueError('The private authentication endpoint would be publicly reachable.')
-    if (terminal_handler(before, PORTAL_HOST, '/', OLD_LAUNCHER_PORT)
-            != terminal_handler(after, PORTAL_HOST, '/', PORTAL_PORT)):
+    if (_launcher_route(terminal_handler(before, PORTAL_HOST, '/', OLD_LAUNCHER_PORT))
+            != _launcher_route(terminal_handler(after, PORTAL_HOST, '/', PORTAL_PORT))):
         raise ValueError('The candidate configuration changes the existing launcher route.')
     if terminal_handler(before, PORTAL_HOST, '/', PORTAL_PORT) != terminal_handler(after, PORTAL_HOST, '/', VAULT_PORT):
         raise ValueError('The candidate configuration changes the existing Vaultwarden route.')

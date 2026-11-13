@@ -235,6 +235,18 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn('/notifications /notifications/* /devices /devices/* /services /services/* /internal', output)
         self.assertEqual(output, config.portal_caddyfile(output))
 
+    def test_gate_host_header_may_move_to_the_root_but_nothing_else_in_the_launcher_may_change(self):
+        gate = {'request': {'set': {'Host': ['192.168.4.90:8443'], 'X-Forwarded-Proto': ['https']}}}
+        before = live_config()
+        before['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['headers'] = {'request': {'set': dict(gate['request']['set'])}}
+        after = native_config(True)
+        after['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][-1]['handle'][0]['headers'] = {
+            'request': {'set': {'Host': ['192.168.4.90'], 'X-Forwarded-Proto': ['https']}}}
+        config.verify_routes(before, after)
+        after['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][-1]['handle'][0]['headers']['request']['set']['X-Forwarded-Proto'] = ['http']
+        with self.assertRaisesRegex(ValueError, 'launcher route'):
+            config.verify_routes(before, after)
+
     def test_public_gate_is_rejected(self):
         bad = native_config(True)
         bad['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'].pop(0)
