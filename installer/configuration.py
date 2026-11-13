@@ -373,6 +373,15 @@ def _launcher_route(handler):
     return value
 
 
+def _current_handler(before, *ports):
+    # A service that has moved leaves a 302 redirect on its old port, so read it from the first port that proxies.
+    for port in ports:
+        handler = terminal_handler(before, PORTAL_HOST, '/', port)
+        if handler and handler.get('handler') == 'reverse_proxy':
+            return handler
+    return None
+
+
 def verify_routes(before, after, vault_host=None):
     for path in ('/join', '/users/add', '/users/sign-in', '/users/session', '/notifications', '/notifications/api',
                  '/certificate', '/devices'):
@@ -386,10 +395,10 @@ def verify_routes(before, after, vault_host=None):
         value = terminal_handler(after, PORTAL_HOST, path, PORTAL_PORT)
         if not value or value.get('handler') != 'static_response' or value.get('status_code') != 404:
             raise ValueError('The private authentication endpoint would be publicly reachable.')
-    if (_launcher_route(terminal_handler(before, PORTAL_HOST, '/', OLD_LAUNCHER_PORT))
+    if (_launcher_route(_current_handler(before, OLD_LAUNCHER_PORT, PORTAL_PORT))
             != _launcher_route(terminal_handler(after, PORTAL_HOST, '/', PORTAL_PORT))):
         raise ValueError('The candidate configuration changes the existing launcher route.')
-    if terminal_handler(before, PORTAL_HOST, '/', PORTAL_PORT) != terminal_handler(after, PORTAL_HOST, '/', VAULT_PORT):
+    if _current_handler(before, VAULT_PORT, PORTAL_PORT) != terminal_handler(after, PORTAL_HOST, '/', VAULT_PORT):
         raise ValueError('The candidate configuration changes the existing Vaultwarden route.')
     if before.get('apps', {}).get('tls') != after.get('apps', {}).get('tls'):
         raise ValueError('The candidate configuration changes TLS settings.')

@@ -248,6 +248,19 @@ class ConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'launcher route'):
             config.verify_routes(before, after)
 
+    def test_routes_are_still_checked_after_the_root_move(self):
+        # Live since d69e62b: 8443 is a 302 redirect and the launcher is on the root. The run must pass,
+        # and a changed launcher or Vaultwarden route must still stop it.
+        config.verify_routes(native_config(False), native_config(True))
+        broken_launcher = native_config(True)
+        broken_launcher['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][-1]['handle'][0]['upstreams'] = [{'dial': 'other:3000'}]
+        with self.assertRaisesRegex(ValueError, 'launcher route'):
+            config.verify_routes(native_config(False), broken_launcher)
+        broken_vault = native_config(True)
+        broken_vault['apps']['http']['servers']['srv2']['routes'][0]['handle'][0]['upstreams'] = [{'dial': 'other:80'}]
+        with self.assertRaisesRegex(ValueError, 'Vaultwarden route'):
+            config.verify_routes(native_config(False), broken_vault)
+
     def test_public_gate_is_rejected(self):
         bad = native_config(True)
         bad['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'].pop(0)
