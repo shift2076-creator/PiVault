@@ -1,7 +1,7 @@
 /* Admin only: Add user as five steps, one screen at a time.
-   Step 2 (Access) holds the review and the Create invitation button; submitting it posts the form, and the
+   Step 2 (Access) holds the Create invitation button; submitting it posts the form, and the
    reloaded page starts at step 3 (or 4 when no shared logins are needed) with the invitation. Only visibility
-   changes here, and the review text is built with textContent, never with HTML. */
+   changes here. */
 (() => {
   'use strict';
   if (document.body.dataset.mode !== 'admin') return;
@@ -13,13 +13,11 @@
   const invitation = account.querySelector(':scope > .invitation');
   const sharedCopy = document.getElementById('shared-copy');
   const name = document.getElementById('name');
-  const review = account.querySelector('.review');
   const back = controls.querySelector('[data-wizard-back]');
   const next = controls.querySelector('[data-wizard-next]');
   const restart = controls.querySelector('[data-wizard-restart]');
   const invited = Boolean(invitation);
   const steps = invited ? (sharedCopy ? [3, 4, 5] : [4, 5]) : [1, 2];
-  const CHOICES = { shared: 'Shared', isolated: 'Per user', none: 'No access' };
   // A validation error on the submit comes back with the form filled in; show it at step 2, where it was raised.
   let index = !invited && account.querySelector(':scope > .error') ? 1 : 0;
 
@@ -27,29 +25,6 @@
   nav.hidden = false;
   controls.hidden = false;
   heading.hidden = invited;
-
-  function row(label, value) {
-    const wrap = document.createElement('div');
-    wrap.className = 'review-row';
-    const left = document.createElement('span');
-    left.textContent = label;
-    const right = document.createElement('strong');
-    right.textContent = value;
-    wrap.append(left, right);
-    review.append(wrap);
-  }
-
-  function buildReview() {
-    review.textContent = '';
-    row('Name', name.value);
-    const role = document.querySelector('input[name="role"]:checked');
-    row('Role', role && role.value === 'admin' ? 'Admin' : 'User');
-    for (const service of document.querySelectorAll('.service')) {
-      const label = service.querySelector('.service-name').firstChild.textContent.trim();
-      const choice = service.querySelector('input[type="radio"]:checked');
-      row(label, choice ? CHOICES[choice.value] || choice.value : 'No access');
-    }
-  }
 
   function render() {
     const step = steps[index];
@@ -75,7 +50,6 @@
 
   function go(to) {
     index = to;
-    if (steps[index] === 2) buildReview();
     render();
   }
 

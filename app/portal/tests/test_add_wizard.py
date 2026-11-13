@@ -29,9 +29,9 @@ class AddUserWizardTests(TestCase):
         self.assertNotIn('Create accounts', markup)
         for pane in ('1', '2'):
             self.assertIn(f'data-pane="{pane}"', markup)
-        # The review and the Create invitation button belong to step 2 (Access), not to a separate step.
-        self.assertIn('<div class="review" data-pane="2"', markup)
+        # The Create invitation button belongs to step 2 (Access). The access choices are already on that page, so there is no review.
         self.assertIn('<button class="submit" type="submit" data-pane="2"', markup)
+        self.assertNotIn('class="review"', markup)
 
     def test_invitation_page_has_the_invite_and_phone_panes(self):
         response = self.client.post('/users/add', {'name': 'Sam Rivera', 'role': 'user'}, secure=True)
