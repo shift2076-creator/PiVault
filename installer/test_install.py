@@ -338,6 +338,23 @@ class ProbeTests(unittest.TestCase):
                 install.portal_probe()
         return calls
 
+    def test_wait_for_caddy_retries_until_the_port_accepts_connections(self):
+        attempts = []
+        def connect(address, timeout):
+            attempts.append(address)
+            if len(attempts) < 3:
+                raise OSError('refused')
+            return contextlib.nullcontext()
+        with patch.object(install.socket, 'create_connection', side_effect=connect), patch.object(install.time, 'sleep'):
+            install.wait_listening(443)
+        self.assertEqual(attempts, [('192.168.4.90', 443)] * 3)
+
+    def test_wait_for_caddy_fails_after_its_deadline(self):
+        with patch.object(install.socket, 'create_connection', side_effect=OSError('refused')), \
+                patch.object(install.time, 'sleep'), patch.object(install.time, 'monotonic', side_effect=[0, 0, 61]):
+            with self.assertRaisesRegex(install.InstallError, 'did not accept connections on port 8448'):
+                install.wait_listening(8448)
+
     def test_probe_uses_the_live_ip_site_with_tls_verification(self):
         calls = self.probe('<input name="password"> Sign in')
         self.assertEqual([c[-1] for c in calls], ['https://192.168.4.90/users/sign-in',
@@ -541,6 +558,7 @@ class InstallationTransactionTests(unittest.TestCase):
                 stack.enter_context(patch.object(install, 'run', side_effect=run))
                 stack.enter_context(patch.object(install, 'adapt', return_value=native_config(True)))
                 stack.enter_context(patch.object(install, 'wait_healthy'))
+                stack.enter_context(patch.object(install, 'wait_listening'))
                 stack.enter_context(patch.object(install, 'unit_flag', side_effect=lambda flag, name:
                     cinema_enabled and name == 'pivault-cinema.timer'))
                 stack.enter_context(patch.object(install, 'publish_root_certificate'))

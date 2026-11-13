@@ -13,6 +13,7 @@ import pwd
 import re
 import secrets
 import shutil
+import socket
 import stat
 import subprocess
 import sys
@@ -26,8 +27,8 @@ try:
 except ImportError:
     raise SystemExit('The Pi needs its existing python3-yaml package. Nothing was installed.')
 
-from configuration import (PORTAL_SITE, SERVICE, compose_configuration, front_door_compose, homepage_js,
-                           apps_caddyfile, portal_caddyfile, private_vault_admin, verify_routes)
+from configuration import (PORTAL_HOST, PORTAL_PORT, PORTAL_SITE, SERVICE, VAULT_PORT, compose_configuration, front_door_compose,
+                           homepage_js, apps_caddyfile, portal_caddyfile, private_vault_admin, verify_routes)
 from native import vault_configuration, maintenance_units
 
 ROOT = Path('/srv/pi-server')
@@ -299,6 +300,19 @@ def publish_root_certificate(data_dir, uid, gid):
     os.chown(target, uid, gid)
 
 
+def wait_listening(port, timeout=60):
+    # "docker compose up" returns when Caddy has started, not when it accepts connections.
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            with socket.create_connection((PORTAL_HOST, port), timeout=2):
+                return
+        except OSError:
+            if time.monotonic() > deadline:
+                raise InstallError('Caddy did not accept connections on port ' + str(port) + '.') from None
+            time.sleep(1)
+
+
 def portal_probe():
     # Resolve the actual mounted Caddy CA. Verify TLS; never use -k or replace CA.
     ca = caddy_root_certificate()
@@ -504,6 +518,8 @@ def install_portal():
             if caddy_ports_changed:
                 caddy_recreated = True
                 run(live + ['up', '-d', '--no-deps', caddy_name], stage='Caddy ports')
+                wait_listening(PORTAL_PORT)
+                wait_listening(VAULT_PORT)
             else:
                 run(['docker', 'exec', CADDY, 'caddy', 'reload', '--config',
                      '/etc/caddy/Caddyfile', '--adapter', 'caddyfile'])
