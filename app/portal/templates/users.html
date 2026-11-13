@@ -199,8 +199,8 @@
         <button class="submit" type="submit" data-pane="2">{% if mode == 'admin' %}Create invitation{% elif mode == 'sign-in' %}Sign in{% else %}Create account{% endif %}</button>
         {% if invitation %}
         <section class="invitation" aria-live="polite">
-          <h2>Invitation</h2>
-          <div class="invite-details" data-pane="4">
+          <h2 data-pane="3 4 5">Invitation</h2>
+          <div class="invite-details" data-pane="3 4">
             <div>
               <p class="invite-name">{{ invitation.name }}</p>
               <a href="{{ join_url }}">{{ join_url|cut:'https://' }}</a>

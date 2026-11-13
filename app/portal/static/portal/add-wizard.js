@@ -28,8 +28,9 @@
 
   function render() {
     const step = steps[index];
+    // data-pane takes one step or several, separated by spaces (the invitation code shows on steps 3 and 4).
     for (const el of document.querySelectorAll('[data-pane]')) {
-      el.hidden = el.dataset.pane !== String(step);
+      el.hidden = !el.dataset.pane.split(' ').includes(String(step));
     }
     if (invitation) invitation.hidden = !invited;
     // Every step stays in the bar. Shared logins (step 3) is marked as not needed when the invitation has none.

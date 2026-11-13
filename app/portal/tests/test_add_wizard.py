@@ -37,9 +37,12 @@ class AddUserWizardTests(TestCase):
         response = self.client.post('/users/add', {'name': 'Sam Rivera', 'role': 'user'}, secure=True)
         self.assertEqual(response.status_code, 200)
         markup = response.content.decode()
-        self.assertIn('data-pane="4"', markup)
         self.assertIn('data-pane="5"', markup)
         self.assertIn('class="invitation"', markup)
+        # The code and QR show on the Shared logins step (3) as well as the Invite step (4), so the admin can see the code they attach to.
+        self.assertIn('class="invite-details" data-pane="3 4"', markup)
+        # The Invitation heading belongs to the steps that show the invitation; it must never appear empty on Access.
+        self.assertIn('<h2 data-pane="3 4 5">Invitation</h2>', markup)
 
     def test_shared_login_step_uses_the_lowercase_admin_email(self):
         # The vault key is derived from the email; Vaultwarden expects it lowercased, so a capital letter
