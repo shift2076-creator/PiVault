@@ -103,7 +103,14 @@
     const wrapped = field(login, 'Key', 'key');
     if (typeof bearer !== 'string' || typeof wrapped !== 'string') throw new Error('The Password Manager sent an unreadable sign-in.');
     const stretched = await stretch(master);
-    const userKey = await decrypt(wrapped, stretched);
+    // The password was accepted above, so a failure here means the account key itself would not open, not a typo.
+    let userKey;
+    try {
+      userKey = await decrypt(wrapped, stretched);
+    } catch (err) {
+      master.fill(0); stretched.fill(0);
+      throw new Error('Your master password was accepted, but the Password Manager account key would not open with it. Nothing was attached.');
+    }
     if (userKey.length !== 64) throw new Error('The account key has an unexpected length.');
     const sync = await fetch('/users/vault-proxy/sync', {credentials:'same-origin',
       headers:{'Authorization':'Bearer ' + bearer, 'Accept':'application/json'}});
