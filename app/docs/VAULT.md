@@ -6,7 +6,7 @@ The signed five-minute enrollment plan binds the invitation, normalized email, s
 
 The server already receives the PiVault join password transiently for its normal login hash and configured native account creation. It does not persist that plaintext password or an export file. The Users database retains the native vault user/item IDs and the normal Django login password hash. The native vault receives encrypted keys, folder name and login fields. Infrastructure Admin credentials never enter the new user's personal vault.
 
-Provisioning other native accounts completes before vault population. Their credential usernames come from each adapter: Jellyfin uses the Admin-assigned display name; Vaultwarden uses email. Only selected adapters which really create credentials are included. HTTPS addresses come from protected server configuration, not browser-supplied form fields. This revision retains the established same-password account handoff; it does not introduce unique service passwords.
+Provisioning other native accounts completes before vault population. Per-person credential usernames come from each adapter; Vaultwarden uses email. Shared logins (Books, Games, Music, Videos) create no per-person account: the vault receives the one shared login copied from the Admin's vault (see Shared logins). HTTPS addresses come from protected server configuration, not browser-supplied form fields. This revision retains the established same-password account handoff for per-person accounts; it does not introduce unique service passwords.
 
 ## Native API contract
 
@@ -25,6 +25,19 @@ Failed registration or cipher creation compensates by deleting only this attempt
 - Folder and every login name, username, password and URI are encrypted. URI matching is Host.
 
 `tools/vault_compat.py` generates a fresh browser-format bundle in Node, checks the authentication hash independently with Python hashlib, then runs the official Bitwarden CLI against an isolated HTTPS API fixture. The CLI logs in, syncs and decrypts the expected password, username, URI and name. TLS verification remains enabled with an ephemeral local test certificate. No real user credentials are used.
+
+## Shared logins
+
+Books, Games, Music and Videos each use one login, held as an entry in the Admin's own Vaultwarden. Nothing is created per person in these four services. Joining copies the chosen entry into each new person's vault. Documents, Photos and Radicale stay per person, and the Paperless superuser is never shared.
+
+1. Issuing an invitation generates a random 32-byte secret. The server places it only in the QR code's URL fragment (`#k=`) and does not store it.
+2. The Admin's browser unlocks the Admin's vault through a relay at `/users/vault-proxy/{prelogin,token,sync}`. The relay serves only Admin sessions, forwards only those three Vaultwarden calls, and sends only the named fields. The master password stays in the browser. The password hash goes to Vaultwarden as its login requires.
+3. The Admin picks one entry per service. The browser seals the chosen entries with the vault's AES-256-CBC and HMAC-SHA256 format, under a key derived from the secret. It posts the sealed value to `/users/add/shared`, and the invitation stores only that ciphertext.
+4. The new person scans the QR code. The join page reads the secret from the fragment and removes it from the address bar. `/join/plan` returns the sealed copy only when the invitation needs shared logins and one is attached. The browser opens it and writes the shared entries into the new vault under that person's own key.
+
+Refusals: a join without the QR secret is blocked, so the typed code alone cannot open shared logins. A plan is refused until the Admin attaches the copy. A wrong secret stops the join before any account is created.
+
+Trust: anyone who photographs the QR code while the invitation is open can read the shared logins. The invitation expires in 30 minutes.
 
 ## Client installation and updates
 
