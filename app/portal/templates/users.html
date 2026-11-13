@@ -72,6 +72,24 @@
     .client-updates {margin-top:48px}
     .client-row {display:grid;grid-template-columns:minmax(130px,1.5fr) repeat(2,minmax(80px,1fr)) minmax(160px,2fr);gap:16px;padding:16px 0;border-bottom:1px solid var(--pv-divider);align-items:center}
     .client-row small {display:block;color:var(--pv-secondary);margin-top:6px}
+    /* Add user as a step-by-step wizard (admin only; the wizard script turns it on). */
+    .wizard-steps ol {display:flex;flex-wrap:wrap;gap:12px 28px;list-style:none;margin:0 0 48px;padding:0;font-size:14px;color:var(--pv-secondary)}
+    .wizard-steps li {display:flex;align-items:center;gap:10px}
+    .wizard-steps li.done {color:var(--pv-accent)}
+    .wizard-steps li[aria-current="step"] {color:var(--pv-text);font-weight:600}
+    .wizard-steps .num {display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid var(--pv-divider);border-radius:50%;font-size:12px}
+    .wizard-steps li[aria-current="step"] .num {background:#52667e;border-color:#52667e}
+    body.wizard-on .layout {display:block;max-width:760px}
+    body.wizard-on .account {border-left:0;padding-left:0}
+    .review {border-top:1px solid var(--pv-divider);padding-top:16px;margin:0 0 24px;display:grid;gap:12px}
+    .review-row {display:flex;justify-content:space-between;gap:16px}
+    .review-row span {color:var(--pv-secondary)}
+    .wizard-nav {display:flex;justify-content:space-between;align-items:center;gap:24px;margin-top:48px;border-top:1px solid var(--pv-divider);padding-top:20px;max-width:760px}
+    .wizard-nav button {width:auto;min-width:140px}
+    .phone-steps {border-top:1px solid var(--pv-divider);margin-top:24px;padding-top:16px}
+    .phone-steps h3 {margin:0 0 12px;font-size:16px;color:var(--pv-text)}
+    .phone-steps ol {margin:0;padding-left:22px}
+    .phone-steps li {margin:10px 0}
     @media(max-width:767px) {
       h1 {margin-bottom:36px}
       .layout {grid-template-columns:1fr;gap:36px}
@@ -103,11 +121,21 @@
 <!-- Inline account fields -->
 <main>
   <h1>PiVault</h1>
+  {% if mode == 'admin' %}
+  <nav class="wizard-steps" aria-label="New user steps" hidden><ol>
+    <li data-wizard-step="1"><span class="num">1</span>Person</li>
+    <li data-wizard-step="2"><span class="num">2</span>Access</li>
+    <li data-wizard-step="3"><span class="num">3</span>Create accounts</li>
+    <li data-wizard-step="4"><span class="num">4</span>Shared logins</li>
+    <li data-wizard-step="5"><span class="num">5</span>Invite</li>
+    <li data-wizard-step="6"><span class="num">6</span>New person's phone</li>
+  </ol></nav>
+  {% endif %}
   {% if mode != 'system' %}
   <form method="post" action="{% if mode == 'admin' %}/users/add{% elif mode == 'sign-in' %}/users/sign-in{% else %}/join{% endif %}">
     {% csrf_token %}
     <div class="layout">
-      <section {% if mode != 'admin' %}hidden{% endif %}>
+      <section {% if mode != 'admin' %}hidden{% endif %} data-pane="2">
         <h2>Service access</h2>
         <div class="service-head" aria-hidden="true"><span></span><span>Shared</span><span>Per user</span><span>No access</span></div>
         {% for group in groups %}
@@ -125,11 +153,11 @@
         {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
         {% if mode == 'join' %}<p id="vault-setup-error" class="error" role="alert" hidden></p>
         <input type="hidden" name="vault_bundle" value="">{% endif %}
-        <div class="field" {% if mode != 'admin' %}hidden{% endif %}>
+        <div class="field" {% if mode != 'admin' %}hidden{% endif %} data-pane="1">
           <label for="name">Name</label>
           <input id="name" name="name" value="{{ name }}" maxlength="80" autocomplete="off" {% if mode == 'admin' %}required{% else %}disabled{% endif %}>
         </div>
-        <div class="field" {% if mode != 'admin' %}hidden{% endif %}>
+        <div class="field" {% if mode != 'admin' %}hidden{% endif %} data-pane="1">
           <span id="role-label">Account role</span>
           <fieldset class="role" aria-labelledby="role-label" {% if mode != 'admin' %}disabled{% endif %}>
             <label><input type="radio" name="role" value="user" {% if selected_role != 'admin' %}checked{% endif %}><span>User</span></label>
@@ -167,11 +195,12 @@
           <p id="password-confirm-error" class="field-error" role="alert" hidden></p>
         </div>
         {% endif %}
-        <button class="submit" type="submit">{% if mode == 'admin' %}Create invitation{% elif mode == 'sign-in' %}Sign in{% else %}Create account{% endif %}</button>
+        <div class="review" data-pane="3" hidden></div>
+        <button class="submit" type="submit" data-pane="3">{% if mode == 'admin' %}Create invitation{% elif mode == 'sign-in' %}Sign in{% else %}Create account{% endif %}</button>
         {% if invitation %}
         <section class="invitation" aria-live="polite">
           <h2>Invitation</h2>
-          <div class="invite-details">
+          <div class="invite-details" data-pane="5">
             <div>
               <p class="invite-name">{{ invitation.name }}</p>
               <a href="{{ join_url }}">{{ join_url|cut:'https://' }}</a>
@@ -181,7 +210,7 @@
             <img class="qr" src="data:image/svg+xml;base64,{{ qr }}" alt="QR code for the PiVault join address" width="128" height="128">
           </div>
           {% if shared_key %}
-          <div id="shared-copy" class="shared-copy" data-email="{{ request.user.email }}" data-code="{{ code }}" data-key="{{ shared_key }}">
+          <div id="shared-copy" class="shared-copy" data-pane="4" data-email="{{ request.user.email }}" data-code="{{ code }}" data-key="{{ shared_key }}">
             <h3>Shared logins</h3>
             <p class="secondary">Music, Videos, Books and Games each use one shared login. Unlock your vault here, pick the entry for each, and attach them to this code. Your master password stays in this browser. The new person must scan the QR code, because it carries the key for the shared logins. The code must be used within 30 minutes.</p>
             <div id="shared-unlock">
@@ -193,11 +222,29 @@
             <p id="shared-status" class="secondary" role="status"></p>
           </div>
           {% endif %}
+          <section class="phone-steps" data-pane="6">
+            <h3>Set up the new phone</h3>
+            <ol>
+              <li>Admin, from unrelenting: connect the phone over USB and allow USB debugging. The phone must be listed as a device, not unauthorized.</li>
+              <li>Admin: install the approved apps with the sync helper. Only admin-approved releases, one phone per run.</li>
+              <li>New person: install pivault-root.crt as a CA certificate. See Trust on this device on the system page.</li>
+              <li>New person, Firefox: open About Firefox, tap the logo five times, open Secret Settings, turn on "Use third party CA certificates", and restart Firefox. If the switch is missing, use Chrome.</li>
+              <li>New person, Bitwarden app: choose the self-hosted region, enter https://192.168.4.90 as the server, and sign in with the account created for them.</li>
+            </ol>
+            <p class="secondary">Delete the sync helper after each run. It holds a sign-in token that expires in two hours.</p>
+          </section>
         </section>
         {% endif %}
       </section>
     </div>
   </form>
+  {% endif %}
+  {% if mode == 'admin' %}
+  <div class="wizard-nav" hidden>
+    <button type="button" class="text-button" data-wizard-back>Back</button>
+    <button type="button" data-wizard-next>Continue</button>
+    <a href="/users/add" data-wizard-restart hidden>Start another user</a>
+  </div>
   {% endif %}
   <div class="actions">
     {% if mode == 'join' and has_accounts %}<a href="/users/sign-in">Sign in</a>{% endif %}
@@ -289,6 +336,7 @@
 {% if request.user.is_authenticated and request.user.role == 'admin' %}<script src="/notifications/bell.js" defer></script>{% endif %}
 {% if mode != 'admin' and mode != 'system' %}<script src="/users/account-form.js" defer></script>{% endif %}
 {% if mode == 'join' %}<script src="/users/vault.js" defer></script>{% endif %}
+{% if mode == 'admin' %}<script src="/users/add-wizard.js" defer></script>{% endif %}
 {% if shared_key %}<script src="/users/vault.js" defer></script><script src="/users/shared-copy.js" defer></script>{% endif %}
 </body>
 </html>

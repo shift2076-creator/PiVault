@@ -11,6 +11,7 @@ urlpatterns = [
     path('users/complete.js', views.script('complete.js')),
     path('users/vault-repair.js', views.script('vault-repair.js')),
     path('users/shared-copy.js', views.script('shared-copy.js')),
+    path('users/add-wizard.js', views.script('add-wizard.js')),
     # Browser icons and the web app manifest. Public, so browsers can fetch them without a session.
     path('favicon.ico', views.static_file('favicon.ico', 'image/x-icon')),
     path('apple-touch-icon.png', views.static_file('apple-touch-icon.png', 'image/png')),
