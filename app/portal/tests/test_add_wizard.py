@@ -1,6 +1,14 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 
 from portal.models import User
+from portal.services import ADAPTERS
+
+
+class _VaultStub:
+    modes = ('isolated',)
+    requires_browser_bundle = True
 
 
 class AddUserWizardTests(TestCase):
@@ -32,6 +40,18 @@ class AddUserWizardTests(TestCase):
         self.assertIn('data-pane="4"', markup)
         self.assertIn('data-pane="5"', markup)
         self.assertIn('class="invitation"', markup)
+
+    def test_shared_login_step_uses_the_lowercase_admin_email(self):
+        # The vault key is derived from the email; Vaultwarden expects it lowercased, so a capital letter
+        # would make a correct master password fail.
+        self.admin.email = 'Owner@Example.com'
+        self.admin.save(update_fields=['email'])
+        with patch.dict(ADAPTERS, {'passwords': _VaultStub()}):
+            response = self.client.post('/users/add', {'name': 'Sam Rivera', 'role': 'user',
+                'service_books': 'shared', 'service_passwords': 'isolated'}, secure=True)
+        markup = response.content.decode()
+        self.assertIn('data-email="owner@example.com"', markup)
+        self.assertNotIn('Owner@Example.com', markup)
 
     def test_admin_page_loads_the_wizard_script(self):
         markup = self.client.get('/users/add', secure=True).content.decode()

@@ -211,7 +211,7 @@
             <img class="qr" src="data:image/svg+xml;base64,{{ qr }}" alt="QR code for the PiVault join address" width="128" height="128">
           </div>
           {% if shared_key %}
-          <div id="shared-copy" class="shared-copy" data-pane="3"data-email="{{ request.user.email }}" data-code="{{ code }}" data-key="{{ shared_key }}">
+          <div id="shared-copy" class="shared-copy" data-pane="3"data-email="{{ request.user.email|lower }}" data-code="{{ code }}" data-key="{{ shared_key }}">
             <h3>Shared logins</h3>
             <p class="secondary">Music, Videos, Books and Games each use one shared login. Unlock your vault here, pick the entry for each, and attach them to this code. Your master password stays in this browser. The new person must scan the QR code, because it carries the key for the shared logins. The code must be used within 30 minutes.</p>
             <div id="shared-unlock">
