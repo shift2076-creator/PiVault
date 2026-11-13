@@ -46,6 +46,10 @@ class RadicaleAdapter:
     def credential_username(self, user):
         return user.email.strip().lower()
 
+    def list_accounts(self):
+        # Login names only: the password hash on each line is never returned.
+        return [_login_name(line) for line in self._read()]
+
     def _read(self):
         try:
             with open(self.users_file, encoding='utf-8') as handle:

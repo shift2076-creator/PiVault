@@ -53,6 +53,9 @@ class PaperlessAdapter:
             if error.status != 404:
                 raise
 
+    def list_accounts(self):
+        return self._existing_usernames(self._client(self.admin_token))
+
     def _existing_usernames(self, client):
         result = client.request('GET', '/api/users/?page_size=100')
         rows = result.get('results') if isinstance(result, dict) else result

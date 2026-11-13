@@ -114,6 +114,12 @@ class VaultwardenAdapter:
         self.admin_token = admin_token
         self.public_url = public_url
 
+    def list_accounts(self):
+        rows = self.client.admin(self.admin_token).request('GET', '/admin/users')
+        if not isinstance(rows, list) or any(not isinstance(v, dict) for v in rows):
+            raise NativeError('Password Manager')
+        return [str(v.get('email', '')) for v in rows]
+
     def provision(self, *, user, password, mode, bundle):
         if mode != 'isolated':
             raise ValidationError('Password Manager is per user only.')

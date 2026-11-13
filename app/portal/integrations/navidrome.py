@@ -65,6 +65,12 @@ class NavidromeAdapter:
             raise NativeError('Music')
         return self._client({'X-ND-Authorization': 'Bearer ' + result['token']})
 
+    def list_accounts(self):
+        rows = self._admin_client().request('GET', '/api/user')
+        if not isinstance(rows, list) or any(not isinstance(v, dict) for v in rows):
+            raise NativeError('Music')
+        return [str(v.get('userName', '')) for v in rows]
+
     def _delete(self, native_id):
         # Log in again rather than retaining an expiring token in the receipt.
         try:

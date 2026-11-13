@@ -44,6 +44,10 @@ class LycheeAdapter:
         headers = {'Authorization': 'Bearer ' + token} if token else {}
         return self.client_factory('Photos', self.base_url, headers)
 
+    def list_accounts(self):
+        rows = _rows(self._client(self.admin_token).request('GET', '/api/v2/UserManagement'))
+        return [str(row.get('username', '')) for row in rows]
+
     def _delete(self, native_id):
         try:
             self._client(self.admin_token).request('DELETE', '/api/v2/UserManagement', {'id': int(native_id)})

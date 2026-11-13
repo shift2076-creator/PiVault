@@ -21,6 +21,12 @@ class JellyfinAdapter:
         # Jellyfin 12.2 declares API keys as the Authorization header and rejects X-Emby-Token with 401.
         self.client=client or JSONClient('Videos',base_url,{'Authorization':f'MediaBrowser Token="{api_key}"'})
 
+    def list_accounts(self):
+        rows = self.client.request('GET', '/Users')
+        if not isinstance(rows, list) or any(not isinstance(v, dict) for v in rows):
+            raise NativeError('Videos')
+        return [str(v.get('Name', '')) for v in rows]
+
     def provision(self, *, user, password, mode):
         if mode not in self.modes:
             raise ValidationError('Videos does not support that access mode.')
