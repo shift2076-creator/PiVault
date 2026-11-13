@@ -24,9 +24,6 @@
   let index = !invited && account.querySelector(':scope > .error') ? 2 : 0;
 
   document.body.classList.add('wizard-on');
-  for (const item of nav.querySelectorAll('[data-wizard-step]')) {
-    item.hidden = !steps.includes(Number(item.dataset.wizardStep));
-  }
   nav.hidden = false;
   controls.hidden = false;
   heading.hidden = invited;
@@ -61,9 +58,13 @@
     }
     account.hidden = step === 2;
     if (invitation) invitation.hidden = !invited;
+    // All six steps stay in the bar. Step 4 is marked as not needed when the invitation has no shared logins.
     for (const item of nav.querySelectorAll('[data-wizard-step]')) {
       const n = Number(item.dataset.wizardStep);
-      item.classList.toggle('done', steps.indexOf(n) !== -1 && steps.indexOf(n) < index);
+      const skipped = n === 4 && invited && !sharedCopy;
+      item.classList.toggle('skipped', skipped);
+      item.classList.toggle('done', !skipped && n < step);
+      item.classList.toggle('upcoming', !skipped && n > step);
       if (n === step) item.setAttribute('aria-current', 'step');
       else item.removeAttribute('aria-current');
     }
