@@ -113,15 +113,13 @@ class ClientPackageTests(TestCase):
                     'https://addons.mozilla.org.evil.example/a', 'https://user:secret@github.com/a'):
             with self.assertRaises(Exception): safe_url(url)
 
-    def test_settings_page_shows_local_version_and_pending_download(self):
+    def test_local_apps_are_not_listed_on_the_certificate_page(self):
+        # The sync repo (/devices) lists the approved apps; the certificate page never repeats them.
         self.release(); self.client.force_login(self.admin)
-        self.assertNotContains(self.client.get('/users/add', secure=True), 'Local apps and extensions')
-        response = self.client.get('/system', secure=True)
-        self.assertContains(response, 'Local apps and extensions')
-        self.assertContains(response, '2026.10.0')
-        self.assertContains(response, 'Download pending')
-        self.assertNotContains(response, 'Approval needed')
-        self.assertNotContains(response, 'Review update')
+        response = self.client.get('/certificate', secure=True)
+        self.assertNotContains(response, 'Local apps and extensions')
+        self.assertNotContains(response, 'Download pending')
+        self.assertEqual(self.client.get('/system', secure=True).status_code, 404)
 
 BITWARDEN_URL = 'https://github.com/bitwarden/android/releases/download/v2026.10.0-bwpm/com.x8bit.bitwarden.apk'
 BITWARDEN_RELEASE_URL = 'https://github.com/bitwarden/android/releases/tag/v2026.10.0-bwpm'

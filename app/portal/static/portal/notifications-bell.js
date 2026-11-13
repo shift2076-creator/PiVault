@@ -4,7 +4,7 @@
 (() => {
   if (window.piVaultNotificationsLoaded) return;
   window.piVaultNotificationsLoaded = true;
-  let root, button, badge, panel, list, summary, state, busy = false, opened = false;
+  let root, button, offlineButton, badge, panel, list, summary, state, busy = false, opened = false, offlineBusy = false;
   const make = (tag, text, className) => {
     const el = document.createElement(tag);
     if (text !== undefined) el.textContent = text;
@@ -23,7 +23,7 @@
     root = make('div'); root.id = 'pv-admin-notifications';
     const style = make('style');
     style.textContent = `
-      #pv-admin-notifications{position:fixed;top:clamp(20px,3vw,40px);right:var(--pv-gutter,24px);z-index:1000;color:var(--pv-text,#e8edf2);font:15px/1.45 Arial,Helvetica,sans-serif}
+      #pv-admin-notifications{position:fixed;top:clamp(20px,3vw,40px);right:var(--pv-gutter,24px);z-index:1000;display:flex;align-items:center;gap:8px;color:var(--pv-text,#e8edf2);font:15px/1.45 Arial,Helvetica,sans-serif}
       #pv-admin-notifications [hidden]{display:none!important}
       #pv-admin-notifications .pv-bell{position:relative;display:grid;place-items:center;width:46px;height:46px;padding:9px;border:0;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer}
       #pv-admin-notifications .pv-bell:hover{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
@@ -37,7 +37,17 @@
       #pv-admin-notifications p{margin:7px 0;overflow-wrap:anywhere}
       #pv-admin-notifications a{color:var(--pv-secondary,#91acc3);text-decoration:none}
       #pv-admin-notifications a:hover{color:var(--pv-text,#e8edf2)}
+      #pv-admin-notifications .pv-offline{display:grid;place-items:center;min-width:40px;height:46px;padding:0 9px;border:1px solid transparent;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer;font:700 12px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:.08em}
+      #pv-admin-notifications .pv-offline:hover{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
+      #pv-admin-notifications .pv-offline:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:4px}
+      #pv-admin-notifications .pv-offline:disabled{opacity:.6;cursor:progress}
+      #pv-admin-notifications .pv-offline-on{border-color:#e0b25c;color:#f2c46d;background:rgba(224,178,92,.12)}
+      #pv-admin-notifications .pv-offline-on:hover{color:#ffd98a;background:rgba(224,178,92,.2)}
     `;
+    offlineButton = make('button', undefined, 'pv-offline');
+    offlineButton.type = 'button'; offlineButton.setAttribute('aria-label', 'Offline mode');
+    offlineButton.setAttribute('aria-pressed', 'false');
+    offlineButton.addEventListener('click', toggleOffline);
     button = make('button', undefined, 'pv-bell');
     button.type = 'button'; button.setAttribute('aria-expanded', 'false');
     button.hidden = true;  // Shown only while there are open notices.
@@ -54,7 +64,7 @@
     const heading = make('h2','Admin notifications');
     summary = make('div','', 'pv-summary'); list = make('ol');
     const all = make('a','All notifications'); all.href = '/notifications';
-    panel.append(heading,summary,list,all); root.append(style,button,panel); document.body.append(root);
+    panel.append(heading,summary,list,all); root.append(style,offlineButton,button,panel); document.body.append(root);
     button.addEventListener('click', async () => {
       if (opened) { close(); return; }
       opened = true; panel.hidden = false; button.setAttribute('aria-expanded', 'true');
@@ -68,9 +78,41 @@
       } catch { /* Keep the saved events visible; no local-only read acknowledgement. */ }
     });
   }
+  // Feather globe (MIT License). Online shows the globe; offline shows the word OFFLINE.
+  const GLOBE = 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z';
+  function globeIcon() {
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    for (const [name, value] of Object.entries({viewBox:'0 0 24 24', width:'22', height:'22', fill:'none', stroke:'currentColor', 'stroke-width':'1.7', 'stroke-linecap':'round', 'stroke-linejoin':'round', 'aria-hidden':'true'})) svg.setAttribute(name, value);
+    const path = document.createElementNS(ns, 'path'); path.setAttribute('d', GLOBE); svg.append(path);
+    return svg;
+  }
+  function drawOffline() {
+    const offline = state.offline === true;
+    offlineButton.className = offline ? 'pv-offline pv-offline-on' : 'pv-offline';
+    offlineButton.setAttribute('aria-pressed', String(offline));
+    offlineButton.title = offline ? 'Offline mode is on. Click to turn it off.' : 'Online. Click to turn offline mode on.';
+    offlineButton.replaceChildren(offline ? document.createTextNode('OFFLINE') : globeIcon());
+  }
+  async function toggleOffline() {
+    if (!state || offlineBusy) return;
+    offlineBusy = true; offlineButton.disabled = true;
+    const body = new URLSearchParams({offline: state.offline === true ? 'off' : 'on'});
+    try {
+      const response = await fetch('/users/offline-mode', {method:'POST', credentials:'same-origin',
+        headers:{'X-CSRFToken':state.csrf_token}, body});
+      if (!response.ok) throw new Error(String(response.status));
+      state.offline = (await response.json()).offline === true;
+      drawOffline();
+    } catch {
+      await refresh(); // A failed change shows the server's own state.
+    } finally {
+      offlineBusy = false; offlineButton.disabled = false;
+    }
+  }
   function draw() {
     if (!state) return;
     mount();
+    drawOffline();
     badge.textContent = state.unread_count > 99 ? '99+' : String(state.unread_count);
     badge.hidden = state.unread_count === 0;
     button.hidden = state.items.length === 0;

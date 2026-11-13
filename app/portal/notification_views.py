@@ -5,7 +5,7 @@ from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
-from .models import Notification, NotificationReceipt
+from .models import Notification, NotificationReceipt, SiteSettings
 from .notifications import ingest, publish_decisions, IDENTIFIER
 
 
@@ -30,6 +30,7 @@ def feed(request):
         'open_count': values.count(),
         'unread_count': values.exclude(receipts__user=request.user).count(),
         'csrf_token': get_token(request),
+        'offline': SiteSettings.is_offline(),
         'items': [{'id': item.id, 'source': item.source, 'level': item.level,
                    'title': item.title, 'message': item.message,
                    'created_at': item.created_at.isoformat(),

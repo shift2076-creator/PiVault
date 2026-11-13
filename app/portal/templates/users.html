@@ -132,7 +132,6 @@
     <li data-wizard-step="5"><span class="num">5</span>New person's phone</li>
   </ol></nav>
   {% endif %}
-  {% if mode != 'system' %}
   <form method="post" action="{% if mode == 'admin' %}/users/add{% elif mode == 'sign-in' %}/users/sign-in{% else %}/join{% endif %}">
     {% csrf_token %}
     <div class="layout">
@@ -227,7 +226,7 @@
             <ol>
               <li>Admin, from unrelenting: connect the phone over USB and allow USB debugging. The phone must be listed as a device, not unauthorized.</li>
               <li>Admin: install the approved apps with the sync helper. Only admin-approved releases, one phone per run.</li>
-              <li>New person: install pivault-root.crt as a CA certificate. See Trust on this device on the system page.</li>
+              <li>New person: install pivault-root.crt as a CA certificate. See PiVault Certificate in Settings.</li>
               <li>New person, Firefox: open About Firefox, tap the logo five times, open Secret Settings, turn on "Use third party CA certificates", and restart Firefox. If the switch is missing, use Chrome.</li>
               <li>New person, Bitwarden app: choose the self-hosted region, enter https://192.168.4.90:8448 as the server, and sign in with the account created for them.</li>
             </ol>
@@ -238,7 +237,6 @@
       </section>
     </div>
   </form>
-  {% endif %}
   {% if mode == 'admin' %}
   <div class="wizard-nav" hidden>
     <button type="button" class="text-button" data-wizard-back>Back</button>
@@ -248,93 +246,14 @@
   {% endif %}
   <div class="actions">
     {% if mode == 'join' and has_accounts %}<a href="/users/sign-in">Sign in</a>{% endif %}
-    {% if mode == 'admin' or mode == 'system' %}
+    {% if mode == 'admin' %}
       <a href="/">Home</a>
       <form action="/users/sign-out" method="post">{% csrf_token %}<button class="text-button">Sign out</button></form>
     {% endif %}
   </div>
-  {% if mode == 'system' %}
-  <section class="client-updates" id="offline-mode"><h2>Offline mode</h2>
-    {% if offline_mode %}<p><strong>On.</strong> <span class="secondary">Nightly jobs that need the internet are paused: release checks, approved app downloads and cinema downloads. Nothing reports internet errors.</span></p>
-    {% else %}<p><strong>Off.</strong> <span class="secondary">Nightly jobs use the internet for release checks and downloads. Turn this on when the internet is gone for good.</span></p>{% endif %}
-    <form action="/users/offline-mode" method="post">{% csrf_token %}<input type="hidden" name="offline" value="{% if offline_mode %}off{% else %}on{% endif %}"><button type="submit">{% if offline_mode %}Turn offline mode off{% else %}Turn offline mode on{% endif %}</button></form>
-  </section>
-  {% endif %}
-  {% if mode == 'system' %}
-  <section class="client-updates" id="trust-device"><h2>Trust on this device</h2>
-    <p class="secondary">Browsers show "connection is not private" until each browser on each phone or computer trusts PiVault's local certificate authority. The file is public and holds no private key.</p>
-    {% if ca_ready %}<p><a class="download" href="/system/ca.crt" download>Download pivault-root.crt</a></p>
-    {% else %}<p><strong>Not available yet.</strong> <span class="secondary">Run the PiVault installer to publish the certificate, then reload this page.</span></p>{% endif %}
-    {% if ca_fingerprint %}<p class="secondary">SHA-256 fingerprint: <code>{{ ca_fingerprint }}</code>. After you install it, the certificate viewer in your browser or system should show this same value. If it differs, do not trust the file.</p>{% endif %}
-    <p class="secondary">After a fresh install, download the file again and trust it on each device, because a new install can create a new authority.</p>
-    <details><summary>Firefox on desktop</summary>
-      <ol>
-        <li>Open Settings, then Privacy &amp; Security, then Certificates, then View Certificates.</li>
-        <li>On the Authorities tab, choose Import, select pivault-root.crt, and tick "Trust this CA to identify websites".</li>
-        <li>Reload PiVault.</li>
-      </ol>
-    </details>
-    <details><summary>Chrome or Chromium on Linux</summary>
-      <ol>
-        <li>Open Settings, then Privacy and security, then Security, then Manage certificates.</li>
-        <li>On the Authorities tab, choose Import, select pivault-root.crt, and tick "Trust this certificate for identifying websites".</li>
-        <li>Reload PiVault.</li>
-      </ol>
-    </details>
-    <details><summary>Chrome or Edge on Windows</summary>
-      <ol>
-        <li>Open pivault-root.crt and choose Install Certificate.</li>
-        <li>Choose Current User, then Place all certificates in the following store, then Browse, then Trusted Root Certification Authorities, then Finish.</li>
-        <li>Restart the browser and reload PiVault.</li>
-      </ol>
-    </details>
-    <details><summary>Chrome or Safari on macOS</summary>
-      <ol>
-        <li>Open pivault-root.crt. Keychain Access adds it to the login keychain.</li>
-        <li>Open the certificate whose name starts with Caddy Local Authority, expand Trust, and set "When using this certificate" to Always Trust. Enter your password when asked.</li>
-        <li>Reload PiVault.</li>
-      </ol>
-    </details>
-    <details><summary>Android</summary>
-      <ol>
-        <li>Download the file on the phone.</li>
-        <li>Open Settings, then Security (or Security and privacy), then Encryption and credentials, then Install a certificate, then CA certificate. Menu names vary by phone.</li>
-        <li>Select pivault-root.crt from Downloads and confirm.</li>
-        <li>Reload PiVault.</li>
-      </ol>
-    </details>
-    <details><summary>iPhone or iPad</summary>
-      <ol>
-        <li>Open the download link in Safari and allow the configuration profile download.</li>
-        <li>Open Settings, then General, then VPN &amp; Device Management, and install the PiVault profile.</li>
-        <li>Open Settings, then General, then About, then Certificate Trust Settings, and turn on full trust for the Caddy root.</li>
-      </ol>
-    </details>
-    <details><summary>Any other browser or device</summary>
-      <ol>
-        <li>Look in the browser's settings for "certificates" or "authorities", and find where it imports a certificate.</li>
-        <li>Import pivault-root.crt. If the browser asks what to trust it for, choose identifying websites.</li>
-        <li>If the browser has no such option, it uses the system store. Install the file through the operating system instead, using the steps for its system above.</li>
-        <li>Check the fingerprint above, then reload PiVault.</li>
-      </ol>
-    </details>
-    <h3>PiVault tools</h3>
-    <p class="secondary">One trusted root covers all of these. After trusting it, each should open without a warning.</p>
-    <ul class="tool-links">{% for name, url in tools %}<li><a href="{{ url }}">{{ name }}</a></li>{% endfor %}</ul>
-  </section>
-  {% endif %}
-  {% if mode == 'system' %}
-  <section class="client-updates"><h2>Local apps and extensions</h2>
-    <p class="secondary">{% if offline_mode %}Paused by offline mode. Already approved local copies stay available.{% else %}Checked and downloaded automatically each day at 2:00 AM. Installing on devices stays manual.{% endif %}</p>
-    <div class="client-row secondary"><span>Client</span><span>Local</span><span>Available</span><span>Status</span></div>
-    {% for client in client_rows %}<div class="client-row"><strong>{{ client.label }}</strong><span>{{ client.current }}</span><span>{{ client.latest }}</span>
-      <span>{{ client.status }}
-      {% if client.checked_at %}<small>Checked {{ client.checked_at }}</small>{% endif %}{% if client.error %}<small>{{ client.error }}</small>{% endif %}</span></div>{% endfor %}
-  </section>
-  {% endif %}
 </main>
 {% if request.user.is_authenticated and request.user.role == 'admin' %}<script src="/notifications/bell.js" defer></script>{% endif %}
-{% if mode != 'admin' and mode != 'system' %}<script src="/users/account-form.js" defer></script>{% endif %}
+{% if mode != 'admin' %}<script src="/users/account-form.js" defer></script>{% endif %}
 {% if mode == 'join' %}<script src="/users/vault.js" defer></script>{% endif %}
 {% if mode == 'admin' %}<script src="/users/add-wizard.js" defer></script>{% endif %}
 {% if shared_key %}<script src="/users/vault.js" defer></script><script src="/users/shared-copy.js" defer></script>{% endif %}

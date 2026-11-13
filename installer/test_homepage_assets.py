@@ -15,8 +15,8 @@ JS = (ROOT / 'stack/homepage-addon.js').read_text()
 EXTERNAL_URL = re.compile(r'https?://(?!www\.w3\.org/2000/svg)(?!\$\{location\.hostname\})')
 MODULE_FLAGS = ('piVaultTitleLoaded', 'piVaultUsersLoaded', 'piVaultNotificationsLoaded',
                 'piVaultLogoLoaded', 'piVaultStatusLoaded')
-ENDPOINTS = ('/users/session', '/notifications/api', '/notifications/seen',
-             '/services/status')
+ENDPOINTS = ('/users/session', '/notifications/api', '/notifications/seen', '/users/offline-mode',
+             '/certificate', '/services/status')
 
 
 class LauncherAssetTests(unittest.TestCase):
@@ -38,6 +38,17 @@ class LauncherAssetTests(unittest.TestCase):
     def test_each_module_loads_once(self):
         for flag in MODULE_FLAGS:
             self.assertEqual(JS.count(f'window.{flag} = true'), 1, flag)
+
+    def test_settings_links_the_certificate_page_and_no_system_page(self):
+        self.assertIn("'PiVault Certificate'", JS)
+        self.assertNotIn("'/system'", JS)
+        self.assertNotIn("'System'", JS)
+
+    def test_offline_control_sits_left_of_the_bell_and_posts_with_csrf(self):
+        self.assertIn('root.append(style,offlineButton,button,panel)', JS)
+        self.assertIn("'OFFLINE'", JS)
+        self.assertIn("headers:{'X-CSRFToken':state.csrf_token}", JS)
+        self.assertIn('.pv-offline-on', JS)
 
     def test_admin_bell_keeps_its_guard(self):
         self.assertIn('window.piVaultNotificationsLoaded = true;', JS)

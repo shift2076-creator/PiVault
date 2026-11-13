@@ -6,8 +6,8 @@
    Each module is independent, loads once (guarded by a window flag) and re-applies itself when Homepage
    re-renders the launcher. The server enforces every permission; this file only decides what to show.
 
-   Endpoints: /users/session, /users/add, /system, /devices, /notifications, /notifications/api,
-   /notifications/seen, /notifications/<id>, /services/status, /services/<key>/<verb>. */
+   Endpoints: /users/session, /users/add, /certificate, /devices, /notifications, /notifications/api,
+   /notifications/seen, /notifications/<id>, /users/offline-mode, /services/status, /services/<key>/<verb>. */
 
 
 /* Shared helpers, read by the modules below as window.piVault. */
@@ -64,7 +64,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
 })();
 
 
-/* Settings menu: Password Manager for everyone, plus Add User, System, Sync repo and Radicale for Admins.
+/* Settings menu: Password Manager for everyone, plus Add User, PiVault Certificate, Sync repo and Radicale for Admins.
    Password Manager's address is copied from its launcher tile, which custom.css hides. */
 (() => {
   if (window.piVaultUsersLoaded) return;
@@ -76,6 +76,8 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
   const LOCK = 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM7 11V7a5 5 0 0 1 10 0v4';
   const SYNC = 'M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15';
   const CALENDAR = 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z';
+  // Feather shield (MIT License), for the PiVault Certificate page.
+  const SHIELD = 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z';
   // Apps whose launcher tile is hidden; each menu link copies its address from that tile.
   const MOVED = [['li.service[data-name="Password Manager"]', 'Password Manager', LOCK]];
   const adminLinks = [];
@@ -125,12 +127,12 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
       panel.append(link);
     }
 
-    // The Android device registry and its approved-app sync live here, not on the System page.
+    // The Android device registry and its approved-app sync live here.
     // Radicale is served over HTTPS on port 5232 at the launcher's address.
     adminLinks.length = 0;
     adminLinks.push(
       menuLink('/users/add', USER_PLUS, 'Add User'),
-      menuLink('/system', GEAR, 'System'),
+      menuLink('/certificate', SHIELD, 'PiVault Certificate'),
       menuLink('/devices', SYNC, 'Sync repo'),
       menuLink(`https://${location.hostname}:5232/`, CALENDAR, 'Radicale'),
     );
@@ -187,7 +189,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
 (() => {
   if (window.piVaultNotificationsLoaded) return;
   window.piVaultNotificationsLoaded = true;
-  let root, button, badge, panel, list, summary, state, busy = false, opened = false;
+  let root, button, offlineButton, badge, panel, list, summary, state, busy = false, opened = false, offlineBusy = false;
   const make = (tag, text, className) => {
     const el = document.createElement(tag);
     if (text !== undefined) el.textContent = text;
@@ -206,7 +208,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     root = make('div'); root.id = 'pv-admin-notifications';
     const style = make('style');
     style.textContent = `
-      #pv-admin-notifications{position:relative;order:1;color:var(--pv-text,#e7ecf2);font:14px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+      #pv-admin-notifications{position:relative;order:1;display:flex;align-items:center;gap:8px;color:var(--pv-text,#e7ecf2);font:14px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
       #pv-admin-notifications [hidden]{display:none!important}
       #pv-admin-notifications .pv-bell{position:relative;display:grid;place-items:center;width:40px;height:40px;padding:8px;border:0;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer}
       #pv-admin-notifications .pv-bell:hover{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
@@ -220,7 +222,17 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
       #pv-admin-notifications p{margin:7px 0;overflow-wrap:anywhere}
       #pv-admin-notifications a{color:var(--pv-secondary,#91acc3);text-decoration:none}
       #pv-admin-notifications a:hover{color:var(--pv-text,#e8edf2)}
+      #pv-admin-notifications .pv-offline{display:grid;place-items:center;min-width:40px;height:40px;padding:0 9px;border:1px solid transparent;border-radius:.5em;background:transparent;color:var(--pv-secondary,#91acc3);cursor:pointer;font:700 12px/1 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;letter-spacing:.08em}
+      #pv-admin-notifications .pv-offline:hover{color:var(--pv-text,#e8edf2);background:rgba(151,170,190,.1)}
+      #pv-admin-notifications .pv-offline:focus-visible{outline:2px solid var(--pv-accent,#b4c0ce);outline-offset:4px}
+      #pv-admin-notifications .pv-offline:disabled{opacity:.6;cursor:progress}
+      #pv-admin-notifications .pv-offline-on{border-color:#e0b25c;color:#f2c46d;background:rgba(224,178,92,.12)}
+      #pv-admin-notifications .pv-offline-on:hover{color:#ffd98a;background:rgba(224,178,92,.2)}
     `;
+    offlineButton = make('button', undefined, 'pv-offline');
+    offlineButton.type = 'button'; offlineButton.setAttribute('aria-label', 'Offline mode');
+    offlineButton.setAttribute('aria-pressed', 'false');
+    offlineButton.addEventListener('click', toggleOffline);
     button = make('button', undefined, 'pv-bell');
     button.type = 'button'; button.setAttribute('aria-expanded', 'false');
     button.hidden = true;  // Shown only while there are open notices.
@@ -235,7 +247,7 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
     const heading = make('h2','Admin notifications');
     summary = make('div','', 'pv-summary'); list = make('ol');
     const all = make('a','All notifications'); all.href = '/notifications';
-    panel.append(heading,summary,list,all); root.append(style,button,panel); window.piVaultToolbar().append(root);
+    panel.append(heading,summary,list,all); root.append(style,offlineButton,button,panel); window.piVaultToolbar().append(root);
     button.addEventListener('click', async () => {
       if (opened) { close(); return; }
       opened = true; panel.hidden = false; button.setAttribute('aria-expanded', 'true');
@@ -249,9 +261,35 @@ window.piVaultToolbar = window.piVaultToolbar || (() => {
       } catch { /* Keep the saved events visible; no local-only read acknowledgement. */ }
     });
   }
+  // Feather globe (MIT License). Online shows the globe; offline shows the word OFFLINE.
+  const GLOBE = 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z';
+  function drawOffline() {
+    const offline = state.offline === true;
+    offlineButton.className = offline ? 'pv-offline pv-offline-on' : 'pv-offline';
+    offlineButton.setAttribute('aria-pressed', String(offline));
+    offlineButton.title = offline ? 'Offline mode is on. Click to turn it off.' : 'Online. Click to turn offline mode on.';
+    offlineButton.replaceChildren(offline ? document.createTextNode('OFFLINE') : window.piVault.icon(GLOBE, 22));
+  }
+  async function toggleOffline() {
+    if (!state || offlineBusy) return;
+    offlineBusy = true; offlineButton.disabled = true;
+    const body = new URLSearchParams({offline: state.offline === true ? 'off' : 'on'});
+    try {
+      const response = await fetch('/users/offline-mode', {method:'POST', credentials:'same-origin',
+        headers:{'X-CSRFToken':state.csrf_token}, body});
+      if (!response.ok) throw new Error(String(response.status));
+      state.offline = (await response.json()).offline === true;
+      drawOffline();
+    } catch {
+      await refresh(); // A failed change shows the server's own state.
+    } finally {
+      offlineBusy = false; offlineButton.disabled = false;
+    }
+  }
   function draw() {
     if (!state) return;
     mount();
+    drawOffline();
     badge.textContent = state.unread_count > 99 ? '99+' : String(state.unread_count);
     badge.hidden = state.unread_count === 0;
     button.hidden = state.items.length === 0;

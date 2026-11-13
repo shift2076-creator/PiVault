@@ -10,7 +10,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import DatabaseError, transaction
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
@@ -45,14 +45,7 @@ def page(request, mode, **context):
                                    for value, title in ACCESS_COLUMNS]})
     groups = [{'name': name, 'services': [s for s in services if s['category'] == name]} for name in CATEGORY_ORDER]
     groups = [group for group in groups if group['services']]
-    from .client_packages import client_rows
-    root = root_certificate() if mode == 'system' else None
     return render(request, 'users.html', {'mode': mode, 'services': services, 'groups': groups,
-                  'client_rows': client_rows() if mode == 'system' else [],
-                  'offline_mode': SiteSettings.is_offline() if mode in ('admin', 'system') else False,
-                  'ca_ready': root is not None,
-                  'ca_fingerprint': root_fingerprint(root) if root is not None else '',
-                  'tools': tool_links(request.get_host().split(':')[0]) if mode == 'system' else [],
                   'name': request.POST.get('name', ''),
                   'selected_role': request.POST.get('role', 'user'), **context}, status=status)
 
@@ -218,22 +211,24 @@ def add_user(request):
 
 
 @require_http_methods(['GET'])
-def system(request):
+def certificate(request):
     if not request.user.is_authenticated:
         return redirect('/users/sign-in')
     if request.user.role != 'admin':
         return HttpResponseForbidden()
-    return page(request, 'system')
+    root = root_certificate()
+    return render(request, 'certificate.html', {
+        'ca_ready': root is not None,
+        'ca_fingerprint': root_fingerprint(root) if root is not None else '',
+        'tools': tool_links(request.get_host().split(':')[0]),
+    })
 
 
+# Admin-only through admin_only in urls.py. The launcher and the portal bell call this with fetch.
 @require_POST
 def offline_mode(request):
-    if not request.user.is_authenticated:
-        return redirect('/users/sign-in')
-    if request.user.role != 'admin':
-        return HttpResponseForbidden()
     SiteSettings.set_offline(request.POST.get('offline') == 'on')
-    return redirect('/system')
+    return JsonResponse({'offline': SiteSettings.is_offline()})
 
 
 @require_POST

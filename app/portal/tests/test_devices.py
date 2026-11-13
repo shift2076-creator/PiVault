@@ -198,15 +198,15 @@ class CaCertificateTests(DeviceTestCase):
         self.assertEqual(b''.join(response.streaming_content), b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
 
 
-class SettingsCertificateTests(DeviceTestCase):
-    def test_settings_download_is_admin_only_and_matches_the_installed_root(self):
+class CertificateDownloadTests(DeviceTestCase):
+    def test_certificate_download_is_admin_only_and_matches_the_installed_root(self):
         self.client.force_login(self.user)
-        self.assertEqual(self.client.get('/system/ca.crt', secure=True).status_code, 403)
+        self.assertEqual(self.client.get('/certificate/ca.crt', secure=True).status_code, 403)
         self.client.force_login(self.admin)
-        self.assertEqual(self.client.get('/system/ca.crt', secure=True).status_code, 404)
+        self.assertEqual(self.client.get('/certificate/ca.crt', secure=True).status_code, 404)
         with override_settings(DATA_DIR=self.root):
             (self.root / 'caddy-root.crt').write_bytes(b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
-            response = self.client.get('/system/ca.crt', secure=True)
+            response = self.client.get('/certificate/ca.crt', secure=True)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/x-x509-ca-cert')
         self.assertIn('attachment; filename="pivault-root.crt"', response['Content-Disposition'])
@@ -238,18 +238,18 @@ class RootFingerprintTests(SimpleTestCase):
             self.assertEqual(device_views.root_fingerprint(Path(tmp) / 'missing.crt'), '')
 
 
-class SettingsTrustTests(DeviceTestCase):
+class CertificatePageTests(DeviceTestCase):
     def test_settings_offers_the_root_download_only_once_it_is_published(self):
         self.client.force_login(self.admin)
         with override_settings(DATA_DIR=self.root):
-            response = self.client.get('/system', secure=True)
+            response = self.client.get('/certificate', secure=True)
             self.assertContains(response, 'Trust on this device')
             self.assertContains(response, 'Not available yet')
-            self.assertNotContains(response, 'href="/system/ca.crt"')
+            self.assertNotContains(response, 'href="/certificate/ca.crt"')
             (self.root / 'caddy-root.crt').write_bytes(b'-----BEGIN CERTIFICATE-----\nfixture\n-----END CERTIFICATE-----\n')
-            response = self.client.get('/system', secure=True)
+            response = self.client.get('/certificate', secure=True)
         self.assertNotContains(response, 'Not available yet')
-        self.assertContains(response, 'href="/system/ca.crt" download')
+        self.assertContains(response, 'href="/certificate/ca.crt" download')
         self.assertContains(response, 'Trust this CA to identify websites')
 
     def test_settings_shows_the_fingerprint_and_every_tool_address(self):
@@ -257,7 +257,7 @@ class SettingsTrustTests(DeviceTestCase):
         der = b'pivault-root-der-fixture'
         with override_settings(DATA_DIR=self.root):
             (self.root / 'caddy-root.crt').write_text(pem_fixture(der), encoding='ascii')
-            response = self.client.get('/system', secure=True)
+            response = self.client.get('/certificate', secure=True)
         self.assertContains(response, colon_hex(der))
         self.assertContains(response, 'Any other browser or device')
         # Port 443 is the browser default, so the launcher address has no port.
@@ -268,20 +268,22 @@ class SettingsTrustTests(DeviceTestCase):
 
     def test_tool_addresses_follow_the_host_the_admin_used(self):
         self.client.force_login(self.admin)
-        response = self.client.get('/system', secure=True, HTTP_HOST='192.168.4.90')
+        response = self.client.get('/certificate', secure=True, HTTP_HOST='192.168.4.90')
         self.assertContains(response, 'href="https://192.168.4.90/music/"')
         self.assertContains(response, 'href="https://192.168.4.90:8448/"')
         self.assertContains(response, 'href="https://192.168.4.90/"')
 
 
-class SystemPageTests(DeviceTestCase):
-    def test_system_page_no_longer_links_to_devices(self):
-        # The device sync entry lives in the Settings menu (stack/homepage-addon.js), not on the System page.
+class CertificateScopeTests(DeviceTestCase):
+    def test_certificate_page_is_admin_only_and_the_system_page_is_gone(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get('/certificate', secure=True).status_code, 403)
         self.client.force_login(self.admin)
-        response = self.client.get('/system')
+        response = self.client.get('/certificate', secure=True)
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'id="android-devices"')
-        self.assertNotContains(response, 'Manage phones and approved app sync')
+        self.assertNotContains(response, 'Offline mode')
+        self.assertNotContains(response, 'Local apps and extensions')
+        self.assertEqual(self.client.get('/system', secure=True).status_code, 404)
 
 
 class SyncServiceTests(DeviceTestCase):
