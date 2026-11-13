@@ -7,10 +7,15 @@ BEGIN = '# BEGIN PIVAULT USERS INSTALLER'
 END = '# END PIVAULT USERS INSTALLER'
 JS_BEGIN = '/* BEGIN PIVAULT USERS INSTALLER */'
 JS_END = '/* END PIVAULT USERS INSTALLER */'
-# The portal shares the launcher's site; the vault has its own site on port 443.
+# The PiVault launcher and portal are the root address; Vaultwarden has its own HTTPS port.
 PORTAL_HOST = '192.168.4.90'
-PORTAL_PORT = 8443
-PORTAL_SITE = f'https://{PORTAL_HOST}:{PORTAL_PORT}'
+PORTAL_PORT = 443
+PORTAL_SITE = f'https://{PORTAL_HOST}'
+# The launcher used to live on 8443. That address now only redirects to the root.
+OLD_LAUNCHER_PORT = 8443
+OLD_LAUNCHER_SITE = f'https://{PORTAL_HOST}:{OLD_LAUNCHER_PORT}'
+VAULT_PORT = 8448
+VAULT_SITE = f'https://{PORTAL_HOST}:{VAULT_PORT}'
 SERVICE = 'pivault-users'
 # Radicale's config folder on the Pi. The portal writes its htpasswd login file here.
 RADICALE_CONFIG_FOLDER = '/home/snx/radicale/config'
@@ -40,7 +45,7 @@ LAUNCHER_AUTH = '''
     header @pivault_launcher_auth Cache-Control "no-store, private"
     forward_auth @pivault_launcher_auth pivault-users:8000 {
         uri /internal/gate
-        header_up Host 192.168.4.90:8443
+        header_up Host 192.168.4.90
         header_up X-Forwarded-Proto https
         header_up X-PiVault-Client-IP {remote_host}
         @pivault_launcher_login status 401
@@ -95,9 +100,72 @@ def tokens(text):
             yield value, match.start(), match.end()
 
 
+VAULT_ROUTE = 'reverse_proxy vaultwarden:80'
+LAUNCHER_ROUTE = 'reverse_proxy homepage:3000'
+ROOT_NAMES = {PORTAL_SITE, f'{PORTAL_HOST}:{PORTAL_PORT}'}
+OLD_LAUNCHER_NAMES = {OLD_LAUNCHER_SITE, f'{PORTAL_HOST}:{OLD_LAUNCHER_PORT}'}
+VAULT_NAMES = {VAULT_SITE, f'{PORTAL_HOST}:{VAULT_PORT}'}
+
+
+def site_blocks(text):
+    # Top-level Caddy site blocks, each with its address names and character positions.
+    depth = 0
+    header = []
+    header_start = None
+    opened = None
+    blocks = []
+    for value, start, finish in tokens(text):
+        if value == '{':
+            if depth == 0:
+                names = [x.strip(',').strip('"`') for x in header]
+                opened = (names, header_start, finish)
+                header = []
+            depth += 1
+        elif value == '}':
+            depth -= 1
+            if depth < 0:
+                raise ValueError('Caddyfile has unbalanced blocks.')
+            if depth == 0:
+                names, begin, body = opened
+                blocks.append({'names': names, 'start': begin, 'body': text[body:start], 'end': finish})
+                header = []
+        elif depth == 0:
+            if not header:
+                header_start = start
+            header.append(value)
+    if depth:
+        raise ValueError('Caddyfile has unbalanced blocks.')
+    return blocks
+
+
+def move_vault_to_own_port(text):
+    # Live layout: Vaultwarden on the root address, the launcher on 8443.
+    # Target layout: the launcher on the root address, Vaultwarden on VAULT_PORT,
+    # and 8443 redirects to the root so old bookmarks still work.
+    blocks = site_blocks(text)
+    if any(set(block['names']) & VAULT_NAMES for block in blocks):
+        return text
+    roots = [block for block in blocks if set(block['names']) & ROOT_NAMES]
+    launchers = [block for block in blocks if set(block['names']) & OLD_LAUNCHER_NAMES]
+    if (len(roots) != 1 or len(launchers) != 1 or VAULT_ROUTE not in roots[0]['body']
+            or LAUNCHER_ROUTE not in launchers[0]['body']):
+        raise ValueError('Expected Vaultwarden on ' + PORTAL_SITE + ' and the launcher on ' + OLD_LAUNCHER_SITE + '.')
+    root, launcher = roots[0], launchers[0]
+    redirect = ('%s {\n    tls internal\n    redir %s{uri} 302\n}\n' % (OLD_LAUNCHER_SITE, PORTAL_SITE))
+    vault = VAULT_SITE + ' {' + root['body'] + '}\n'
+    edits = [
+        (root['start'], root['end'], PORTAL_SITE + ' {' + launcher['body'] + '}'),
+        (launcher['start'], launcher['end'], redirect + vault),
+    ]
+    for start, finish, replacement in sorted(edits, reverse=True):
+        text = text[:start] + replacement + text[finish:]
+    return text
+
+
 def portal_caddyfile(text):
     clean = replace_managed(text, BEGIN, END)
     clean = replace_managed(clean, LAUNCHER_BEGIN, LAUNCHER_END)
+    clean = move_vault_to_own_port(clean)
     if '@pivault_users_installer' in clean:
         raise ValueError('The portal matcher already exists outside its managed block.')
     depth = 0
@@ -166,7 +234,7 @@ def apps_caddyfile(text):
     return clean.rstrip('\n') + '\n\n' + block + '\n'
 
 
-def private_vault_admin(text, host):
+def private_vault_admin(text, site=VAULT_SITE):
     begin = '# BEGIN PIVAULT PRIVATE VAULT ADMIN'
     end = '# END PIVAULT PRIVATE VAULT ADMIN'
     clean = replace_managed(text, begin, end)
@@ -175,7 +243,7 @@ def private_vault_admin(text, host):
         if value == '{':
             if depth == 0:
                 names = [x.strip(',').strip('"`') for x in header]
-                if any(name in (host, 'https://' + host, host + ':443', 'https://' + host + ':443') for name in names):
+                if any(name in (site, site[len('https://'):]) for name in names):
                     positions.append(finish)
                 header = []
             depth += 1
@@ -227,6 +295,25 @@ def compose_configuration(original, *, image, uid, gid, network_names, radicale_
     if network_names:
         service['networks'] = list(network_names)
     services[SERVICE] = service
+    return result
+
+
+def front_door_compose(original, caddy_service):
+    # Caddy publishes Vaultwarden's own port, and the homepage accepts the root address.
+    result = copy.deepcopy(original)
+    services = result.get('services', {})
+    caddy = services.get(caddy_service)
+    homepage = services.get('homepage')
+    if caddy is None or homepage is None:
+        raise ValueError('The Caddy or homepage Compose service is missing.')
+    published = f'{PORTAL_HOST}:{VAULT_PORT}:{VAULT_PORT}'
+    ports = caddy.setdefault('ports', [])
+    if not any(str(item).split('/')[0] == published for item in ports):
+        ports.append(published)
+    environment = homepage.setdefault('environment', {})
+    if not isinstance(environment, dict):
+        raise ValueError('The homepage Compose environment must be a mapping.')
+    environment['HOMEPAGE_ALLOWED_HOSTS'] = f'{PORTAL_HOST}:8086,{PORTAL_HOST}'
     return result
 
 
@@ -289,15 +376,15 @@ def verify_routes(before, after, vault_host=None):
         value = terminal_handler(after, PORTAL_HOST, path, PORTAL_PORT)
         if not value or value.get('handler') != 'static_response' or value.get('status_code') != 404:
             raise ValueError('The private authentication endpoint would be publicly reachable.')
-    if (terminal_handler(before, PORTAL_HOST, '/', PORTAL_PORT)
+    if (terminal_handler(before, PORTAL_HOST, '/', OLD_LAUNCHER_PORT)
             != terminal_handler(after, PORTAL_HOST, '/', PORTAL_PORT)):
         raise ValueError('The candidate configuration changes the existing launcher route.')
-    if terminal_handler(before, PORTAL_HOST, '/') != terminal_handler(after, PORTAL_HOST, '/'):
-        raise ValueError('The candidate configuration changes the existing Vaultwarden IP route.')
+    if terminal_handler(before, PORTAL_HOST, '/', PORTAL_PORT) != terminal_handler(after, PORTAL_HOST, '/', VAULT_PORT):
+        raise ValueError('The candidate configuration changes the existing Vaultwarden route.')
     if before.get('apps', {}).get('tls') != after.get('apps', {}).get('tls'):
         raise ValueError('The candidate configuration changes TLS settings.')
     if vault_host:
         for path in ('/admin', '/admin/users'):
-            value = terminal_handler(after, vault_host, path)
+            value = terminal_handler(after, vault_host, path, VAULT_PORT)
             if not value or value.get('handler') != 'static_response' or value.get('status_code') != 404:
                 raise ValueError('Vault administration must remain private to the enrollment backend.')

@@ -26,7 +26,7 @@ try:
 except ImportError:
     raise SystemExit('The Pi needs its existing python3-yaml package. Nothing was installed.')
 
-from configuration import (PORTAL_SITE, SERVICE, compose_configuration, homepage_js,
+from configuration import (PORTAL_SITE, SERVICE, compose_configuration, front_door_compose, homepage_js,
                            apps_caddyfile, portal_caddyfile, private_vault_admin, verify_routes)
 from native import vault_configuration, maintenance_units
 
@@ -332,6 +332,7 @@ def install_portal():
     original_compose = yaml.safe_load(COMPOSE.read_text())
     caddy = inspect(CADDY)
     caddy_service, project = compose_service(original_compose, caddy)
+    caddy_name = caddy['Config']['Labels']['com.docker.compose.service']
     networks = list(caddy_service.get('networks', []))
     caddyfile = container_path(caddy, '/etc/caddy/Caddyfile')
     # Check the active container actually uses the Caddyfile this installer edits.
@@ -356,7 +357,11 @@ def install_portal():
         if not image_reference or run(['docker', 'image', 'inspect', '--format', '{{.Id}}', image_reference]).strip() != vault.get('Image'):
             raise InstallError('The configured vault image differs from its running image. Review that image change separately before enrollment is installed.')
     if vault_plan['protect_admin']:
-        caddy_candidate = private_vault_admin(caddy_candidate, vault_plan['host'])
+        caddy_candidate = private_vault_admin(caddy_candidate, vault_plan['public_url'])
+    front_door = front_door_compose(vault_plan['document'], caddy_name)
+    # A new published port needs the Caddy container recreated, not only reloaded.
+    caddy_ports_changed = (front_door['services'][caddy_name].get('ports')
+                           != original_compose['services'][caddy_name].get('ports'))
     runtime_path = ROOT / 'users/maintenance.py'
     maintenance_config = CONFIG / 'users/maintenance.json'
     units = maintenance_units(runtime_path)
@@ -379,7 +384,7 @@ def install_portal():
     # Radicale's folder is mounted only once its portal entry exists in native.json.
     native_path = CONFIG / 'users/native.json'
     native_now = json.loads(native_path.read_text()) if native_path.is_file() else {}
-    candidate_document = compose_configuration(vault_plan['document'], image=image,
+    candidate_document = compose_configuration(front_door, image=image,
         uid=uid, gid=gid, network_names=networks, radicale_config='radicale' in native_now,
         music_private=bool((native_now.get('navidrome') or {}).get('private_root')))
 
@@ -461,6 +466,7 @@ def install_portal():
         started = False
         old_stopped = False
         data_snapshot = False
+        caddy_recreated = False
         vault_changed = False
         timers_changed = False
         try:
@@ -495,8 +501,12 @@ def install_portal():
                         raise
                     time.sleep(2)
             write_file(caddyfile, caddy_candidate)
-            run(['docker', 'exec', CADDY, 'caddy', 'reload', '--config',
-                 '/etc/caddy/Caddyfile', '--adapter', 'caddyfile'])
+            if caddy_ports_changed:
+                caddy_recreated = True
+                run(live + ['up', '-d', '--no-deps', caddy_name], stage='Caddy ports')
+            else:
+                run(['docker', 'exec', CADDY, 'caddy', 'reload', '--config',
+                     '/etc/caddy/Caddyfile', '--adapter', 'caddyfile'])
             portal_probe()
             publish_root_certificate(data_dir, uid, gid)
             write_file(custom_js, js_candidate, mode=0o644)
@@ -555,8 +565,11 @@ def install_portal():
                 except Exception:
                     recovery_errors.append('previous Vaultwarden container')
             try:
-                run(['docker', 'exec', CADDY, 'caddy', 'reload', '--config',
-                     '/etc/caddy/Caddyfile', '--adapter', 'caddyfile'])
+                if caddy_recreated:
+                    run(live + ['up', '-d', '--no-deps', caddy_name])
+                else:
+                    run(['docker', 'exec', CADDY, 'caddy', 'reload', '--config',
+                         '/etc/caddy/Caddyfile', '--adapter', 'caddyfile'])
             except Exception:
                 recovery_errors.append('Caddy reload')
             if old_container and (started or old_stopped):

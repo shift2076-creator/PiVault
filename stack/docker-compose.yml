@@ -88,7 +88,7 @@ services:
     image: vaultwarden/server:1.37.4
     container_name: pivault-vaultwarden
     environment:
-      DOMAIN: https://192.168.4.90
+      DOMAIN: https://192.168.4.90:8448
       SIGNUPS_ALLOWED: 'false'
     volumes:
     - /srv/pi-server/config/vaultwarden:/data
@@ -104,6 +104,7 @@ services:
     - 192.168.4.90:80:80
     - 192.168.4.90:443:443
     - 192.168.4.90:8443:8443/tcp
+    - 192.168.4.90:8448:8448
     - 192.168.4.90:8446:8446
     - 192.168.4.90:8447:8447
     - 192.168.4.90:8083:8083
@@ -122,7 +123,7 @@ services:
     container_name: pivault-homepage
     ports: []
     environment:
-      HOMEPAGE_ALLOWED_HOSTS: 192.168.4.90:8086,192.168.4.90:8443
+      HOMEPAGE_ALLOWED_HOSTS: 192.168.4.90:8086,192.168.4.90
       PUID: '1000'
       PGID: '1000'
     volumes:

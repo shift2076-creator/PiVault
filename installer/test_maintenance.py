@@ -12,7 +12,7 @@ import configuration
 
 
 class NativeConfigurationTests(unittest.TestCase):
-    def plan(self, *, env=None, native_config=None, vault_settings=None):
+    def plan(self, *, env=None, native_config=None, vault_settings=None, domain='https://192.168.4.90:8448'):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         root = Path(self.temp.name)
@@ -23,8 +23,8 @@ class NativeConfigurationTests(unittest.TestCase):
             (root / 'users').mkdir()
             (root / 'users/native.json').write_text(json.dumps(native_config))
         document = {'services': {'vaultwarden': {'image': 'existing-vault',
-                    'environment': {'DOMAIN': 'https://192.168.4.90', 'SIGNUPS_ALLOWED': 'false'}}}}
-        container = {'Config': {'Env': ['DOMAIN=https://192.168.4.90', *(env or [])],
+                    'environment': {'DOMAIN': domain, 'SIGNUPS_ALLOWED': 'false'}}}}
+        container = {'Config': {'Env': ['DOMAIN=' + domain, *(env or [])],
                      'Labels': {'com.docker.compose.service': 'vaultwarden'}}}
         return native.vault_configuration(document, container, root, data)
 
@@ -37,6 +37,12 @@ class NativeConfigurationTests(unittest.TestCase):
         saved = next(json.loads(v) for k, v in plan['files'].items() if k.name == 'native.json')
         self.assertEqual(saved['vaultwarden']['origin'], 'http://vaultwarden:80')
         self.assertGreater(len(saved['vaultwarden']['admin_token']), 50)
+
+    def test_old_root_domain_is_recreated_on_the_vault_port(self):
+        plan = self.plan(domain='https://192.168.4.90')
+        self.assertEqual(plan['document']['services']['vaultwarden']['environment']['DOMAIN'], 'https://192.168.4.90:8448')
+        self.assertEqual(plan['public_url'], 'https://192.168.4.90:8448')
+        self.assertTrue(plan['needs_restart'])
 
     def test_existing_raw_admin_is_preserved_without_restart_or_public_route_change(self):
         plan = self.plan(env=['ADMIN_TOKEN=existing-fixture-admin'])
@@ -62,9 +68,9 @@ class NativeConfigurationTests(unittest.TestCase):
         self.assertTrue(plan['protect_admin'])
 
     def test_private_admin_block_is_idempotent(self):
-        source = 'https://192.168.4.90 {\n tls internal\n reverse_proxy vaultwarden:80\n}\n'
-        first = configuration.private_vault_admin(source, '192.168.4.90')
-        self.assertEqual(first, configuration.private_vault_admin(first, '192.168.4.90'))
+        source = 'https://192.168.4.90:8448 {\n tls internal\n reverse_proxy vaultwarden:80\n}\n'
+        first = configuration.private_vault_admin(source, configuration.VAULT_SITE)
+        self.assertEqual(first, configuration.private_vault_admin(first, configuration.VAULT_SITE))
         self.assertIn('path /admin /admin/*', first)
         self.assertIn('reverse_proxy vaultwarden:80', first)
 

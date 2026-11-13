@@ -37,7 +37,24 @@ https://192.168.4.90 {
 '''
 
 
+def _tls():
+    return {'automation': {'policies': [{'issuers': [{'module': 'internal'}]}]}}
+
+
+def live_config():
+    # Caddy JSON before the move: Vaultwarden on the root address, the launcher on 8443.
+    homepage = {'handler': 'reverse_proxy', 'upstreams': [{'dial': 'homepage:3000'}]}
+    return {'apps': {'tls': _tls(), 'http': {'servers': {
+        'srv0': {'listen': [':443'], 'routes': [
+            {'match': [{'host': ['192.168.4.90']}], 'handle': [
+                {'handler': 'reverse_proxy', 'upstreams': [{'dial': 'vaultwarden:80'}]}]}]},
+        'srv1': {'listen': [':8443'], 'routes': [
+            {'match': [{'host': ['192.168.4.90']}], 'handle': [{'handler': 'subroute', 'routes': [{'handle': [homepage]}]}]}]},
+    }}}}
+
+
 def native_config(portal=False):
+    # Caddy JSON after the move: the launcher on the root, 8443 redirects, Vaultwarden on 8448.
     homepage = {'handler': 'reverse_proxy', 'upstreams': [{'dial': 'homepage:3000'}]}
     routes = [{'handle': [homepage]}]
     if portal:
@@ -50,27 +67,56 @@ def native_config(portal=False):
                     'headers': {'request': {'set': {'X-Forwarded-Proto': ['https'],
                         'X-Pivault-Client-Ip': ['{http.request.remote.host}']}}}}]},
             ]}]})
-    return {'apps': {'tls': {'automation': {'policies': [{'issuers': [{'module': 'internal'}]}]}},
-        'http': {'servers': {
-            'srv0': {'listen': [':443'], 'routes': [
-                {'match': [{'host': ['192.168.4.90']}], 'handle': [
-                    {'handler': 'reverse_proxy', 'upstreams': [{'dial': 'vaultwarden:80'}]}]}]},
-            'srv1': {'listen': [':8443'], 'routes': [
-                {'match': [{'host': ['192.168.4.90']}], 'handle': [{'handler': 'subroute', 'routes': routes}]}]},
-        }}}}
+    redirect = {'handler': 'static_response', 'status_code': 302,
+                'headers': {'Location': ['https://192.168.4.90{http.request.uri}']}}
+    return {'apps': {'tls': _tls(), 'http': {'servers': {
+        'srv0': {'listen': [':443'], 'routes': [
+            {'match': [{'host': ['192.168.4.90']}], 'handle': [{'handler': 'subroute', 'routes': routes}]}]},
+        'srv1': {'listen': [':8443'], 'routes': [
+            {'match': [{'host': ['192.168.4.90']}], 'handle': [redirect]}]},
+        'srv2': {'listen': [':8448'], 'routes': [
+            {'match': [{'host': ['192.168.4.90']}], 'handle': [
+                {'handler': 'reverse_proxy', 'upstreams': [{'dial': 'vaultwarden:80'}]}]}]},
+    }}}}
 
 
 class ConfigurationTests(unittest.TestCase):
-    def test_existing_certificate_and_vault_route_bytes_are_preserved(self):
+    def test_vault_moves_to_its_own_port_and_the_launcher_takes_the_root(self):
         output = config.portal_caddyfile(CADDYFILE)
-        self.assertEqual(output[output.index('https://192.168.4.90 {'):],
-                         CADDYFILE[CADDYFILE.index('https://192.168.4.90 {'):])
-        managed = output.index(config.BEGIN)
-        self.assertLess(output.index('https://192.168.4.90:8443 {'), managed)
-        self.assertLess(managed, output.index('https://192.168.4.90 {'))
-        self.assertEqual(output.count('tls internal'), 2)
+        redirect_start = output.index('https://192.168.4.90:8443 {')
+        vault_start = output.index('https://192.168.4.90:8448 {')
+        root_start = output.index('https://192.168.4.90 {')
+        redirect, vault, root = output[redirect_start:vault_start], output[vault_start:root_start], output[root_start:]
+        self.assertIn('redir https://192.168.4.90{uri} 302', redirect)
+        self.assertIn('reverse_proxy vaultwarden:80', vault)
+        self.assertNotIn('vaultwarden', root)
+        self.assertIn('reverse_proxy homepage:3000', root)
+        self.assertLess(root.index(config.BEGIN), root.index('reverse_proxy homepage:3000'))
+        self.assertEqual(output.count('tls internal'), 3)
         self.assertIn('header_up X-PiVault-Client-IP {remote_host}', output)
         self.assertIn('respond @pivault_users_internal 404', output)
+
+    def test_move_is_applied_once_and_keeps_later_runs_identical(self):
+        first = config.portal_caddyfile(CADDYFILE)
+        self.assertEqual(first, config.portal_caddyfile(first))
+        self.assertEqual(first.count('https://192.168.4.90:8448 {'), 1)
+
+    def test_front_door_publishes_the_vault_port_once_and_accepts_the_root_host(self):
+        original = {'services': {'https': {'ports': ['443:443']},
+                                 'homepage': {'environment': {'HOMEPAGE_ALLOWED_HOSTS': '192.168.4.90:8086'}}}}
+        once = config.front_door_compose(original, 'https')
+        self.assertIn('192.168.4.90:8448:8448', once['services']['https']['ports'])
+        self.assertEqual(config.front_door_compose(once, 'https'), once)
+        self.assertEqual(once['services']['homepage']['environment']['HOMEPAGE_ALLOWED_HOSTS'],
+                         '192.168.4.90:8086,192.168.4.90')
+        self.assertEqual(original['services']['https']['ports'], ['443:443'])
+
+    def test_repo_compose_template_matches_the_vault_address(self):
+        import yaml
+        document = yaml.safe_load((HERE.parent / 'stack/docker-compose.yml').read_text())
+        self.assertEqual(document['services']['vaultwarden']['environment']['DOMAIN'], config.VAULT_SITE)
+        self.assertIn(f'{config.PORTAL_HOST}:{config.VAULT_PORT}:{config.VAULT_PORT}',
+                      document['services']['vault-https']['ports'])
 
     def test_updates_do_not_duplicate_the_managed_route(self):
         first = config.portal_caddyfile(CADDYFILE)
@@ -144,14 +190,14 @@ class ConfigurationTests(unittest.TestCase):
                 image='pivault-users:test', uid=1000, gid=1000, network_names=[])
 
     def test_native_routing_verification_accepts_only_the_private_portal(self):
-        config.verify_routes(native_config(), native_config(True))
+        config.verify_routes(live_config(), native_config(True))
 
     def test_system_must_reach_the_portal(self):
         bad = native_config(True)
-        paths = bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['match'][0]['path']
+        paths = bad['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][0]['match'][0]['path']
         paths.remove('/system')
         with self.assertRaisesRegex(ValueError, 'do not reach the portal'):
-            config.verify_routes(native_config(), bad)
+            config.verify_routes(live_config(), bad)
 
     def test_managed_route_includes_devices(self):
         self.assertIn(' /devices /devices/* ', config.portal_caddyfile(CADDYFILE))
@@ -191,29 +237,29 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_public_gate_is_rejected(self):
         bad = native_config(True)
-        bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'].pop(0)
+        bad['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'].pop(0)
         with self.assertRaisesRegex(ValueError, 'publicly reachable'):
-            config.verify_routes(native_config(), bad)
+            config.verify_routes(live_config(), bad)
 
     def test_preserves_the_launcher_vault_and_tls(self):
         for mutate in ('launcher', 'vault', 'tls'):
             bad = native_config(True)
             servers = bad['apps']['http']['servers']
             if mutate == 'launcher':
-                servers['srv1']['routes'][0]['handle'][0]['routes'][-1]['handle'][0]['upstreams'][0]['dial'] = 'different:3000'
+                servers['srv0']['routes'][0]['handle'][0]['routes'][-1]['handle'][0]['upstreams'][0]['dial'] = 'different:3000'
             elif mutate == 'vault':
-                servers['srv0']['routes'][0]['handle'][0]['upstreams'][0]['dial'] = 'different:80'
+                servers['srv2']['routes'][0]['handle'][0]['upstreams'][0]['dial'] = 'different:80'
             else:
                 bad['apps']['tls'] = {}
             with self.assertRaises(ValueError):
-                config.verify_routes(native_config(), bad)
+                config.verify_routes(live_config(), bad)
 
     def test_spoofable_protocol_or_client_ip_is_rejected(self):
         bad = native_config(True)
-        proxy = bad['apps']['http']['servers']['srv1']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'][-1]['handle'][0]
+        proxy = bad['apps']['http']['servers']['srv0']['routes'][0]['handle'][0]['routes'][0]['handle'][0]['routes'][-1]['handle'][0]
         proxy['headers']['request']['set']['X-Pivault-Client-Ip'] = ['{http.request.header.X-Forwarded-For}']
         with self.assertRaisesRegex(ValueError, 'trusted HTTPS'):
-            config.verify_routes(native_config(), bad)
+            config.verify_routes(live_config(), bad)
 
     def test_bind_mounted_file_keeps_its_inode(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -282,8 +328,8 @@ class ProbeTests(unittest.TestCase):
 
     def test_probe_uses_the_live_ip_site_with_tls_verification(self):
         calls = self.probe('<input name="password"> Sign in')
-        self.assertEqual([c[-1] for c in calls], ['https://192.168.4.90:8443/users/sign-in',
-                                                   'https://192.168.4.90:8443/internal/gate'])
+        self.assertEqual([c[-1] for c in calls], ['https://192.168.4.90/users/sign-in',
+                                                   'https://192.168.4.90/internal/gate'])
         for args in calls:
             self.assertIn('--cacert', args)
             self.assertNotIn('--resolve', args)
@@ -404,7 +450,8 @@ class InstallationTransactionTests(unittest.TestCase):
             compose = folder / 'pi-services/docker-compose.yml'
             compose.parent.mkdir()
             original = {'version': '3.8', 'services': {
-                'https': {'image': 'existing-caddy'},
+                'https': {'image': 'existing-caddy', 'ports': ['443:443', '8443:8443/tcp']},
+                'homepage': {'image': 'existing-homepage', 'environment': {'HOMEPAGE_ALLOWED_HOSTS': '192.168.4.90:8086,192.168.4.90:8443'}},
                 'vaultwarden': {'image': 'existing-vault'},
                 'video': {'image': 'existing-video', 'ports': ['8096:8096']},
                 'pivault-users': {'image': 'previous-users', 'labels': {'org.pivault.managed': 'users-installer'}},
@@ -452,7 +499,7 @@ class InstallationTransactionTests(unittest.TestCase):
                 if name == 'pivault-homepage':
                     return {'Mounts': [{'Destination': '/app/config', 'Source': str(homepage)}]}
                 if name == 'pivault-vaultwarden':
-                    return {'Config': {'Env': ['DOMAIN=https://192.168.4.90', 'ADMIN_TOKEN=fixture-token'],
+                    return {'Config': {'Env': ['DOMAIN=https://192.168.4.90:8448', 'ADMIN_TOKEN=fixture-token'],
                         'Labels': {'com.docker.compose.service': 'vaultwarden'}},
                         'Mounts': [{'Destination': '/data', 'Source': str(vault_data)}],
                         'State': {'Running': True}}
@@ -461,7 +508,7 @@ class InstallationTransactionTests(unittest.TestCase):
             def run(args, **kwargs):
                 calls.append(args)
                 if 'adapt' in args:
-                    return json.dumps(native_config())
+                    return json.dumps(live_config())
                 if 'migrate' in args:
                     database.write_bytes(b'NEW_DATABASE_FORMAT')
                 if 'shell' in args:
@@ -596,7 +643,7 @@ class StageOutputTests(unittest.TestCase):
 
 class ToolListTests(unittest.TestCase):
     # app/portal/tools.py lists the addresses on the Settings page. Each port must be served by Caddy:
-    # an app site from APP_SITES, the launcher (PORTAL_PORT) or the vault on 443.
+    # an app site from APP_SITES, the launcher (PORTAL_PORT), the vault (VAULT_PORT) or the old launcher redirect (OLD_LAUNCHER_PORT).
     def load_tools(self):
         spec = importlib.util.spec_from_file_location('portal_tools', HERE.parent / 'app' / 'portal' / 'tools.py')
         module = importlib.util.module_from_spec(spec)
@@ -604,7 +651,7 @@ class ToolListTests(unittest.TestCase):
         return module.TOOLS
 
     def test_every_listed_tool_is_served_by_caddy(self):
-        served = config.APP_PORTS | {443, config.PORTAL_PORT}
+        served = config.APP_PORTS | {config.PORTAL_PORT, config.VAULT_PORT, config.OLD_LAUNCHER_PORT}
         tools = self.load_tools()
         self.assertTrue(tools)
         for name, port, path in tools:

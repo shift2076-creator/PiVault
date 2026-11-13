@@ -5,6 +5,8 @@ from pathlib import Path
 import secrets
 from urllib.parse import urlsplit
 
+from configuration import VAULT_SITE
+
 
 def environment(container):
     return dict(item.split('=', 1) for item in container.get('Config', {}).get('Env', []) if '=' in item)
@@ -16,7 +18,9 @@ def vault_configuration(document, container, config_root, mounted_data):
     if service not in document.get('services', {}):
         raise ValueError('Vaultwarden is not part of the expected Compose project.')
     env = environment(container)
-    public_url = env.get('DOMAIN', '').rstrip('/')
+    # Vaultwarden's public address is its own HTTPS port; a different DOMAIN is applied by recreating it.
+    public_url = VAULT_SITE
+    domain_changed = env.get('DOMAIN', '').rstrip('/') != public_url
     parsed = urlsplit(public_url)
     if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path:
         raise ValueError('Vaultwarden needs its existing HTTPS origin configured before enrollment is enabled.')
@@ -52,6 +56,12 @@ def vault_configuration(document, container, config_root, mounted_data):
         raise ValueError('The existing private vault token is not supported by an environment file.')
     result = copy.deepcopy(document)
     target = result['services'][service]
+    configured = target.setdefault('environment', {})
+    if isinstance(configured, list):
+        configured = [value for value in configured if not value.startswith('DOMAIN=')] + ['DOMAIN=' + public_url]
+        target['environment'] = configured
+    else:
+        configured['DOMAIN'] = public_url
     if not existing:
         changes[env_path] = 'ADMIN_TOKEN=' + raw + '\n'
         files = target.get('env_file', [])
@@ -65,7 +75,8 @@ def vault_configuration(document, container, config_root, mounted_data):
             target['environment'] = [value for value in configured if not value.startswith('ADMIN_TOKEN=')]
     return {'document': result, 'files': changes, 'service': service,
             'host': parsed.hostname, 'public_url': public_url, 'container': container,
-            'needs_restart': not bool(existing) or data_path in changes, 'protect_admin': protect}
+            'needs_restart': not bool(existing) or data_path in changes or domain_changed,
+            'protect_admin': protect}
 
 
 def maintenance_units(runtime_path):
