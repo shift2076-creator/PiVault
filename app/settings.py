@@ -6,8 +6,8 @@ DATA_DIR = Path(os.environ.get('PIVAULT_DATA', BASE_DIR / 'data'))
 DATA_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
 SECRET_KEY = os.environ['PIVAULT_SECRET_KEY']
 DEBUG = False
-# The one public address of the portal (Caddy site https://192.168.4.90:8443).
-PUBLIC_ORIGIN = 'https://192.168.4.90:8443'
+# The one public address of the portal (Caddy site https://192.168.4.90).
+PUBLIC_ORIGIN = 'https://192.168.4.90'
 ALLOWED_HOSTS = ['192.168.4.90', 'localhost', '127.0.0.1']
 ROOT_URLCONF = 'urls'
 INSTALLED_APPS = [

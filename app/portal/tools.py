@@ -1,14 +1,14 @@
 """PiVault's HTTPS tools, as listed on the Settings page.
 
 Every address is served by the same Caddy with the same local certificate authority, so one trusted root covers
-all of them. Each port must be a Caddy site in installer/configuration.py (APP_SITES), or the launcher (8443) or
-the vault (443). installer/test_install.py checks that.
+all of them. Each port must be a Caddy site in installer/configuration.py (APP_SITES), or the launcher (443), the
+vault (8448) or the old launcher redirect (8443). installer/test_install.py checks that.
 """
 
 TOOLS = (
-    ('Home launcher', 8443, '/'),
-    ('Password Manager', 443, '/'),
-    ('Music', 8443, '/music/'),
+    ('Home launcher', 443, '/'),
+    ('Password Manager', 8448, '/'),
+    ('Music', 443, '/music/'),
     ('Books', 8083, '/'),
     ('Offline Wiki', 8084, '/'),
     ('Documents', 8085, '/'),

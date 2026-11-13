@@ -157,7 +157,7 @@ class AdminPageTests(DeviceTestCase):
         script = response.content.decode()
         self.assertNotIn('__PIVAULT_TOKEN__', script)
         self.assertNotIn('__PIVAULT_BASE__', script)
-        self.assertIn("BASE = 'https://192.168.4.90:8443'", script)
+        self.assertIn("BASE = 'https://192.168.4.90'", script)
         token = re.search(r"TOKEN = '([^']+)'", script).group(1)
         self.assertEqual(signing.loads(token, salt=device_views.TOKEN_SALT, max_age=device_views.TOKEN_SECONDS)['uid'], self.admin.pk)
 
@@ -260,15 +260,17 @@ class SettingsTrustTests(DeviceTestCase):
             response = self.client.get('/system', secure=True)
         self.assertContains(response, colon_hex(der))
         self.assertContains(response, 'Any other browser or device')
-        # Port 443 is the browser default, so the Password Manager address has no port.
+        # Port 443 is the browser default, so the launcher address has no port.
         self.assertContains(response, 'href="https://testserver/"')
-        self.assertContains(response, 'href="https://testserver:8443/music/"')
+        self.assertContains(response, 'href="https://testserver:8448/"')
+        self.assertContains(response, 'href="https://testserver/music/"')
         self.assertContains(response, 'href="https://testserver:5232/"')
 
     def test_tool_addresses_follow_the_host_the_admin_used(self):
         self.client.force_login(self.admin)
-        response = self.client.get('/system', secure=True, HTTP_HOST='192.168.4.90:8443')
-        self.assertContains(response, 'href="https://192.168.4.90:8443/music/"')
+        response = self.client.get('/system', secure=True, HTTP_HOST='192.168.4.90')
+        self.assertContains(response, 'href="https://192.168.4.90/music/"')
+        self.assertContains(response, 'href="https://192.168.4.90:8448/"')
         self.assertContains(response, 'href="https://192.168.4.90/"')
 
 
