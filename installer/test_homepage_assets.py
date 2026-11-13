@@ -62,6 +62,13 @@ class LauncherAssetTests(unittest.TestCase):
         for selector in ('#pv-toolbar', '#pv-settings'):
             self.assertIn(selector, CSS, selector)
 
+    def test_toolbar_gap_matches_the_bell_group_gap(self):
+        # The bell group spaces its own buttons 8px. The toolbar must use the same gap, or the bell and gear sit apart.
+        toolbar = re.search(r'#pv-toolbar \{[^}]*?gap: (\d+)px', CSS)
+        self.assertIsNotNone(toolbar)
+        self.assertEqual(toolbar.group(1), '8')
+        self.assertIn('#pv-admin-notifications{position:relative;order:1;display:flex;align-items:center;gap:8px', JS)
+
     def test_home_page_is_one_flat_list_without_headings_or_rules(self):
         self.assertIn('.services-group > button {\n  display: none !important;', CSS)
         self.assertNotIn('#pivault-documents) { grid-area: knowledge', CSS)

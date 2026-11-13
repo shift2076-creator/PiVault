@@ -444,7 +444,7 @@ body:has(#pivault-books) #pv-toolbar {
   z-index: 1000;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 8px;
   font-size: 14px;
 }
 
