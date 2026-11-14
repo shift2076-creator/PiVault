@@ -157,6 +157,20 @@ class ClientRegistryTests(SimpleTestCase):
             with self.assertRaisesMessage(ValidationError, 'no upstream SHA-256 digest'):
                 discover('android')
 
+    def test_android_skips_a_newer_release_that_ships_only_the_fdroid_apk(self):
+        fdroid_only = {'draft': False, 'prerelease': False, 'tag_name': 'v2026.11.0-bwpm',
+            'html_url': 'https://github.com/bitwarden/android/releases/tag/v2026.11.0-bwpm',
+            'assets': [{'name': 'com.x8bit.bitwarden-fdroid.apk', 'size': 1024, 'digest': 'sha256:' + 'c' * 64,
+                        'browser_download_url': 'https://github.com/bitwarden/android/releases/download/v2026.11.0-bwpm/com.x8bit.bitwarden-fdroid.apk'}]}
+        standard = {'draft': False, 'prerelease': False, 'tag_name': 'v2026.10.1-bwpm',
+            'html_url': 'https://github.com/bitwarden/android/releases/tag/v2026.10.1-bwpm',
+            'assets': [{'name': 'com.x8bit.bitwarden.apk', 'size': 1024, 'digest': 'sha256:' + 'b' * 64,
+                        'browser_download_url': 'https://github.com/bitwarden/android/releases/download/v2026.10.1-bwpm/com.x8bit.bitwarden.apk'}]}
+        with patch('portal.client_packages.read_json', return_value=[fdroid_only, standard]):
+            data = discover('android')
+        self.assertEqual(data['version'], '2026.10.1')
+        self.assertEqual(data['url'], standard['assets'][0]['browser_download_url'])
+
     def test_android_accepts_only_the_bitwarden_apk_path(self):
         self.assertEqual(validate_release('android', android_metadata())['version'], '2026.10.0')
         for url in ('https://github.com/evil/app/releases/download/v1/com.x8bit.bitwarden.apk',

@@ -125,17 +125,24 @@ def _discover_firefox():
 
 def _discover_github(repo, tag_suffix, asset):
     releases = read_json('https://api.github.com/repos/%s/releases?per_page=20' % repo)
-    release = next(r for r in releases if not r.get('draft') and not r.get('prerelease') and r['tag_name'].endswith(tag_suffix))
-    matches = [a for a in release['assets'] if asset.fullmatch(a['name'])]
-    if len(matches) != 1:
-        raise ValidationError('The Android release must have exactly one matching APK.')
-    found = matches[0]
-    digest = found.get('digest', '')
-    if not digest.startswith('sha256:'):
-        raise ValidationError('The Android release has no upstream SHA-256 digest.')
-    return {'version': release['tag_name'].removeprefix('v').removesuffix(tag_suffix),
-        'sha256': digest[7:], 'size': found['size'], 'url': found['browser_download_url'],
-        'release_url': release['html_url']}
+    # Newest stable release that ships the APK. A newer release without it (Bitwarden's 2026.11.0
+    # ships only the F-Droid build) is skipped; the Play build stays on the newest release that has it.
+    for release in releases:
+        if release.get('draft') or release.get('prerelease') or not release['tag_name'].endswith(tag_suffix):
+            continue
+        matches = [a for a in release['assets'] if asset.fullmatch(a['name'])]
+        if not matches:
+            continue
+        if len(matches) != 1:
+            raise ValidationError('The Android release must have exactly one matching APK.')
+        found = matches[0]
+        digest = found.get('digest', '')
+        if not digest.startswith('sha256:'):
+            raise ValidationError('The Android release has no upstream SHA-256 digest.')
+        return {'version': release['tag_name'].removeprefix('v').removesuffix(tag_suffix),
+            'sha256': digest[7:], 'size': found['size'], 'url': found['browser_download_url'],
+            'release_url': release['html_url']}
+    raise ValidationError('No recent stable release has the Android APK.')
 
 
 FDROID_INDEX_URL = 'https://f-droid.org/repo/index-v2.json'
