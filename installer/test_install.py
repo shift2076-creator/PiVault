@@ -179,10 +179,11 @@ class ConfigurationTests(unittest.TestCase):
         self.assertIn(config.MUSIC_PRIVATE_FOLDER + ':/music-private', wired['volumes'])
         self.assertTrue(wired['read_only'])
 
-    def test_users_service_memory_limit_is_512m(self):
+    def test_users_service_memory_limit_is_1g(self):
+        # The client check parses the F-Droid index (up to 128 MB) in memory; 512m was OOM-killed.
         output = config.compose_configuration({'services': {}}, image='pivault-users:test', uid=1000,
                                               gid=1000, network_names=[])
-        self.assertEqual(output['services']['pivault-users']['mem_limit'], '512m')
+        self.assertEqual(output['services']['pivault-users']['mem_limit'], '1g')
 
     def test_unmanaged_name_collision_is_rejected(self):
         with self.assertRaises(ValueError):
