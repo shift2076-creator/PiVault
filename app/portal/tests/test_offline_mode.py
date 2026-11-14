@@ -80,6 +80,17 @@ class OfflineModeTests(TestCase):
         self.assertIn('Another client maintenance run is in progress', output.getvalue())
         self.assertFalse(Notification.objects.filter(title='Nightly client downloads needs review').exists())
 
+    def test_the_client_run_prints_progress_for_each_step(self):
+        import tempfile
+        from django.test import override_settings
+        from django.core.exceptions import ValidationError
+        with tempfile.TemporaryDirectory() as root, override_settings(PIVAULT_CLIENT_ROOT=root), \
+             patch('portal.client_packages.discover', side_effect=ValidationError('check failed')):
+            output = StringIO()
+            call_command('maintain_clients', stdout=output)
+        self.assertIn('Checking Android app', output.getvalue())
+        self.assertIn('check failed', output.getvalue())
+
     def test_command_reports_and_sets_state_for_the_nightly_job(self):
         def run(*args):
             output = StringIO()

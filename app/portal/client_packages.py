@@ -249,7 +249,11 @@ def verify_package(path, release):
         ARCHIVE_CHECKS[release.client](archive, release)
 
 
-def fetch(release):
+def _quiet(message):
+    pass
+
+
+def fetch(release, progress=_quiet):
     # Download and verify a discovered release into the local cache. Installing it stays a separate, Admin-approved step.
     destination = release_path(release)
     if destination.is_file() and not destination.is_symlink():
@@ -265,10 +269,16 @@ def fetch(release):
         raise ValidationError('Insufficient space for a verified client download.')
     fd, temporary = tempfile.mkstemp(prefix='.client-', dir=cache_root())
     try:
+        progress('Downloading ' + CLIENTS[release.client][0] + ' ' + release.version + ': '
+                 + str(release.size // (1024 * 1024)) + ' MB')
         with os.fdopen(fd, 'wb') as output, http_open(release.url) as response:
             written = 0
+            reported = 0
             while chunk := response.read(1024 * 1024):
                 written += len(chunk)
+                if written - reported >= 8 * 1024 * 1024:
+                    reported = written
+                    progress('  ' + str(written // (1024 * 1024)) + ' of ' + str(release.size // (1024 * 1024)) + ' MB')
                 if written > release.size:
                     raise ValidationError('Client download exceeded the approved size.')
                 output.write(chunk)
@@ -290,12 +300,12 @@ def prune_cache():
             path.unlink(missing_ok=True)
 
 
-def apply_release(release):
+def apply_release(release, progress=_quiet):
     # Never called by a web view: only the scheduled management command uses it.
     package = ClientPackage.objects.filter(client=release.client).select_related('current').first()
     if package and package.current and Version(package.current.version) > Version(release.version):
         return False
-    fetch(release)
+    fetch(release, progress)
     with transaction.atomic():
         package, _ = ClientPackage.objects.get_or_create(client=release.client)
         package.previous = package.current; package.current = release
@@ -308,7 +318,7 @@ class ClientRunBusy(Exception):
     """Raised when another client maintenance run already holds the lock."""
 
 
-def maintain(check_only=False):
+def maintain(check_only=False, progress=_quiet):
     if SiteSettings.is_offline():
         # Every step needs the internet; offline mode pauses them without raising notices.
         return []
@@ -326,16 +336,19 @@ def maintain(check_only=False):
                    .filter(latest__isnull=False) if p.latest != p.current]
         for release in pending:
             try:
-                apply_release(release)
+                apply_release(release, progress)
             except Exception:
                 errors.append(release.client)
                 notify('clients', 'apply-' + release.id, CLIENTS[release.client][0] + ' update failed',
                     'The approved download could not be verified or published. The previous local copy is retained; maintenance will retry.',
                     level='error')
         for client in CLIENTS:
+            progress('Checking ' + CLIENTS[client][0])
             try:
                 record_release(client, discover(client))
+                progress('  checked')
             except Exception:
+                progress('  check failed')
                 errors.append(client)
                 package, _ = ClientPackage.objects.get_or_create(client=client)
                 package.last_error = 'The official release could not be checked. The previous copy is retained.'
@@ -346,7 +359,7 @@ def maintain(check_only=False):
             # Downloads are automatic and verified; only installing a release waits for Admin approval.
             for package in ClientPackage.objects.select_related('latest').filter(latest__isnull=False):
                 try:
-                    fetch(package.latest)
+                    fetch(package.latest, progress)
                 except Exception:
                     errors.append(package.client)
                     notify('clients', 'fetch-' + package.client + '-' + timezone.now().date().isoformat(),

@@ -17,7 +17,7 @@ class Command(BaseCommand):
         # A client that fails its own check gets its own notice from maintain(); the run still finishes,
         # so one client's problem does not mark the whole nightly job as failed.
         try:
-            errors = maintain(check_only=options['check_only'])
+            errors = maintain(check_only=options['check_only'], progress=self.stdout.write)
         except ClientRunBusy:
             self.stdout.write('Another client maintenance run is in progress; this run is skipped.')
             return
