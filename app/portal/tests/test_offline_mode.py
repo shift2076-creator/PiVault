@@ -55,6 +55,18 @@ class OfflineModeTests(TestCase):
         self.assertIn('Offline mode is on', output.getvalue())
         self.assertFalse(Notification.objects.exists())
 
+    def test_a_failing_client_check_does_not_fail_the_nightly_run(self):
+        import tempfile
+        from django.test import override_settings
+        from django.core.exceptions import ValidationError
+        with tempfile.TemporaryDirectory() as root, override_settings(PIVAULT_CLIENT_ROOT=root), \
+             patch('portal.client_packages.discover', side_effect=ValidationError('check failed')):
+            output = StringIO()
+            call_command('maintain_clients', stdout=output)
+        self.assertIn('Client checks needing review', output.getvalue())
+        self.assertTrue(Notification.objects.filter(source='clients', title__endswith='release check failed').exists())
+        self.assertFalse(Notification.objects.filter(title='Nightly client downloads needs review').exists())
+
     def test_command_reports_and_sets_state_for_the_nightly_job(self):
         def run(*args):
             output = StringIO()
