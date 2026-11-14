@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from portal.client_packages import maintain
+from portal.client_packages import ClientRunBusy, maintain
 from django.utils import timezone
 from portal.models import Notification, SiteSettings
 
@@ -16,7 +16,11 @@ class Command(BaseCommand):
             return
         # A client that fails its own check gets its own notice from maintain(); the run still finishes,
         # so one client's problem does not mark the whole nightly job as failed.
-        errors = maintain(check_only=options['check_only'])
+        try:
+            errors = maintain(check_only=options['check_only'])
+        except ClientRunBusy:
+            self.stdout.write('Another client maintenance run is in progress; this run is skipped.')
+            return
         Notification.objects.filter(source='maintenance', title='Nightly client downloads needs review',
             status='open').update(status='resolved', resolution='resolve', resolved_at=timezone.now())
         if errors:

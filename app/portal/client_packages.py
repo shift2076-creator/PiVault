@@ -304,6 +304,10 @@ def apply_release(release):
     return True
 
 
+class ClientRunBusy(Exception):
+    """Raised when another client maintenance run already holds the lock."""
+
+
 def maintain(check_only=False):
     if SiteSettings.is_offline():
         # Every step needs the internet; offline mode pauses them without raising notices.
@@ -311,7 +315,11 @@ def maintain(check_only=False):
     cache_root().mkdir(mode=0o750, parents=True, exist_ok=True)
     _INDEX_CACHE.clear()
     with (cache_root() / '.maintenance.lock').open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            # Another run (the nightly job or an install check) is already doing this work.
+            raise ClientRunBusy() from None
         errors = []
         # Downloads are automatic: each package's newest verified release is published without approval.
         pending = [] if check_only else [p.latest for p in ClientPackage.objects.select_related('latest', 'current')

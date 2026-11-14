@@ -67,6 +67,19 @@ class OfflineModeTests(TestCase):
         self.assertTrue(Notification.objects.filter(source='clients', title__endswith='release check failed').exists())
         self.assertFalse(Notification.objects.filter(title='Nightly client downloads needs review').exists())
 
+    def test_a_run_that_finds_another_client_run_in_progress_exits_cleanly(self):
+        import fcntl
+        import tempfile
+        from pathlib import Path
+        from django.test import override_settings
+        with tempfile.TemporaryDirectory() as root, override_settings(PIVAULT_CLIENT_ROOT=root):
+            with (Path(root) / '.maintenance.lock').open('a') as held:
+                fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                output = StringIO()
+                call_command('maintain_clients', stdout=output)
+        self.assertIn('Another client maintenance run is in progress', output.getvalue())
+        self.assertFalse(Notification.objects.filter(title='Nightly client downloads needs review').exists())
+
     def test_command_reports_and_sets_state_for_the_nightly_job(self):
         def run(*args):
             output = StringIO()
