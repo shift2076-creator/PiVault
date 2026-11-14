@@ -50,7 +50,7 @@ def main(run=subprocess.run, publish=publish_failure, config_path=CONFIG, offlin
         # Every nightly job needs the internet; offline mode pauses them silently.
         print('Offline mode is on: nightly internet jobs are paused.')
         return 0
-    jobs = [('client downloads', ['docker', 'exec', 'pivault-users', 'python', 'manage.py', 'maintain_clients'], 1800)]
+    jobs = [('client downloads', ['docker', 'exec', 'pivault-users', 'python', 'manage.py', 'maintain_clients'], 3600)]
     if config.get('cinema_enabled'):
         jobs.append(('cinema', ['systemctl', 'start', '--wait', 'pivault-cinema.service'], None))
     failed = False
