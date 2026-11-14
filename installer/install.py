@@ -598,7 +598,7 @@ def install_portal():
                 say('Configuration/database backup: ' + str(backup))
             raise
         say('Installed: per-user vault enrollment, encrypted login saving, client download links and approval notifications.')
-        say('Consolidated maintenance: 2:00 AM America/New_York. New client releases require Admin approval.')
+        say('Consolidated maintenance: 2:00 AM America/New_York. Client downloads are automatic; installing on devices stays manual.')
         say('Existing video scheduling is ' + ('included in this maintenance run.' if cinema_enabled else 'still disabled, as it was before this installation.'))
         say('Other service-wide SSO and unfinished native adapters are not enabled by this update.')
         say('HTTPS uses the existing Caddy certificates; launcher CSS is unchanged.')
